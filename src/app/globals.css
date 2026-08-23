@@ -778,3 +778,154 @@ a:focus-visible,
 .threshold-alert-border {
   animation: thresholdPulseBorder 1.8s ease-in-out infinite;
 }
+
+/* ============================================
+   ROUND 9 - VISUAL CONSISTENCY & POLISH
+   ============================================ */
+
+/* KPI subtext - improved contrast for secondary/description text in cards */
+.kpi-subtext {
+  color: oklch(0.7 0.01 155) !important;
+  line-height: 1.4;
+}
+.dark .kpi-subtext {
+  color: oklch(0.72 0.008 155) !important;
+}
+
+/* KPI description - for longer descriptions under KPI values */
+.kpi-description {
+  color: oklch(0.55 0.008 155);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.dark .kpi-description {
+  color: oklch(0.65 0.008 155);
+}
+
+/* Card section divider - subtle horizontal rule within cards */
+.card-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, oklch(0.3 0.01 155 / 40%), transparent);
+  margin: 12px 0;
+}
+
+/* OEE gauge ring glow effect */
+.oee-gauge-glow {
+  filter: drop-shadow(0 0 8px oklch(0.65 0.17 155 / 30%));
+}
+.oee-gauge-glow-warning {
+  filter: drop-shadow(0 0 8px oklch(0.8 0.18 65 / 30%));
+}
+.oee-gauge-glow-danger {
+  filter: drop-shadow(0 0 8px oklch(0.65 0.22 25 / 30%));
+}
+
+/* Loss category bar styles for OEE loss analysis */
+.loss-bar-availability {
+  background: linear-gradient(90deg, oklch(0.6 0.12 200), oklch(0.65 0.14 200));
+}
+.loss-bar-performance {
+  background: linear-gradient(90deg, oklch(0.8 0.18 65), oklch(0.85 0.16 65));
+}
+.loss-bar-quality {
+  background: linear-gradient(90deg, oklch(0.65 0.22 25), oklch(0.7 0.2 25));
+}
+
+/* Icon container - unified background style for report/metric icons */
+.icon-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.icon-container-emerald {
+  background: oklch(0.65 0.17 155 / 12%);
+  color: oklch(0.7 0.17 155);
+}
+.icon-container-amber {
+  background: oklch(0.8 0.18 65 / 12%);
+  color: oklch(0.85 0.16 65);
+}
+.icon-container-cyan {
+  background: oklch(0.6 0.12 200 / 12%);
+  color: oklch(0.65 0.14 200);
+}
+.icon-container-red {
+  background: oklch(0.65 0.22 25 / 12%);
+  color: oklch(0.7 0.2 25);
+}
+.icon-container-violet {
+  background: oklch(0.6 0.15 300 / 12%);
+  color: oklch(0.65 0.15 300);
+}
+
+/* Chart legend - custom styled for Recharts */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 8px 0;
+  justify-content: center;
+}
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: oklch(0.7 0.01 155);
+}
+.dark .chart-legend-item {
+  color: oklch(0.72 0.008 155);
+}
+.chart-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Improved table action column with tooltips */
+.table-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.table-actions .ghost-action-btn {
+  width: 28px;
+  height: 28px;
+}
+.table-actions .ghost-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Animated gradient border for highlighted cards */
+@keyframes gradientBorder {
+  0%, 100% { border-color: oklch(0.65 0.17 155 / 30%); }
+  50% { border-color: oklch(0.65 0.17 155 / 60%); }
+}
+.animate-gradient-border {
+  animation: gradientBorder 3s ease-in-out infinite;
+}
+
+/* Machine status dot with label */
+.machine-status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+.machine-status-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.machine-status-dot-running::before { background: oklch(0.65 0.17 155); }
+.machine-status-dot-idle::before { background: oklch(0.8 0.18 65); }
+.machine-status-dot-error::before { background: oklch(0.65 0.22 25); }
+.machine-status-dot-maintenance::before { background: oklch(0.6 0.12 200); }

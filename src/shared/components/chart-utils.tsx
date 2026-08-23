@@ -24,7 +24,7 @@ export const AXIS_LINE = { stroke: 'rgba(255,255,255,0.06)' }
 export const GRID_STROKE = 'rgba(255,255,255,0.05)'
 
 /** Consistent legend style */
-export const LEGEND_STYLE = { fontSize: 11, color: 'rgba(255,255,255,0.5)' }
+export const LEGEND_STYLE = { fontSize: 11, color: 'rgba(255,255,255,0.65)' }
 
 /** Shared dark tooltip for recharts */
 export function ChartTooltip({
@@ -43,9 +43,9 @@ export function ChartTooltip({
     <div className="rounded-xl border border-border/60 bg-card/95 backdrop-blur-xl px-3.5 py-2.5 text-xs shadow-2xl chart-tooltip">
       <p className="mb-1.5 font-semibold text-foreground/90">{label}</p>
       {payload.map((p, i) => (
-        <p key={i} className="text-muted-foreground flex items-center gap-2">
-          <span className="inline-block size-2 rounded-full" style={{ backgroundColor: p.color }} />
-          <span className="flex-1">{p.name}</span>
+        <p key={i} className="text-muted-foreground/80 flex items-center gap-2">
+          <span className="inline-block size-2.5 rounded-sm" style={{ backgroundColor: p.color }} />
+          <span className="flex-1 kpi-subtext">{p.name}</span>
           <span className="font-bold text-foreground metric-value">{p.value}{valueSuffix}</span>
         </p>
       ))}

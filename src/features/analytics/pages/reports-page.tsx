@@ -436,12 +436,12 @@ export function ReportsPage() {
                     )}
                   </div>
                   <CardTitle className="text-sm font-semibold mt-2">{report.name}</CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground/60 leading-relaxed">
+                  <CardDescription className="text-xs kpi-subtext leading-relaxed">
                     {report.description}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
+                  <div className="flex items-center gap-1.5 text-[11px] kpi-subtext">
                     <Clock className="size-3" />
                     <span>Last generated: {report.lastGenerated}</span>
                   </div>
@@ -622,8 +622,8 @@ export function ReportsPage() {
                     >
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/50">
-                            <FileText className="size-3.5 text-muted-foreground/50" />
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${report.typeColor}15` }}>
+                            <FileText className="size-3.5" style={{ color: report.typeColor }} />
                           </div>
                           <span className="text-sm font-medium">{report.name}</span>
                         </div>
@@ -648,10 +648,10 @@ export function ReportsPage() {
                       <TableCell className="py-3 text-xs text-muted-foreground/70 hidden md:table-cell">
                         {report.dateRange}
                       </TableCell>
-                      <TableCell className="py-3 text-xs text-muted-foreground/50 metric-value hidden lg:table-cell">
+                      <TableCell className="py-3 text-xs kpi-subtext metric-value hidden lg:table-cell">
                         {report.generatedAt}
                       </TableCell>
-                      <TableCell className="py-3 text-xs text-muted-foreground/60 hidden sm:table-cell">
+                      <TableCell className="py-3 text-xs kpi-subtext hidden sm:table-cell">
                         {report.size}
                       </TableCell>
                       <TableCell className="py-3 text-right">

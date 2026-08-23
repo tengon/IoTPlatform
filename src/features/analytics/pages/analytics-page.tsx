@@ -179,10 +179,10 @@ function KPICard({
               <span
                 className={
                   trend === 'up'
-                    ? 'text-emerald-400/80'
+                    ? 'text-emerald-400'
                     : trend === 'down'
-                      ? 'text-red-400/80'
-                      : 'text-muted-foreground/60'
+                      ? 'text-red-400'
+                      : 'text-muted-foreground/80'
                 }
               >
                 {trendValue}
@@ -381,7 +381,7 @@ export function AnalyticsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={comparisonData} barGap={2} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
-                  <XAxis dataKey="name" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
+                  <XAxis dataKey="name" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} angle={-20} textAnchor="end" height={50} />
                   <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[0, 100]} width={35} />
                   <Tooltip content={<ChartTooltip valueSuffix="%" />} />
                   <Legend wrapperStyle={LEGEND_STYLE} />

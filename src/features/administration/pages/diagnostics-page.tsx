@@ -558,8 +558,8 @@ export function DiagnosticsPage() {
           value={`${kpis.activeConnections}`}
           unit="clients"
           trend={kpis.activeConnections > 26 ? 'up' : 'stable'}
-          trendValue={isConnected ? 'WebSocket OK' : 'Disconnected'}
-          color={C_ORANGE}
+          trendValue={isConnected ? 'WebSocket OK' : 'No WS Client'}
+          color={isConnected ? C_GREEN : C_ORANGE}
           index={3}
         />
       </div>

@@ -10,6 +10,8 @@ import {
   TrendingUp,
   Layers,
   Crosshair,
+  Clock,
+  ShieldCheck,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -57,7 +59,25 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+// ─── Color helper for A×P×Q sub-metrics ───────────────────────────────────────
+function subMetricColor(value: number): { color: string; label: string; bgClass: string; indicatorClass: string } {
+  if (value >= 90) return { color: '#22c55e', label: 'Good', bgClass: 'bg-emerald-500/10', indicatorClass: '[&>div]:bg-emerald-500' }
+  if (value >= 80) return { color: '#f59e0b', label: 'Warning', bgClass: 'bg-amber-500/10', indicatorClass: '[&>div]:bg-amber-500' }
+  return { color: '#ef4444', label: 'Critical', bgClass: 'bg-red-500/10', indicatorClass: '[&>div]:bg-red-500' }
+}
+
+// ─── Loss analysis fallback machines (MCH-001 through MCH-006) ──────────────
+const FALLBACK_LOSS_MACHINES = [
+  { name: 'MCH-001', oee: 87.3, availability: 93.0, performance: 97.0, quality: 96.8 },
+  { name: 'MCH-002', oee: 82.1, availability: 88.5, performance: 93.8, quality: 98.7 },
+  { name: 'MCH-003', oee: 79.5, availability: 90.2, performance: 88.5, quality: 99.5 },
+  { name: 'MCH-004', oee: 91.2, availability: 95.1, performance: 97.2, quality: 98.9 },
+  { name: 'MCH-005', oee: 85.7, availability: 92.8, performance: 94.5, quality: 97.5 },
+  { name: 'MCH-006', oee: 88.9, availability: 97.2, performance: 96.5, quality: 94.2 },
+]
 
 // ─── Default mock machines ─────────────────────────────────────────────────
 const DEFAULT_MACHINES = [
@@ -373,6 +393,40 @@ export function OEEPage() {
     [machineData]
   )
 
+  // ── Loss analysis table data (6 machines) ─────────────────────────────────
+  const lossTableData = useMemo(() => {
+    if (machines.length > 0) {
+      return machines.slice(0, 6).map((m) => {
+        const aLoss = Math.round((100 - m.availability) * 10) / 10
+        const pLoss = Math.round((100 - m.performance) * 10) / 10
+        const qLoss = Math.round((100 - m.quality) * 10) / 10
+        let biggestLoss = 'Availability'
+        if (pLoss >= aLoss && pLoss >= qLoss) biggestLoss = 'Performance'
+        else if (qLoss >= aLoss && qLoss >= pLoss) biggestLoss = 'Quality'
+        return { ...m, aLoss, pLoss, qLoss, biggestLoss }
+      })
+    }
+    return FALLBACK_LOSS_MACHINES.map((m) => {
+      const aLoss = Math.round((100 - m.availability) * 10) / 10
+      const pLoss = Math.round((100 - m.performance) * 10) / 10
+      const qLoss = Math.round((100 - m.quality) * 10) / 10
+      let biggestLoss = 'Availability'
+      if (pLoss >= aLoss && pLoss >= qLoss) biggestLoss = 'Performance'
+      else if (qLoss >= aLoss && qLoss >= pLoss) biggestLoss = 'Quality'
+      return { ...m, aLoss, pLoss, qLoss, biggestLoss }
+    })
+  }, [machines])
+
+  // ── Overall loss proportions for stacked bar ──────────────────────────────
+  const overallLoss = useMemo(() => {
+    const n = lossTableData.length
+    const aLoss = lossTableData.reduce((s, m) => s + m.aLoss, 0) / n
+    const pLoss = lossTableData.reduce((s, m) => s + m.pLoss, 0) / n
+    const qLoss = lossTableData.reduce((s, m) => s + m.qLoss, 0) / n
+    const total = aLoss + pLoss + qLoss
+    return { aLoss, pLoss, qLoss, total, aPct: (aLoss / total) * 100, pPct: (pLoss / total) * 100, qPct: (qLoss / total) * 100 }
+  }, [lossTableData])
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -471,6 +525,164 @@ export function OEEPage() {
             color={C_YELLOW}
           />
         </div>
+      </div>
+
+      {/* A×P×Q Sub-Metrics Panel */}
+      <div className="animate-slide-up stagger-3">
+        <p className="text-xs text-muted-foreground mb-3">Sub-Metric Health</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: 'Availability (A)', value: overallA, Icon: Clock, loss: Math.round((100 - overallA) * 10) / 10 },
+            { label: 'Performance (P)', value: overallP, Icon: Gauge, loss: Math.round((100 - overallP) * 10) / 10 },
+            { label: 'Quality (Q)', value: overallQ, Icon: ShieldCheck, loss: Math.round((100 - overallQ) * 10) / 10 },
+          ].map(({ label, value, Icon, loss }) => {
+            const sm = subMetricColor(value)
+            return (
+              <Card key={label} className="glass-card kpi-card-hover">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${sm.bgClass}`}>
+                        <Icon className="h-4 w-4" style={{ color: sm.color }} />
+                      </div>
+                      <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">{label}</span>
+                    </div>
+                    <Badge className={`text-[10px] border-0 ${
+                      value >= 90 ? 'bg-emerald-500/15 text-emerald-400'
+                        : value >= 80 ? 'bg-amber-500/15 text-amber-400'
+                        : 'bg-red-500/15 text-red-400'
+                    }`}>
+                      {sm.label}
+                    </Badge>
+                  </div>
+                  <p className="text-2xl font-extrabold metric-value" style={{ color: sm.color }}>
+                    {value.toFixed(1)}%
+                  </p>
+                  <div className="mt-3">
+                    <Progress value={value} className={`h-2 ${sm.indicatorClass}`} />
+                  </div>
+                  <div className="card-divider" />
+                  <p className="kpi-subtext text-[11px]">
+                    OEE Loss Contribution: <span className="font-semibold text-red-400">-{loss.toFixed(1)}%</span>
+                  </p>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* OEE Loss Analysis Section */}
+      <div className="animate-slide-up stagger-4">
+        <Card className="chart-container-glass hover:border-border/60 transition-colors duration-300">
+          <CardHeader className="pb-2 pt-5 px-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Layers className="size-4 text-red-400" />
+                  OEE Loss Analysis
+                </CardTitle>
+                <CardDescription className="mt-0.5 text-xs">
+                  Proportional loss breakdown across {lossTableData.length} machines
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-5">
+            {/* Horizontal stacked loss bar */}
+            <div>
+              <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider mb-2">Overall Loss Distribution</p>
+              <div className="h-7 w-full rounded-md overflow-hidden flex">
+                <div
+                  className="loss-bar-availability flex items-center justify-center"
+                  style={{ width: `${overallLoss.aPct}%` }}
+                  title={`Availability Loss: ${overallLoss.aLoss.toFixed(1)}%`}
+                >
+                  {overallLoss.aPct > 12 && (
+                    <span className="text-[10px] font-semibold text-white drop-shadow">{overallLoss.aLoss.toFixed(1)}%</span>
+                  )}
+                </div>
+                <div
+                  className="loss-bar-performance flex items-center justify-center"
+                  style={{ width: `${overallLoss.pPct}%` }}
+                  title={`Performance Loss: ${overallLoss.pLoss.toFixed(1)}%`}
+                >
+                  {overallLoss.pPct > 12 && (
+                    <span className="text-[10px] font-semibold text-white drop-shadow">{overallLoss.pLoss.toFixed(1)}%</span>
+                  )}
+                </div>
+                <div
+                  className="loss-bar-quality flex items-center justify-center"
+                  style={{ width: `${overallLoss.qPct}%` }}
+                  title={`Quality Loss: ${overallLoss.qLoss.toFixed(1)}%`}
+                >
+                  {overallLoss.qPct > 12 && (
+                    <span className="text-[10px] font-semibold text-white drop-shadow">{overallLoss.qLoss.toFixed(1)}%</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-between mt-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-sm loss-bar-availability" />
+                  <span className="text-[10px] text-muted-foreground">Avail. {overallLoss.aLoss.toFixed(1)}%</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-sm loss-bar-performance" />
+                  <span className="text-[10px] text-muted-foreground">Perf. {overallLoss.pLoss.toFixed(1)}%</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-sm loss-bar-quality" />
+                  <span className="text-[10px] text-muted-foreground">Quality {overallLoss.qLoss.toFixed(1)}%</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono">Total: {overallLoss.total.toFixed(1)}%</span>
+              </div>
+            </div>
+
+            <div className="card-divider" />
+
+            {/* Machine loss table */}
+            <div>
+              <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider mb-2">Per-Machine Loss Breakdown</p>
+              <div className="rounded-md border border-border/30 overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border/30 hover:bg-transparent">
+                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Machine</TableHead>
+                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Avail. %</TableHead>
+                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Perf. %</TableHead>
+                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Quality %</TableHead>
+                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">OEE %</TableHead>
+                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60 text-center">Loss Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lossTableData.map((m, idx) => {
+                      const oeeClr = oeeColor(m.oee)
+                      const lossBadge =
+                        m.biggestLoss === 'Availability'
+                          ? 'bg-red-500/15 text-red-400'
+                          : m.biggestLoss === 'Performance'
+                            ? 'bg-amber-500/15 text-amber-400'
+                            : 'bg-orange-500/15 text-orange-400'
+                      return (
+                        <TableRow key={m.name} className={`transition-colors hover:bg-muted/20 ${idx % 2 === 1 ? 'bg-muted/[0.03]' : ''}`}>
+                          <TableCell className="text-xs font-medium">{m.name}</TableCell>
+                          <TableCell className="text-xs font-mono">{m.availability.toFixed(1)}%</TableCell>
+                          <TableCell className="text-xs font-mono">{m.performance.toFixed(1)}%</TableCell>
+                          <TableCell className="text-xs font-mono">{m.quality.toFixed(1)}%</TableCell>
+                          <TableCell className="text-xs font-bold font-mono" style={{ color: oeeClr }}>{m.oee.toFixed(1)}%</TableCell>
+                          <TableCell className="text-xs text-center">
+                            <Badge className={`text-[10px] border-0 ${lossBadge}`}>{m.biggestLoss}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Tabs for detailed views */}

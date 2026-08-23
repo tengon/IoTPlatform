@@ -19,6 +19,8 @@ import {
   Download,
   Calendar,
   RefreshCw,
+  Cpu,
+  Package,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -83,6 +85,16 @@ const STATUS_COLORS: Record<string, string> = {
 const GRID_STROKE = 'rgba(255,255,255,0.05)'
 const AXIS_TICK = { fill: 'rgba(255,255,255,0.35)', fontSize: 11 }
 const AXIS_LINE = { stroke: 'rgba(255,255,255,0.06)' }
+
+// ─── Fallback machine data (when WebSocket not connected) ────────────────────
+const FALLBACK_MACHINES: Array<{ id: string; name: string; status: 'running' | 'idle' | 'error' | 'maintenance'; oee: number }> = [
+  { id: 'fb-1', name: 'MCH-001', status: 'running', oee: 87.3 },
+  { id: 'fb-2', name: 'MCH-002', status: 'idle', oee: 82.1 },
+  { id: 'fb-3', name: 'MCH-003', status: 'running', oee: 79.5 },
+  { id: 'fb-4', name: 'MCH-004', status: 'running', oee: 91.2 },
+  { id: 'fb-5', name: 'MCH-005', status: 'idle', oee: 85.7 },
+  { id: 'fb-6', name: 'MCH-006', status: 'running', oee: 88.9 },
+]
 
 // ─── Custom dark tooltip with glass effect ───────────────────────────────────
 function DarkTooltip({
@@ -230,10 +242,10 @@ function KPICard({
               <span
                 className={
                   trend === 'up'
-                    ? 'text-emerald-400/80'
+                    ? 'kpi-subtext text-emerald-400/80'
                     : trend === 'down'
-                      ? 'text-red-400/80'
-                      : 'text-muted-foreground/70'
+                      ? 'kpi-subtext text-red-400/80'
+                      : 'kpi-subtext text-muted-foreground/70'
                 }
               >
                 {subtitle}
@@ -494,8 +506,51 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Machine Status Summary Widget ── */}
+      <div className={`animate-slide-up ${staggerClass(4)}`}>
+        <div className="glass-card kpi-card-hover rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Cpu className="size-4 text-emerald-400" />
+            <h3 className="text-sm font-semibold">Machine Status Summary</h3>
+            <Badge variant="secondary" className="text-[10px] ml-auto">
+              {machines.length > 0 ? machines.length : 6} machines
+            </Badge>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {(machines.length > 0 ? machines.slice(0, 6) : FALLBACK_MACHINES).map((m, idx) => {
+              const statusColor = m.status === 'running' ? C_GREEN : m.status === 'idle' ? C_YELLOW : m.status === 'error' ? C_RED : '#3b82f6'
+              const oeePct = typeof m.oee === 'number' ? (m.oee < 1 ? m.oee * 100 : m.oee) : 0
+              return (
+                <div
+                  key={m.id || `fallback-${idx}`}
+                  className={`animate-slide-up ${staggerClass(idx)} shrink-0 w-[150px] rounded-lg border border-border/40 p-3 transition-all duration-200 hover:bg-muted/20 hover:border-border/60 cursor-pointer`}
+                  onClick={() => {
+                    if (machines.length > 0) {
+                      setSelectedMachine(machines[idx] || machines[0])
+                      setMachineDialogOpen(true)
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className={`inline-block size-2.5 rounded-full shrink-0 ${m.status === 'running' ? 'animate-pulse-dot glow-green' : m.status === 'error' ? 'glow-red' : ''}`}
+                      style={{ backgroundColor: statusColor }}
+                    />
+                    <p className="text-xs font-medium text-foreground truncate">{m.name}</p>
+                  </div>
+                  <p className={`text-lg font-extrabold metric-value ${oeePct >= 85 ? 'text-emerald-400' : oeePct >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
+                    {oeePct.toFixed(1)}%
+                  </p>
+                  <p className="text-[10px] kpi-subtext uppercase tracking-wider">OEE</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* ── Production Trend + OEE Row ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 animate-slide-up stagger-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 animate-slide-up stagger-5">
         {/* Production Overview */}
         <ChartCard
           title="Production Overview"
@@ -504,7 +559,7 @@ export function DashboardPage() {
           iconColor="text-emerald-400"
           className="lg:col-span-3 chart-container-glass"
           actions={
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+            <div className="flex items-center gap-1 text-[10px] kpi-subtext">
               <RefreshCw className={`size-3 ${isConnected ? 'animate-spin' : ''}`} style={isConnected ? { animationDuration: '3s' } : {}} />
               <span>Auto-refreshing</span>
             </div>
@@ -549,6 +604,45 @@ export function DashboardPage() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Production Items List */}
+          {production.length > 0 && (
+            <div className="mt-4 border-t border-border/40 pt-3">
+              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest kpi-subtext">
+                Active Production Orders
+              </p>
+              <div className="flex flex-col gap-2.5">
+                {production.slice(0, 5).map((order) => {
+                  const ratio = order.target > 0 ? (order.actual / order.target) * 100 : 0
+                  const progressColor = ratio >= 90
+                    ? '[&>div]:bg-emerald-500'
+                    : ratio >= 60
+                      ? '[&>div]:bg-amber-500'
+                      : '[&>div]:bg-red-500'
+                  const textColor = ratio >= 90
+                    ? 'text-emerald-400'
+                    : ratio >= 60
+                      ? 'text-amber-400'
+                      : 'text-red-400'
+                  return (
+                    <div key={order.id} className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <Package className="size-3 shrink-0 text-emerald-400/60" />
+                          <p className="text-xs font-medium text-foreground truncate">{order.productName}</p>
+                        </div>
+                        <p className="text-[10px] kpi-subtext mt-0.5 ml-5">{order.machineName} · {order.actual}/{order.target} units</p>
+                      </div>
+                      <span className={`text-xs font-bold metric-value ${textColor} shrink-0 w-12 text-right`}>{ratio.toFixed(0)}%</span>
+                      <div className="w-20 shrink-0">
+                        <Progress value={Math.min(ratio, 100)} className={`h-1.5 ${progressColor}`} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </ChartCard>
 
         {/* OEE Bar Chart */}
@@ -566,7 +660,7 @@ export function DashboardPage() {
                 <XAxis dataKey="name" tick={{ ...AXIS_TICK, fontSize: 10 }} tickLine={false} axisLine={AXIS_LINE} />
                 <YAxis domain={[0, 100]} tick={AXIS_TICK} tickLine={false} axisLine={AXIS_LINE} />
                 <Tooltip content={<DarkTooltip valueSuffix="%" />} />
-                <Legend iconType="circle" iconSize={6} wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }} />
+                <Legend iconType="circle" iconSize={6} wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }} />
                 <Bar dataKey="OEE" fill={C_GREEN} radius={[2, 2, 0, 0]} />
                 <Bar dataKey="Availability" fill={C_CYAN} radius={[2, 2, 0, 0]} />
                 <Bar dataKey="Performance" fill={C_ORANGE} radius={[2, 2, 0, 0]} />
@@ -578,7 +672,7 @@ export function DashboardPage() {
       </div>
 
       {/* ── Alarm Summary + Machine Status Grid ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-slide-up stagger-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-slide-up stagger-6">
         {/* Alarm Summary */}
         <ChartCard
           title="Alarm Summary"
@@ -651,7 +745,7 @@ export function DashboardPage() {
 
             {/* Latest Alarms List */}
             <div className="flex-1">
-              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest kpi-subtext">
                 Latest Active Alarms
               </p>
               <ScrollArea className="h-[140px] max-h-[140px]">
@@ -880,7 +974,7 @@ export function DashboardPage() {
                   <Legend
                     iconType="circle"
                     iconSize={6}
-                    wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}
+                    wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}
                   />
                   <Line
                     yAxisId="kwh"

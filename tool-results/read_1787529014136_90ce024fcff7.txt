@@ -1,0 +1,846 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import {
+     5→  FileText,
+     6→  Download,
+     7→  Eye,
+     8→  Calendar,
+     9→  BarChart3,
+    10→  Zap,
+    11→  Gauge,
+    12→  Factory,
+    13→  Wrench,
+    14→  AlertTriangle,
+    15→  Clock,
+    16→  Loader2,
+    17→  CheckCircle2,
+    18→  CalendarDays,
+    19→  X,
+    20→} from 'lucide-react'
+    21→import {
+    22→  BarChart,
+    23→  Bar,
+    24→  XAxis,
+    25→  YAxis,
+    26→  CartesianGrid,
+    27→  Tooltip,
+    28→  ResponsiveContainer,
+    29→} from 'recharts'
+    30→import { useIIoTStore } from '@/store/iiot'
+    31→import { PageHeader } from '@/shared/components/page-header'
+    32→import {
+    33→  Card,
+    34→  CardContent,
+    35→  CardDescription,
+    36→  CardHeader,
+    37→  CardTitle,
+    38→} from '@/components/ui/card'
+    39→import { Badge } from '@/components/ui/badge'
+    40→import { Button } from '@/components/ui/button'
+    41→import { Input } from '@/components/ui/input'
+    42→import { Progress } from '@/components/ui/progress'
+    43→import { Skeleton } from '@/components/ui/skeleton'
+    44→import {
+    45→  Table,
+    46→  TableBody,
+    47→  TableCell,
+    48→  TableHead,
+    49→  TableHeader,
+    50→  TableRow,
+    51→} from '@/components/ui/table'
+    52→import {
+    53→  Dialog,
+    54→  DialogContent,
+    55→  DialogDescription,
+    56→  DialogHeader,
+    57→  DialogTitle,
+    58→} from '@/components/ui/dialog'
+    59→import { Separator } from '@/components/ui/separator'
+    60→import { ScrollArea } from '@/components/ui/scroll-area'
+    61→
+    62→// ─── Chart color constants ──────────────────────────────────────────────
+    63→const C_GREEN = '#10b981'
+    64→const C_CYAN = '#06b6d4'
+    65→const C_YELLOW = '#eab308'
+    66→const C_ORANGE = '#f97316'
+    67→const C_RED = '#ef4444'
+    68→const GRID_STROKE = 'rgba(255,255,255,0.05)'
+    69→const AXIS_TICK = { fill: 'rgba(255,255,255,0.35)', fontSize: 11 }
+    70→const AXIS_LINE = { stroke: 'rgba(255,255,255,0.06)' }
+    71→
+    72→// ─── Report type definitions ────────────────────────────────────────────
+    73→interface ReportType {
+    74→  id: string
+    75→  name: string
+    76→  description: string
+    77→  icon: React.ElementType
+    78→  color: string
+    79→  bgColor: string
+    80→  lastGenerated: string
+    81→}
+    82→
+    83→const REPORT_TYPES: ReportType[] = [
+    84→  {
+    85→    id: 'production-summary',
+    86→    name: 'Production Summary',
+    87→    description: 'Overview of production output, targets, defect rates, and order completion across all lines.',
+    88→    icon: Factory,
+    89→    color: C_GREEN,
+    90→    bgColor: 'rgba(16,185,129,0.1)',
+    91→    lastGenerated: '2 hours ago',
+    92→  },
+    93→  {
+    94→    id: 'alarm-analysis',
+    95→    name: 'Alarm Analysis',
+    96→    description: 'Breakdown of alarm frequency, severity distribution, response times, and root cause trends.',
+    97→    icon: AlertTriangle,
+    98→    color: C_ORANGE,
+    99→    bgColor: 'rgba(249,115,22,0.1)',
+   100→    lastGenerated: '5 hours ago',
+   101→  },
+   102→  {
+   103→    id: 'energy-consumption',
+   104→    name: 'Energy Consumption',
+   105→    description: 'Power usage trends, peak demand analysis, cost breakdown, and efficiency metrics.',
+   106→    icon: Zap,
+   107→    color: C_YELLOW,
+   108→    bgColor: 'rgba(234,179,8,0.1)',
+   109→    lastGenerated: '1 day ago',
+   110→  },
+   111→  {
+   112→    id: 'oee-performance',
+   113→    name: 'OEE Performance',
+   114→    description: 'Overall Equipment Effectiveness analysis with availability, performance, and quality breakdowns.',
+   115→    icon: Gauge,
+   116→    color: C_CYAN,
+   117→    bgColor: 'rgba(6,182,212,0.1)',
+   118→    lastGenerated: '3 hours ago',
+   119→  },
+   120→  {
+   121→    id: 'machine-utilization',
+   122→    name: 'Machine Utilization',
+   123→    description: 'Machine uptime, idle time, and runtime analysis across the entire production floor.',
+   124→    icon: BarChart3,
+   125→    color: C_GREEN,
+   126→    bgColor: 'rgba(16,185,129,0.1)',
+   127→    lastGenerated: '6 hours ago',
+   128→  },
+   129→  {
+   130→    id: 'maintenance-summary',
+   131→    name: 'Maintenance Summary',
+   132→    description: 'Planned vs unplanned maintenance, MTTR/MTBF metrics, and upcoming maintenance schedule.',
+   133→    icon: Wrench,
+   134→    color: C_RED,
+   135→    bgColor: 'rgba(239,68,68,0.1)',
+   136→    lastGenerated: '12 hours ago',
+   137→  },
+   138→]
+   139→
+   140→// ─── Quick select options ───────────────────────────────────────────────
+   141→const QUICK_RANGES = ['Last 24h', 'Last 7 Days', 'Last 30 Days', 'Custom'] as const
+   142→
+   143→type QuickRange = (typeof QUICK_RANGES)[number]
+   144→
+   145→// ─── Recent reports mock data ───────────────────────────────────────────
+   146→interface RecentReport {
+   147→  id: string
+   148→  name: string
+   149→  type: string
+   150→  typeColor: string
+   151→  dateRange: string
+   152→  generatedAt: string
+   153→  size: string
+   154→}
+   155→
+   156→const RECENT_REPORTS: RecentReport[] = [
+   157→  {
+   158→    id: 'rpt-001',
+   159→    name: 'Production Summary - Weekly',
+   160→    type: 'Production',
+   161→    typeColor: C_GREEN,
+   162→    dateRange: 'Jun 10 – Jun 16, 2025',
+   163→    generatedAt: '2025-06-16 14:32',
+   164→    size: '2.4 MB',
+   165→  },
+   166→  {
+   167→    id: 'rpt-002',
+   168→    name: 'Alarm Analysis - Critical Review',
+   169→    type: 'Alarm',
+   170→    typeColor: C_ORANGE,
+   171→    dateRange: 'Jun 1 – Jun 15, 2025',
+   172→    generatedAt: '2025-06-15 09:18',
+   173→    size: '1.8 MB',
+   174→  },
+   175→  {
+   176→    id: 'rpt-003',
+   177→    name: 'Energy Consumption - Monthly',
+   178→    type: 'Energy',
+   179→    typeColor: C_YELLOW,
+   180→    dateRange: 'May 16 – Jun 15, 2025',
+   181→    generatedAt: '2025-06-15 08:00',
+   182→    size: '3.1 MB',
+   183→  },
+   184→  {
+   185→    id: 'rpt-004',
+   186→    name: 'OEE Performance - Line A',
+   187→    type: 'OEE',
+   188→    typeColor: C_CYAN,
+   189→    dateRange: 'Jun 9 – Jun 15, 2025',
+   190→    generatedAt: '2025-06-15 16:45',
+   191→    size: '1.2 MB',
+   192→  },
+   193→  {
+   194→    id: 'rpt-005',
+   195→    name: 'Machine Utilization - All Lines',
+   196→    type: 'Utilization',
+   197→    typeColor: C_GREEN,
+   198→    dateRange: 'Jun 10 – Jun 16, 2025',
+   199→    generatedAt: '2025-06-16 10:22',
+   200→    size: '2.7 MB',
+   201→  },
+   202→  {
+   203→    id: 'rpt-006',
+   204→    name: 'Maintenance Summary - Q2',
+   205→    type: 'Maintenance',
+   206→    typeColor: C_RED,
+   207→    dateRange: 'Apr 1 – Jun 15, 2025',
+   208→    generatedAt: '2025-06-14 11:30',
+   209→    size: '4.2 MB',
+   210→  },
+   211→  {
+   212→    id: 'rpt-007',
+   213→    name: 'Production Summary - Daily',
+   214→    type: 'Production',
+   215→    typeColor: C_GREEN,
+   216→    dateRange: 'Jun 15, 2025',
+   217→    generatedAt: '2025-06-15 23:59',
+   218→    size: '0.8 MB',
+   219→  },
+   220→  {
+   221→    id: 'rpt-008',
+   222→    name: 'Alarm Analysis - Shift Report',
+   223→    type: 'Alarm',
+   224→    typeColor: C_ORANGE,
+   225→    dateRange: 'Jun 16, 06:00 – 14:00',
+   226→    generatedAt: '2025-06-16 14:05',
+   227→    size: '0.6 MB',
+   228→  },
+   229→  {
+   230→    id: 'rpt-009',
+   231→    name: 'OEE Performance - All Lines',
+   232→    type: 'OEE',
+   233→    typeColor: C_CYAN,
+   234→    dateRange: 'Jun 1 – Jun 15, 2025',
+   235→    generatedAt: '2025-06-15 18:00',
+   236→    size: '2.9 MB',
+   237→  },
+   238→  {
+   239→    id: 'rpt-010',
+   240→    name: 'Energy Consumption - Peak Analysis',
+   241→    type: 'Energy',
+   242→    typeColor: C_YELLOW,
+   243→    dateRange: 'Jun 10 – Jun 16, 2025',
+   244→    generatedAt: '2025-06-16 12:15',
+   245→    size: '1.5 MB',
+   246→  },
+   247→]
+   248→
+   249→// ─── Mock report preview data ───────────────────────────────────────────
+   250→const PREVIEW_SUMMARY_DATA = [
+   251→  { metric: 'Total Output', value: '128,450', unit: 'units', change: '+4.2%', positive: true },
+   252→  { metric: 'Defect Rate', value: '1.23', unit: '%', change: '-0.3%', positive: true },
+   253→  { metric: 'OEE Average', value: '84.7', unit: '%', change: '+1.8%', positive: true },
+   254→  { metric: 'Downtime Hours', value: '12.5', unit: 'hrs', change: '-2.1 hrs', positive: true },
+   255→  { metric: 'Energy Used', value: '45,230', unit: 'kWh', change: '+3.5%', positive: false },
+   256→  { metric: 'Alarms Triggered', value: '47', unit: 'total', change: '-8', positive: true },
+   257→]
+   258→
+   259→const PREVIEW_CHART_DATA = [
+   260→  { name: 'Mon', output: 18200, target: 19000 },
+   261→  { name: 'Tue', output: 20100, target: 19000 },
+   262→  { name: 'Wed', output: 17800, target: 19000 },
+   263→  { name: 'Thu', output: 21500, target: 19000 },
+   264→  { name: 'Fri', output: 19300, target: 19000 },
+   265→  { name: 'Sat', output: 16500, target: 15000 },
+   266→  { name: 'Sun', output: 15050, target: 15000 },
+   267→]
+   268→
+   269→const PREVIEW_MACHINE_DATA = [
+   270→  { machine: 'CNC Mill A-01', status: 'Running', oee: 91.2, output: 22450 },
+   271→  { machine: 'Lathe B-03', status: 'Running', oee: 87.5, output: 18920 },
+   272→  { machine: 'Press C-02', status: 'Idle', oee: 72.8, output: 15680 },
+   273→  { machine: 'Grinder D-01', status: 'Running', oee: 89.1, output: 21300 },
+   274→  { machine: 'Drill E-04', status: 'Maintenance', oee: 65.3, output: 12100 },
+   275→  { machine: 'Robot F-02', status: 'Running', oee: 93.7, output: 24100 },
+   276→]
+   277→
+   278→// ─── Custom dark tooltip ────────────────────────────────────────────────
+   279→function DarkTooltip({
+   280→  active,
+   281→  payload,
+   282→  label,
+   283→}: {
+   284→  active?: boolean
+   285→  payload?: Array<{ name: string; value: number; color: string }>
+   286→  label?: string
+   287→}) {
+   288→  if (!active || !payload?.length) return null
+   289→  return (
+   290→    <div className="chart-tooltip rounded-lg bg-card/95 border border-border/60 px-3 py-2 shadow-xl">
+   291→      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+   292→      {payload.map((p, i) => (
+   293→        <p key={i} className="text-xs font-medium" style={{ color: p.color }}>
+   294→          {p.name}: {p.value.toLocaleString()}
+   295→        </p>
+   296→      ))}
+   297→    </div>
+   298→  )
+   299→}
+   300→
+   301→// ─── Type badge color map ───────────────────────────────────────────────
+   302→function getTypeBadgeVariant(type: string) {
+   303→  switch (type) {
+   304→    case 'Production':
+   305→    case 'Utilization':
+   306→      return 'default' as const
+   307→    case 'Alarm':
+   308→      return 'destructive' as const
+   309→    case 'Energy':
+   310→      return 'warning' as const
+   311→    case 'OEE':
+   312→      return 'default' as const
+   313→    case 'Maintenance':
+   314→      return 'destructive' as const
+   315→    default:
+   316→      return 'secondary' as const
+   317→  }
+   318→}
+   319→
+   320→// ─── Main Component ─────────────────────────────────────────────────────
+   321→export function ReportsPage() {
+   322→  const machines = useIIoTStore((s) => s.machines)
+   323→  const alarms = useIIoTStore((s) => s.alarms)
+   324→  const production = useIIoTStore((s) => s.production)
+   325→
+   326→  // State
+   327→  const [selectedType, setSelectedType] = useState<string | null>(null)
+   328→  const [quickRange, setQuickRange] = useState<QuickRange>('Last 7 Days')
+   329→  const [startDate, setStartDate] = useState('2025-06-10')
+   330→  const [endDate, setEndDate] = useState('2025-06-16')
+   331→  const [isCustomRange, setIsCustomRange] = useState(false)
+   332→  const [generateState, setGenerateState] = useState<'idle' | 'generating' | 'complete'>('idle')
+   333→  const [progress, setProgress] = useState(0)
+   334→  const [previewReport, setPreviewReport] = useState<RecentReport | null>(null)
+   335→
+   336→  // Handle quick range selection
+   337→  const handleQuickRange = useCallback((range: QuickRange) => {
+   338→    setQuickRange(range)
+   339→    if (range === 'Custom') {
+   340→      setIsCustomRange(true)
+   341→    } else {
+   342→      setIsCustomRange(false)
+   343→      const now = new Date('2025-06-16T14:00:00')
+   344→      let start = new Date(now)
+   345→      if (range === 'Last 24h') start = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+   346→      else if (range === 'Last 7 Days') start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+   347→      else if (range === 'Last 30 Days') start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+   348→      setStartDate(start.toISOString().split('T')[0])
+   349→      setEndDate(now.toISOString().split('T')[0])
+   350→    }
+   351→    // Reset generate state when range changes
+   352→    setGenerateState('idle')
+   353→    setProgress(0)
+   354→  }, [])
+   355→
+   356→  // Simulate report generation
+   357→  const handleGenerate = useCallback(() => {
+   358→    if (!selectedType) return
+   359→    setGenerateState('generating')
+   360→    setProgress(0)
+   361→  }, [selectedType])
+   362→
+   363→  useEffect(() => {
+   364→    if (generateState !== 'generating') return
+   365→    const interval = setInterval(() => {
+   366→      setProgress((prev) => {
+   367→        const next = prev + Math.random() * 15 + 5
+   368→        if (next >= 100) {
+   369→          setGenerateState('complete')
+   370→          return 100
+   371→        }
+   372→        return next
+   373→      })
+   374→    }, 300)
+   375→    return () => clearInterval(interval)
+   376→  }, [generateState])
+   377→
+   378→  // Compute some store-derived stats for the page header
+   379→  const activeMachineCount = machines.filter((m) => m.status === 'running').length
+   380→  const activeAlarmCount = alarms.filter((a) => a.status === 'active').length
+   381→
+   382→  return (
+   383→    <div className="space-y-6">
+   384→      {/* Page Header */}
+   385→      <PageHeader
+   386→        title="Reports"
+   387→        description="Generate, view, and download operational reports across all industrial systems."
+   388→        icon={FileText}
+   389→        badge={`${RECENT_REPORTS.length} reports`}
+   390→        actions={
+   391→          <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+   392→            <span className="flex items-center gap-1.5">
+   393→              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+   394→              {activeMachineCount} machines active
+   395→            </span>
+   396→            <span className="text-muted-foreground/30">|</span>
+   397→            <span>{activeAlarmCount} active alarms</span>
+   398→          </div>
+   399→        }
+   400→      />
+   401→
+   402→      {/* Report Type Selector */}
+   403→      <section className="animate-slide-up">
+   404→        <h2 className="text-sm font-semibold text-muted-foreground/80 uppercase tracking-wider mb-3">
+   405→          Select Report Type
+   406→        </h2>
+   407→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   408→          {REPORT_TYPES.map((report, idx) => {
+   409→            const Icon = report.icon
+   410→            const isSelected = selectedType === report.id
+   411→            return (
+   412→              <Card
+   413→                key={report.id}
+   414→                className={
+   415→                  `kpi-card-hover cursor-pointer transition-all animate-slide-up stagger-${idx + 1} ` +
+   416→                  (isSelected
+   417→                    ? 'ring-1 ring-primary/40 border-primary/30 bg-primary/5'
+   418→                    : 'hover:border-border/60')
+   419→                }
+   420→                onClick={() => {
+   421→                  setSelectedType(report.id)
+   422→                  setGenerateState('idle')
+   423→                  setProgress(0)
+   424→                }}
+   425→              >
+   426→                <CardHeader className="pb-3">
+   427→                  <div className="flex items-start justify-between">
+   428→                    <div
+   429→                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+   430→                      style={{ backgroundColor: report.bgColor }}
+   431→                    >
+   432→                      <Icon className="size-5" style={{ color: report.color }} />
+   433→                    </div>
+   434→                    {isSelected && (
+   435→                      <CheckCircle2 className="size-5 text-primary animate-scale-in" />
+   436→                    )}
+   437→                  </div>
+   438→                  <CardTitle className="text-sm font-semibold mt-2">{report.name}</CardTitle>
+   439→                  <CardDescription className="text-xs text-muted-foreground/60 leading-relaxed">
+   440→                    {report.description}
+   441→                  </CardDescription>
+   442→                </CardHeader>
+   443→                <CardContent className="pt-0">
+   444→                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
+   445→                    <Clock className="size-3" />
+   446→                    <span>Last generated: {report.lastGenerated}</span>
+   447→                  </div>
+   448→                </CardContent>
+   449→              </Card>
+   450→            )
+   451→          })}
+   452→        </div>
+   453→      </section>
+   454→
+   455→      <Separator className="opacity-30" />
+   456→
+   457→      {/* Date Range Picker + Generate */}
+   458→      <section className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
+   459→        <h2 className="text-sm font-semibold text-muted-foreground/80 uppercase tracking-wider mb-3">
+   460→          Date Range
+   461→        </h2>
+   462→        <Card className="border-border/40">
+   463→          <CardContent className="p-4 md:p-6">
+   464→            {/* Quick range buttons */}
+   465→            <div className="flex flex-wrap gap-2 mb-4">
+   466→              {QUICK_RANGES.map((range) => (
+   467→                <Button
+   468→                  key={range}
+   469→                  variant={quickRange === range ? 'default' : 'outline'}
+   470→                  size="sm"
+   471→                  className={
+   472→                    quickRange === range
+   473→                      ? 'text-xs h-8'
+   474→                      : 'text-xs h-8 border-border/40 text-muted-foreground/70 hover:text-foreground hover:border-border/60'
+   475→                  }
+   476→                  onClick={() => handleQuickRange(range)}
+   477→                >
+   478→                  <CalendarDays className="size-3.5 mr-1.5" />
+   479→                  {range}
+   480→                </Button>
+   481→              ))}
+   482→            </div>
+   483→
+   484→            {/* Date inputs */}
+   485→            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+   486→              <div className="flex-1 w-full sm:w-auto">
+   487→                <label className="text-xs text-muted-foreground/60 font-medium mb-1.5 block">
+   488→                  Start Date
+   489→                </label>
+   490→                <div className="relative">
+   491→                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/40" />
+   492→                  <Input
+   493→                    type="date"
+   494→                    value={startDate}
+   495→                    onChange={(e) => {
+   496→                      setStartDate(e.target.value)
+   497→                      setIsCustomRange(true)
+   498→                      setQuickRange('Custom')
+   499→                      setGenerateState('idle')
+   500→                      setProgress(0)
+   501→                    }}
+   502→                    className="pl-8 h-9 text-xs bg-muted/30 border-border/40"
+   503→                    disabled={!isCustomRange && quickRange !== 'Custom'}
+   504→                  />
+   505→                </div>
+   506→              </div>
+   507→              <div className="flex-1 w-full sm:w-auto">
+   508→                <label className="text-xs text-muted-foreground/60 font-medium mb-1.5 block">
+   509→                  End Date
+   510→                </label>
+   511→                <div className="relative">
+   512→                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/40" />
+   513→                  <Input
+   514→                    type="date"
+   515→                    value={endDate}
+   516→                    onChange={(e) => {
+   517→                      setEndDate(e.target.value)
+   518→                      setIsCustomRange(true)
+   519→                      setQuickRange('Custom')
+   520→                      setGenerateState('idle')
+   521→                      setProgress(0)
+   522→                    }}
+   523→                    className="pl-8 h-9 text-xs bg-muted/30 border-border/40"
+   524→                    disabled={!isCustomRange && quickRange !== 'Custom'}
+   525→                  />
+   526→                </div>
+   527→              </div>
+   528→              <Button
+   529→                onClick={handleGenerate}
+   530→                disabled={!selectedType || generateState === 'generating'}
+   531→                className="h-9 text-xs min-w-[140px]"
+   532→              >
+   533→                {generateState === 'generating' ? (
+   534→                  <>
+   535→                    <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   536→                    Generating…
+   537→                  </>
+   538→                ) : generateState === 'complete' ? (
+   539→                  <>
+   540→                    <CheckCircle2 className="size-3.5 mr-1.5" />
+   541→                    Generated!
+   542→                  </>
+   543→                ) : (
+   544→                  <>
+   545→                    <FileText className="size-3.5 mr-1.5" />
+   546→                    Generate Report
+   547→                  </>
+   548→                )}
+   549→              </Button>
+   550→            </div>
+   551→
+   552→            {/* Progress bar */}
+   553→            {generateState === 'generating' && (
+   554→              <div className="mt-4 animate-fade-in">
+   555→                <div className="flex items-center justify-between mb-1.5">
+   556→                  <span className="text-xs text-muted-foreground/60">
+   557→                    Generating report…
+   558→                  </span>
+   559→                  <span className="text-xs font-medium metric-value text-primary">
+   560→                    {Math.round(progress)}%
+   561→                  </span>
+   562→                </div>
+   563→                <Progress value={progress} className="h-1.5" />
+   564→              </div>
+   565→            )}
+   566→
+   567→            {generateState === 'complete' && (
+   568→              <div className="mt-4 flex items-center gap-2 text-xs text-emerald-400 animate-fade-in">
+   569→                <CheckCircle2 className="size-4" />
+   570→                <span className="font-medium">
+   571→                  Report generated successfully — ready to download or preview.
+   572→                </span>
+   573→              </div>
+   574→            )}
+   575→          </CardContent>
+   576→        </Card>
+   577→      </section>
+   578→
+   579→      <Separator className="opacity-30" />
+   580→
+   581→      {/* Recent Reports Table */}
+   582→      <section className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
+   583→        <div className="flex items-center justify-between mb-3">
+   584→          <h2 className="text-sm font-semibold text-muted-foreground/80 uppercase tracking-wider">
+   585→            Recent Reports
+   586→          </h2>
+   587→          <span className="text-xs text-muted-foreground/50">
+   588→            {RECENT_REPORTS.length} reports total
+   589→          </span>
+   590→        </div>
+   591→        <Card className="border-border/40">
+   592→          <CardContent className="p-0">
+   593→            <div className="overflow-x-auto">
+   594→              <Table>
+   595→                <TableHeader>
+   596→                  <TableRow className="border-border/30 hover:bg-transparent">
+   597→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-10">
+   598→                      Report Name
+   599→                    </TableHead>
+   600→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-10">
+   601→                      Type
+   602→                    </TableHead>
+   603→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-10 hidden md:table-cell">
+   604→                      Date Range
+   605→                    </TableHead>
+   606→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-10 hidden lg:table-cell">
+   607→                      Generated At
+   608→                    </TableHead>
+   609→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-10 hidden sm:table-cell">
+   610→                      Size
+   611→                    </TableHead>
+   612→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-10 text-right">
+   613→                      Actions
+   614→                    </TableHead>
+   615→                  </TableRow>
+   616→                </TableHeader>
+   617→                <TableBody>
+   618→                  {RECENT_REPORTS.map((report, idx) => (
+   619→                    <TableRow
+   620→                      key={report.id}
+   621→                      className={`table-row-interactive border-border/20 zebra-row animate-slide-up stagger-${Math.min(idx + 1, 6)}`}
+   622→                    >
+   623→                      <TableCell className="py-3">
+   624→                        <div className="flex items-center gap-2.5">
+   625→                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/50">
+   626→                            <FileText className="size-3.5 text-muted-foreground/50" />
+   627→                          </div>
+   628→                          <span className="text-sm font-medium">{report.name}</span>
+   629→                        </div>
+   630→                      </TableCell>
+   631→                      <TableCell className="py-3">
+   632→                        <Badge
+   633→                          variant={getTypeBadgeVariant(report.type)}
+   634→                          className="text-[10px] font-medium px-2 py-0"
+   635→                          style={
+   636→                            report.type === 'Energy'
+   637→                              ? { backgroundColor: 'rgba(234,179,8,0.15)', color: '#eab308', borderColor: 'rgba(234,179,8,0.25)' }
+   638→                              : report.type === 'OEE'
+   639→                                ? { backgroundColor: 'rgba(6,182,212,0.15)', color: '#06b6d4', borderColor: 'rgba(6,182,212,0.25)' }
+   640→                                : report.type === 'Utilization'
+   641→                                  ? { backgroundColor: 'rgba(16,185,129,0.15)', color: '#10b981', borderColor: 'rgba(16,185,129,0.25)' }
+   642→                                  : undefined
+   643→                          }
+   644→                        >
+   645→                          {report.type}
+   646→                        </Badge>
+   647→                      </TableCell>
+   648→                      <TableCell className="py-3 text-xs text-muted-foreground/70 hidden md:table-cell">
+   649→                        {report.dateRange}
+   650→                      </TableCell>
+   651→                      <TableCell className="py-3 text-xs text-muted-foreground/50 metric-value hidden lg:table-cell">
+   652→                        {report.generatedAt}
+   653→                      </TableCell>
+   654→                      <TableCell className="py-3 text-xs text-muted-foreground/60 hidden sm:table-cell">
+   655→                        {report.size}
+   656→                      </TableCell>
+   657→                      <TableCell className="py-3 text-right">
+   658→                        <div className="flex items-center justify-end gap-1">
+   659→                          <button
+   660→                            className="ghost-action-btn"
+   661→                            title="View report"
+   662→                            onClick={() => setPreviewReport(report)}
+   663→                          >
+   664→                            <Eye className="size-3.5" />
+   665→                          </button>
+   666→                          <button
+   667→                            className="ghost-action-btn"
+   668→                            title="Download report"
+   669→                            onClick={() => {/* Download simulation */}}
+   670→                          >
+   671→                            <Download className="size-3.5" />
+   672→                          </button>
+   673→                        </div>
+   674→                      </TableCell>
+   675→                    </TableRow>
+   676→                  ))}
+   677→                </TableBody>
+   678→              </Table>
+   679→            </div>
+   680→          </CardContent>
+   681→        </Card>
+   682→      </section>
+   683→
+   684→      {/* Report Preview Dialog */}
+   685→      <Dialog open={!!previewReport} onOpenChange={(open) => !open && setPreviewReport(null)}>
+   686→        <DialogContent className="max-w-4xl w-[95vw] max-h-[85vh] overflow-hidden p-0 flex flex-col">
+   687→          <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
+   688→            <div className="flex items-center justify-between">
+   689→              <div>
+   690→                <DialogTitle className="text-base font-semibold">{previewReport?.name}</DialogTitle>
+   691→                <DialogDescription className="text-xs text-muted-foreground/60 mt-1">
+   692→                  {previewReport?.dateRange} • Generated {previewReport?.generatedAt} • {previewReport?.size}
+   693→                </DialogDescription>
+   694→              </div>
+   695→              <Button
+   696→                variant="ghost"
+   697→                size="icon"
+   698→                className="h-8 w-8 shrink-0"
+   699→                onClick={() => setPreviewReport(null)}
+   700→              >
+   701→                <X className="size-4" />
+   702→              </Button>
+   703→            </div>
+   704→          </DialogHeader>
+   705→
+   706→          <ScrollArea className="flex-1 min-h-0 px-6 pb-6">
+   707→            <div className="space-y-6">
+   708→              {/* Summary KPIs */}
+   709→              <div>
+   710→                <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">
+   711→                  Key Metrics Summary
+   712→                </h3>
+   713→                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+   714→                  {PREVIEW_SUMMARY_DATA.map((item, idx) => (
+   715→                    <div
+   716→                      key={item.metric}
+   717→                      className={`rounded-lg border border-border/30 bg-muted/20 p-3 animate-slide-up stagger-${Math.min(idx + 1, 6)}`}
+   718→                    >
+   719→                      <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-1">
+   720→                        {item.metric}
+   721→                      </p>
+   722→                      <p className="text-lg font-bold metric-value">
+   723→                        {item.value}
+   724→                        <span className="text-xs font-normal text-muted-foreground/50 ml-0.5">
+   725→                          {item.unit}
+   726→                        </span>
+   727→                      </p>
+   728→                      <p
+   729→                        className={`text-[11px] font-medium mt-0.5 ${item.positive ? 'text-emerald-400' : 'text-amber-400'}`}
+   730→                      >
+   731→                        {item.change}
+   732→                      </p>
+   733→                    </div>
+   734→                  ))}
+   735→                </div>
+   736→              </div>
+   737→
+   738→              <Separator className="opacity-30" />
+   739→
+   740→              {/* Chart Preview */}
+   741→              <div>
+   742→                <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">
+   743→                  Daily Output vs Target
+   744→                </h3>
+   745→                <div className="chart-container-glass">
+   746→                  <ResponsiveContainer width="100%" height={260}>
+   747→                    <BarChart data={PREVIEW_CHART_DATA} barGap={4}>
+   748→                      <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
+   749→                      <XAxis dataKey="name" tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={false} />
+   750→                      <YAxis tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={false} width={50} />
+   751→                      <Tooltip content={<DarkTooltip />} />
+   752→                      <Bar
+   753→                        dataKey="output"
+   754→                        name="Actual Output"
+   755→                        fill={C_GREEN}
+   756→                        radius={[4, 4, 0, 0]}
+   757→                        barSize={24}
+   758→                      />
+   759→                      <Bar
+   760→                        dataKey="target"
+   761→                        name="Target"
+   762→                        fill="rgba(255,255,255,0.08)"
+   763→                        radius={[4, 4, 0, 0]}
+   764→                        barSize={24}
+   765→                        stroke="rgba(255,255,255,0.15)"
+   766→                        strokeWidth={1}
+   767→                      />
+   768→                    </BarChart>
+   769→                  </ResponsiveContainer>
+   770→                </div>
+   771→              </div>
+   772→
+   773→              <Separator className="opacity-30" />
+   774→
+   775→              {/* Machine detail table */}
+   776→              <div>
+   777→                <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">
+   778→                  Machine Performance Breakdown
+   779→                </h3>
+   780→                <div className="rounded-lg border border-border/30 overflow-hidden">
+   781→                  <Table>
+   782→                    <TableHeader>
+   783→                      <TableRow className="border-border/30 hover:bg-transparent">
+   784→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+   785→                          Machine
+   786→                        </TableHead>
+   787→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+   788→                          Status
+   789→                        </TableHead>
+   790→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9 text-right">
+   791→                          OEE
+   792→                        </TableHead>
+   793→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9 text-right">
+   794→                          Output
+   795→                        </TableHead>
+   796→                      </TableRow>
+   797→                    </TableHeader>
+   798→                    <TableBody>
+   799→                      {PREVIEW_MACHINE_DATA.map((row) => (
+   800→                        <TableRow key={row.machine} className="table-row-interactive border-border/20 zebra-row">
+   801→                          <TableCell className="py-2.5 text-xs font-medium">{row.machine}</TableCell>
+   802→                          <TableCell className="py-2.5">
+   803→                            <span
+   804→                              className={
+   805→                                `inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ` +
+   806→                                (row.status === 'Running'
+   807→                                  ? 'bg-emerald-500/10 text-emerald-400'
+   808→                                  : row.status === 'Idle'
+   809→                                    ? 'bg-amber-500/10 text-amber-400'
+   810→                                    : 'bg-blue-500/10 text-blue-400')
+   811→                              }
+   812→                            >
+   813→                              <span
+   814→                                className={`size-1.5 rounded-full ${
+   815→                                  row.status === 'Running'
+   816→                                    ? 'bg-emerald-400'
+   817→                                    : row.status === 'Idle'
+   818→                                      ? 'bg-amber-400'
+   819→                                      : 'bg-blue-400'
+   820→                                }`}
+   821→                              />
+   822→                              {row.status}
+   823→                            </span>
+   824→                          </TableCell>
+   825→                          <TableCell className="py-2.5 text-right">
+   826→                            <span className={`metric-value text-xs font-bold ${row.oee >= 85 ? 'text-emerald-400' : row.oee >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
+   827→                              {row.oee}%
+   828→                            </span>
+   829→                          </TableCell>
+   830→                          <TableCell className="py-2.5 text-right text-xs text-muted-foreground/70 metric-value">
+   831→                            {row.output.toLocaleString()}
+   832→                          </TableCell>
+   833→                        </TableRow>
+   834→                      ))}
+   835→                    </TableBody>
+   836→                  </Table>
+   837→                </div>
+   838→              </div>
+   839→            </div>
+   840→          </ScrollArea>
+   841→        </DialogContent>
+   842→      </Dialog>
+   843→    </div>
+   844→  )
+   845→}
+   846→

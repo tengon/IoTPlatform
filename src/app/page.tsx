@@ -27,6 +27,7 @@ import { DiagnosticsPage } from '@/features/administration/pages/diagnostics-pag
 import { AuditLogPage } from '@/features/administration/pages/audit-log-page'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { AlarmToast } from '@/components/layout/alarm-toast'
+import { useIIoTStore } from '@/store/iiot'
 
 const pageComponents: Record<PageId, React.ComponentType> = {
   dashboard: DashboardPage,
@@ -55,6 +56,7 @@ const pageComponents: Record<PageId, React.ComponentType> = {
 
 export default function Home() {
   const { currentPage } = useNavigation()
+  const { isConnected } = useIIoTStore()
   const PageComponent = pageComponents[currentPage]
 
   return (
@@ -74,20 +76,20 @@ export default function Home() {
               <div className="flex items-center gap-3">
                 <span className="font-semibold text-muted-foreground">IIoT Platform</span>
                 <span className="text-muted-foreground/30">|</span>
-                <span>v2.3.0</span>
+                <span>v2.4.0</span>
               </div>
               <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
-                  All Systems Operational
+                <span className={`flex items-center gap-1.5 transition-colors ${isConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse-dot' : 'bg-amber-500 animate-breathe'}`} />
+                  {isConnected ? 'All Systems Operational' : 'Connecting to Data Stream...'}
                 </span>
                 <span className="text-muted-foreground/30 hidden sm:inline">|</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-1 w-1 rounded-full bg-cyan-500 animate-live-pulse" />
-                  WebSocket Connected
+                <span className={`flex items-center gap-1.5 transition-colors ${isConnected ? 'text-cyan-400' : 'text-muted-foreground/50'}`}>
+                  <span className={`h-1 w-1 rounded-full ${isConnected ? 'bg-cyan-500 animate-live-pulse' : 'bg-muted-foreground/40'}`} />
+                  {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
                 </span>
                 <span className="text-muted-foreground/30 hidden sm:inline">|</span>
-                <span className="hidden sm:inline">v2.3.0</span>
+                <span className="hidden sm:inline">v2.4.0</span>
               </div>
             </div>
           </footer>
