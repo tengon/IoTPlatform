@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Users, Plus, Search, Pencil, UserX, UserCheck } from 'lucide-react'
 import { PageHeader } from '@/shared/components/page-header'
+import { SortableTableHeader, useSort } from '@/shared/components/sortable-table-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -108,6 +109,8 @@ export function UsersPage() {
       return matchSearch && matchRole && matchStatus
     })
   }, [search, roleFilter, statusFilter])
+
+  const { sorted, sortKey, sortDir, toggleSort } = useSort(filtered, undefined, undefined)
 
   return (
     <div className="space-y-6 animate-slide-up">
@@ -251,10 +254,10 @@ export function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/30">
-                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">User</TableHead>
+                  <SortableTableHeader label="User" sortDirection={sortKey === 'name' ? sortDir : null} onSort={() => toggleSort('name')} />
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden md:table-cell">Email</TableHead>
-                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Role</TableHead>
-                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Status</TableHead>
+                  <SortableTableHeader label="Role" sortDirection={sortKey === 'role' ? sortDir : null} onSort={() => toggleSort('role')} />
+                  <SortableTableHeader label="Status" sortDirection={sortKey === 'status' ? sortDir : null} onSort={() => toggleSort('status')} />
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden lg:table-cell">Last Login</TableHead>
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 text-right">Actions</TableHead>
                 </TableRow>
@@ -271,7 +274,7 @@ export function UsersPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((user) => {
+                  sorted.map((user) => {
                     const rc = roleConfig[user.role]
                     const isInactive = user.status === 'inactive'
                     return (
@@ -323,7 +326,7 @@ export function UsersPage() {
           </div>
 
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Showing {filtered.length} of {mockUsers.length} users</span>
+            <span>Showing {sorted.length} of {mockUsers.length} users</span>
           </div>
         </CardContent>
       </Card>

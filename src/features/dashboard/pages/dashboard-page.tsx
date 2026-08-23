@@ -185,7 +185,7 @@ function KPICard({
 }: KPICardProps) {
   return (
     <Card
-      className={`relative overflow-hidden transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 group cursor-default ${onClick ? 'cursor-pointer' : ''} ${className || ''}`}
+      className={`relative overflow-hidden h-full transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 group cursor-default ${onClick ? 'cursor-pointer' : ''} ${className || ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -213,7 +213,7 @@ function KPICard({
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
               {label}
             </p>
-            <p className="mt-1.5 text-3xl font-extrabold tracking-tight text-foreground metric-value animate-count-up">
+            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-foreground metric-value animate-count-up">
               {value}
             </p>
             <div className="mt-1.5 flex items-center gap-1.5 text-xs">

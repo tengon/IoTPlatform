@@ -21,7 +21,7 @@ export function PageHeader({ title, description, icon: Icon, actions, lastUpdate
           </div>
         )}
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-baseline gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
             {badge && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary ring-1 ring-primary/20">
@@ -32,7 +32,7 @@ export function PageHeader({ title, description, icon: Icon, actions, lastUpdate
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             {description && (
-              <p className="text-sm text-muted-foreground">{description}</p>
+              <p className="text-sm text-muted-foreground/70">{description}</p>
             )}
             {lastUpdated && (
               <span className="flex items-center gap-1 text-[11px] text-muted-foreground/50">

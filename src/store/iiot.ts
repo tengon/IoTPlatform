@@ -75,6 +75,7 @@ interface IIoTState {
   updateTelemetry: (deviceId: string, point: TelemetryPoint) => void
   setConnected: (connected: boolean) => void
   acknowledgeAlarm: (id: string) => void
+  bulkAcknowledgeAlarms: (ids: string[]) => void
 }
 
 export const useIIoTStore = create<IIoTState>((set) => ({
@@ -102,6 +103,12 @@ export const useIIoTStore = create<IIoTState>((set) => ({
     set((s) => ({
       alarms: s.alarms.map((a) =>
         a.id === id ? { ...a, status: 'acknowledged' as const } : a
+      ),
+    })),
+  bulkAcknowledgeAlarms: (ids) =>
+    set((s) => ({
+      alarms: s.alarms.map((a) =>
+        ids.includes(a.id) ? { ...a, status: 'acknowledged' as const } : a
       ),
     })),
 }))

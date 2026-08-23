@@ -22,6 +22,7 @@ import { FirmwareOTAPage } from '@/features/devices/pages/firmware-ota-page'
 import { UsersPage } from '@/features/administration/pages/users-page'
 import { SitesPage, RolesPermissionsPage, SettingsPage } from '@/features/administration/pages/admin-pages'
 import { CommandPalette } from '@/components/layout/command-palette'
+import { AlarmToast } from '@/components/layout/alarm-toast'
 
 const pageComponents: Record<PageId, React.ComponentType> = {
   dashboard: DashboardPage,
@@ -53,10 +54,11 @@ export default function Home() {
       <CommandPalette />
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="min-h-0">
           <AppTopbar />
+          <AlarmToast />
           <WSInit />
-          <main key={currentPage} className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
+          <main key={currentPage} className="flex-1 min-h-0 p-4 md:p-6 overflow-auto animate-fade-in">
             {PageComponent ? <PageComponent key={currentPage} /> : null}
           </main>
           <footer className="border-t border-border/30 bg-card/50 backdrop-blur-sm px-6 py-3.5 mt-auto">
@@ -73,7 +75,7 @@ export default function Home() {
                 </span>
                 <span className="text-muted-foreground/30">|</span>
                 <span className="flex items-center gap-1.5">
-                  <span className="h-1 w-1 rounded-full bg-cyan-500" />
+                  <span className="h-1 w-1 rounded-full bg-cyan-500 animate-live-pulse" />
                   WebSocket Connected
                 </span>
                 <span className="text-muted-foreground/30">|</span>

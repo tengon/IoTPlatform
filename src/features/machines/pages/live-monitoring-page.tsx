@@ -102,6 +102,52 @@ function oeeBarColor(oee: number): string {
   return 'bg-red-500'
 }
 
+// ─── TinySparkline Component ─────────────────────────────────────────
+
+function TinySparkline({ data, color, width = 60, height = 20 }: { data: number[]; color: string; width?: number; height?: number }) {
+  if (data.length < 2) return null
+
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1
+  const padding = 1
+
+  const points = data.map((v, i) => {
+    const x = padding + (i / (data.length - 1)) * (width - padding * 2)
+    const y = height - padding - ((v - min) / range) * (height - padding * 2)
+    return `${x},${y}`
+  })
+
+  const lastX = padding + ((data.length - 1) / (data.length - 1)) * (width - padding * 2)
+  const lastY = height - padding - ((data[data.length - 1] - min) / range) * (height - padding * 2)
+
+  const gradientId = `spark-${color.replace('#', '')}`
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="inline-block ml-1.5 align-middle">
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <polyline
+        points={points.join(' ')}
+        stroke={color}
+        strokeWidth={1.5}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <polygon
+        points={`${points.join(' ')} ${lastX},${height} ${padding},${height}`}
+        fill={`url(#${gradientId})`}
+      />
+      <circle cx={lastX} cy={lastY} r={2} fill={color} />
+    </svg>
+  )
+}
+
 // ─── Helper: Temperature bar color ───────────────────────────────────
 
 function tempColor(temp: number): string {
@@ -213,6 +259,10 @@ function MachineCard({ machine, telemetry, onSelect }: {
               <span className={`font-mono text-sm font-bold metric-value ${tempTextColor(machine.temperature)}`}>
                 {machine.temperature.toFixed(1)}°C
               </span>
+              <TinySparkline
+                data={telemetry.map((p) => p.value).slice(-30)}
+                color={machine.temperature > 80 ? '#ef4444' : machine.temperature > 60 ? '#f59e0b' : '#10b981'}
+              />
               <TrendArrow value={machine.temperature} prev={prevTemp} />
             </div>
           </div>

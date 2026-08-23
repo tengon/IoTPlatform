@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
 import { oeeColor, STATUS_COLORS } from '@/shared/components/chart-utils'
 import { PageHeader } from '@/shared/components/page-header'
+import { SortableTableHeader, useSort, SortDirection } from '@/shared/components/sortable-table-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -101,6 +102,13 @@ export function AssetsMachinesPage() {
     })
   }, [search, statusFilter])
 
+  const { sorted, sortKey, sortDir, toggleSort } = useSort(filtered, undefined, undefined)
+
+  const getSortDir = (key: keyof MachineAsset): SortDirection => {
+    if (sortKey !== key) return null
+    return sortDir
+  }
+
   const stats = useMemo(() => {
     const total = mockMachines.length
     const running = mockMachines.filter((m) => m.status === 'running').length
@@ -182,11 +190,11 @@ export function AssetsMachinesPage() {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/30">
-                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Machine Name</TableHead>
-                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Type</TableHead>
+                  <SortableTableHeader label="Machine Name" sortDirection={getSortDir('name')} onSort={() => toggleSort('name')} />
+                  <SortableTableHeader label="Type" sortDirection={getSortDir('type')} onSort={() => toggleSort('type')} />
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden md:table-cell">Model</TableHead>
-                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
-                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 min-w-[180px]">OEE %</TableHead>
+                  <SortableTableHeader label="Status" sortDirection={getSortDir('status')} onSort={() => toggleSort('status')} />
+                  <SortableTableHeader label="OEE %" sortDirection={getSortDir('oee')} onSort={() => toggleSort('oee')} className="min-w-[180px]" />
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 min-w-[140px] hidden lg:table-cell">Availability %</TableHead>
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right">Actions</TableHead>
                 </TableRow>
@@ -203,7 +211,7 @@ export function AssetsMachinesPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((machine) => {
+                  sorted.map((machine) => {
                     const sc = statusConfig[machine.status]
                     return (
                       <TableRow key={machine.id} className={`hover:bg-muted/20 transition-colors duration-150 border-l-2 ${sc.borderColor} ${machine.status === 'error' ? 'bg-red-500/5' : ''}`}>
@@ -248,7 +256,7 @@ export function AssetsMachinesPage() {
           </div>
 
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Showing {filtered.length} of {mockMachines.length} machines</span>
+            <span>Showing {sorted.length} of {mockMachines.length} machines</span>
           </div>
         </CardContent>
       </Card>

@@ -126,7 +126,7 @@ export function AppSidebar() {
       <SidebarSeparator />
       <SidebarContent className="px-2">
         {menuGroups.map((group, gi) => (
-          <SidebarGroup key={group.label}>
+          <SidebarGroup key={group.label} className={gi > 0 ? 'mt-1' : ''}>
             <SidebarGroupLabel className="text-[10px] tracking-widest uppercase">
               {group.label}
             </SidebarGroupLabel>
@@ -143,6 +143,7 @@ export function AppSidebar() {
                         isActive={isActive}
                         onClick={() => setCurrentPage(item.id)}
                         tooltip={item.label}
+                        className={isActive ? 'border-l-2 border-l-primary' : ''}
                       >
                         <Icon className="size-4" />
                         <span>{item.label}</span>

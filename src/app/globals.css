@@ -253,7 +253,7 @@
 
 /* Table row hover zebra striping */
 .zebra-row:nth-child(even) {
-  background-color: oklch(0.19 0.006 155 / 30%);
+  background: rgba(255,255,255,0.015);
 }
 
 .zebra-row:hover {
@@ -296,8 +296,49 @@
   box-shadow: 0 8px 32px oklch(0 0 0 / 40%);
 }
 
+/* Better card hover glow */
+.card-glow {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.card-glow:hover {
+  box-shadow: 0 0 20px rgba(16,185,129,0.06);
+}
+
+/* Pulse animation for live indicators */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-live-pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+/* Subtle slide-in for cards */
+.animate-slide-in-up {
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
 /* KPI card subtle gradient bg */
 .kpi-gradient-green { background: linear-gradient(135deg, oklch(0.17 0.006 155 / 100%), oklch(0.19 0.012 155 / 80%)); }
 .kpi-gradient-red { background: linear-gradient(135deg, oklch(0.17 0.008 25 / 100%), oklch(0.19 0.012 25 / 80%)); }
 .kpi-gradient-amber { background: linear-gradient(135deg, oklch(0.17 0.008 65 / 100%), oklch(0.19 0.012 65 / 80%)); }
 .kpi-gradient-cyan { background: linear-gradient(135deg, oklch(0.17 0.006 200 / 100%), oklch(0.19 0.01 200 / 80%)); }
+
+/* Enhanced table row interactions */
+.table-row-interactive {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+.table-row-interactive:hover {
+  background: rgba(255,255,255,0.03);
+}
+.table-row-interactive:active {
+  background: rgba(255,255,255,0.05);
+}
+
+/* Focus ring for keyboard navigation */
+.table-row-interactive:focus-within {
+  outline: 1px solid rgba(16,185,129,0.3);
+  outline-offset: -1px;
+  border-radius: 4px;
+}

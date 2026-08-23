@@ -52,6 +52,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -195,9 +196,17 @@ function KPICard({
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
+const DATE_RANGES = [
+  { label: 'Last 24h', value: '24h' },
+  { label: 'Last 7 Days', value: '7d' },
+  { label: 'Last 30 Days', value: '30d' },
+  { label: 'Last 90 Days', value: '90d' },
+] as const
+
 export function AnalyticsPage() {
   const { machines, lastUpdate } = useIIoTStore()
   const [lastUpdatedText, setLastUpdatedText] = useState('—')
+  const [dateRange, setDateRange] = useState<string>('24h')
 
   useEffect(() => {
     function update() {
@@ -279,6 +288,25 @@ export function AnalyticsPage() {
         title="Analytics"
         description="Advanced analytics and insights"
         lastUpdated={lastUpdatedText}
+        actions={
+          <div className="flex items-center rounded-lg border border-border/40 p-0.5">
+            {DATE_RANGES.map((range) => (
+              <Button
+                key={range.value}
+                variant="ghost"
+                size="sm"
+                className={`h-7 px-2.5 text-[11px] font-medium rounded-md ${
+                  dateRange === range.value
+                    ? 'bg-primary/15 text-primary'
+                    : 'hover:bg-muted/50 text-muted-foreground'
+                }`}
+                onClick={() => setDateRange(range.value)}
+              >
+                {range.label}
+              </Button>
+            ))}
+          </div>
+        }
       />
 
       {/* KPI Cards */}
