@@ -246,7 +246,7 @@ function OEEComponentCard({
 }) {
   const barWidth = Math.max(0, Math.min(100, value))
   return (
-    <Card className="relative overflow-hidden transition-all duration-300 hover:border-border/60 group">
+    <Card className="relative overflow-hidden transition-all duration-300 hover:border-border/60 group w-44 shrink-0 kpi-card-hover">
       <div
         className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"
         style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }}
@@ -442,36 +442,30 @@ export function OEEPage() {
         <p className="text-xs text-muted-foreground mb-3 text-center">
           OEE = Availability × Performance × Quality
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <OEEComponentCard
             label="Availability"
             value={overallA}
             icon={() => <span className="text-lg font-mono" style={{ color: C_GREEN }}>A</span>}
             color={C_GREEN}
           />
-          <div className="flex items-center justify-center">
-            <span className="text-2xl font-bold text-muted-foreground">×</span>
-          </div>
+          <span className="text-2xl font-bold text-muted-foreground shrink-0">×</span>
           <OEEComponentCard
             label="Performance"
             value={overallP}
             icon={() => <span className="text-lg font-mono" style={{ color: C_CYAN }}>P</span>}
             color={C_CYAN}
           />
-          <div className="hidden sm:flex items-center justify-center col-span-3 -mt-1">
-            <span className="text-2xl font-bold text-muted-foreground">×</span>
-          </div>
+          <span className="text-2xl font-bold text-muted-foreground shrink-0">×</span>
           <OEEComponentCard
             label="Quality"
             value={overallQ}
             icon={() => <span className="text-lg font-mono" style={{ color: C_ORANGE }}>Q</span>}
             color={C_ORANGE}
           />
-          <div className="flex items-center justify-center">
-            <span className="text-2xl font-bold text-muted-foreground">=</span>
-          </div>
+          <span className="text-2xl font-bold text-muted-foreground shrink-0">=</span>
           <OEEComponentCard
-            label="OEE"
+            label="OEE Result"
             value={overallA * (overallP / 100) * (overallQ / 100)}
             icon={() => <span className="text-lg font-mono" style={{ color: C_YELLOW }}>OEE</span>}
             color={C_YELLOW}

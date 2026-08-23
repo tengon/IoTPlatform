@@ -953,4 +953,141 @@ Work Log:
 2. **MEDIUM**: Make Maintenance KPI cards interactive (click to filter table)
 3. **MEDIUM**: Add dashboard widget customization / layout preferences
 4. **LOW**: Add keyboard shortcuts page accessible from settings
-5. **LOW**: Add data export dialog (PDF/CSV options) for reports
+
+---
+Task ID: 10
+Agent: reports-page-builder
+Task: Create Reports page
+
+Work Log:
+- Created `/src/features/analytics/pages/reports-page.tsx` with full ReportsPage component
+- Added `'reports'` to PageId type in navigation store
+- Added Reports entry to ANALYTICS group in app-sidebar (after OEE)
+- Added `FileText` icon import to app-sidebar
+- Added `reports: 'Reports'` label and group mapping in app-topbar
+- Added ReportsPage import and entry in page.tsx pageComponents map
+- Fixed pre-existing JSX comment syntax error in live-monitoring-page.tsx
+
+Features implemented:
+1. **Report Type Selector**: 6 report cards in responsive grid (Production Summary, Alarm Analysis, Energy Consumption, OEE Performance, Machine Utilization, Maintenance Summary) with icons, descriptions, last generated timestamps, selection state with emerald ring
+2. **Date Range Picker**: Two date inputs with quick-select buttons (Last 24h, Last 7 Days, Last 30 Days, Custom), auto-populates dates, custom mode enables manual date editing
+3. **Generate Report Button**: Full simulation lifecycle (idle → generating with animated progress bar → complete with success message), disabled when no type selected
+4. **Recent Reports Table**: 10 mock reports with Report Name (with icon), Type (color-coded badge), Date Range, Generated At, Size, Actions (View/Download ghost-action-btns), responsive column hiding
+5. **Report Preview Dialog**: Opens on View click, shows 6 KPI summary cards with trend indicators, Recharts bar chart (Actual Output vs Target), machine performance breakdown table with OEE color coding and status badges
+
+Styling:
+- Uses `kpi-card-hover` on report type cards for lift effect
+- Uses `metric-value` for tabular numeric display
+- Uses `animate-slide-up` with `stagger-1` through `stagger-6` for staggered entry
+- Uses `ghost-action-btn` for table action buttons
+- Uses `table-row-interactive` and `zebra-row` for table rows
+- Uses `chart-container-glass` for chart area
+- Uses `chart-tooltip` for Recharts tooltip
+- Dark theme compatible, responsive grid (1/2/3 cols), mobile column hiding
+
+Stage Summary:
+- Full Reports page with 5 major interactive sections
+- Integrated into navigation (sidebar, topbar, page router)
+- Zero lint errors
+- Pre-existing JSX comment bug in live-monitoring-page.tsx also fixed
+
+---
+Task ID: 7-main
+Agent: main
+Task: Round 7 - Bug Fixes, New Features, Styling Polish
+
+Work Log:
+
+### VLM QA-Driven Bug Fixes (6 issues found, all fixed)
+1. **[CRITICAL] Live Monitoring telemetry labels** - All telemetry items in the Live Telemetry panel showed `(temp)` suffix with `°C` unit regardless of actual metric type. Fixed: device telemetry correctly labeled as `(Temp)` with `°C`, machine metrics show `(RPM)`/rpm, `(Power)`/kW, `(OEE)`/%.
+2. **[HIGH] OEE page A×P×Q layout** - The grid-based layout for OEE components (Availability × Performance × Quality = OEE) had an awkward `col-span-3` multiplier row creating gaps. Fixed: Replaced with `flex flex-wrap items-center justify-center gap-2` for clean horizontal flow. Fixed-width cards (`w-44 shrink-0`) prevent stretching.
+3. **[MEDIUM] Dashboard toast overlap** - Critical alarm toasts appeared at bottom-right, overlapping the Machine Status widget. Fixed: Changed ToastViewport from `sm:bottom-0 sm:right-0 sm:top-auto` to `sm:top-0 sm:right-0 sm:bottom-auto` (top-right).
+4. **[MEDIUM] Active Alarms message coloring** - All alarm messages displayed in red text regardless of severity (alarm fatigue). Fixed: Critical = `text-red-300 font-medium`, Warning = `text-amber-300`, Info = `text-foreground/80`.
+5. **[STYLE] OEE bars on Live Monitoring** - Segmented dash-style OEE bars replaced with solid gradient bars + 85% target marker (thin vertical line with tooltip).
+6. **[STYLE] Sites inactive card** - `opacity-60` reduced readability. Fixed: Replaced with `grayscale-[40%] brightness-90` for desaturation without contrast loss. Table rows use `grayscale-[30%]`.
+
+### Styling Improvements
+7. **Maintenance table zebra striping** - Added `zebra-row` and alternating `bg-muted/[0.02]` classes to table rows for better scannability.
+8. **Maintenance KPI interactivity** - Overdue and Completed KPI cards now clickable to toggle status filter. Shows `(filtered)` indicator when active. Subtitle changed to "Click to filter".
+9. **OEE component cards** - Added `kpi-card-hover` class for consistent hover lift effect across all A/P/Q/OEE cards.
+
+### New Features (2 pages)
+10. **System Diagnostics Page** (Task ID: 9)
+    - 4 KPI cards: Platform Uptime (99.97%), API Response Time (42ms), WebSocket Latency (12ms), Active Connections (24)
+    - Real-time performance charts: API Response Time (with p95 threshold) + Memory Usage area chart
+    - Service Status Grid: 6 services with status dots, uptime, last checked
+    - System Resources: CPU, Memory, Disk, Network gauges
+    - Recent Events Log: 15 system events table
+    - Auto-refresh every 3-5 seconds
+    - Registered under ADMINISTRATION group
+
+11. **Reports Page** (Task ID: 10)
+    - 6 report type cards (Production, Alarms, Energy, OEE, Utilization, Maintenance)
+    - Date range picker with quick-select (24h/7d/30d/Custom)
+    - Generate Report button with simulated progress
+    - Recent Reports table (10 rows with View/Download actions)
+    - Report Preview Dialog with KPI summary, bar chart, machine performance table
+    - Registered under ANALYTICS group (after OEE)
+
+Stage Summary:
+- 6 VLM-identified bugs all fixed and verified (all PASS in re-review)
+- 2 new pages (Diagnostics + Reports) bringing total to 21 pages
+- Platform rated 9/10 overall - "enterprise-grade, production-ready"
+- Lint: 0 errors
+- No runtime errors in console
+
+## Current Project Status (Post Round 7)
+
+### Platform Overview
+- **21 pages** across 6 menu groups (added Diagnostics + Reports in Round 7)
+- Real-time WebSocket data simulation (port 3002)
+- Dark industrial theme with emerald green primary
+- Machine Health Score rings on Live Monitoring
+- Activity Feed panel in topbar with auto-generating events
+- Maintenance Schedule with table + calendar view + interactive KPI filtering
+- System Diagnostics with live performance monitoring
+- Reports page with report generation simulation and preview
+
+### VLM Quality Scores (Round 7)
+| Page | Round 6 | Round 7 | Change |
+|------|---------|---------|--------|
+| Dashboard | 9/10 | 9/10 | Stable |
+| Live Monitoring | 8.5/10 | ~9/10 | +0.5 (bug fix) |
+| Active Alarms | 8.5/10 | ~9/10 | +0.5 (color fix) |
+| OEE | ~8.5/10 | ~9/10 | +0.5 (layout fix) |
+| Maintenance | 8.5/10 | ~9/10 | +0.5 (zebra+interactive) |
+| Diagnostics | N/A (new) | ~9/10 | NEW |
+| Reports | N/A (new) | ~9/10 | NEW |
+| **Overall** | **8.6/10** | **9/10** | **+0.4** |
+
+### Bug Fixes This Round
+1. Telemetry label data integrity (was showing all as temperature)
+2. OEE A×P×Q layout gap (broken grid, now clean flex flow)
+3. Toast notification overlap (moved to top-right)
+4. Alarm message color fatigue (severity-based coloring)
+5. OEE bar visualization (solid + target marker)
+6. Sites inactive card readability (grayscale instead of opacity)
+
+### New Features This Round
+1. System Diagnostics page (21st page)
+2. Reports page with generation simulation (22nd page)
+3. Maintenance KPI card click-to-filter interaction
+4. Solid OEE progress bars with 85% target markers
+5. Zebra striping on maintenance table
+
+### Unresolved Issues / Risks
+1. **LOW**: Energy chart spike (vertical line at end of timeline) - could cap Y-axis dynamically
+2. **LOW**: Analytics chart X-axis label clipping risk on smaller screens
+3. **LOW**: Settings toggle alignment (slight vertical offset on Compact Mode toggle)
+4. **LOW**: Action button tooltips missing on some table icon buttons
+5. **LOW**: Calendar view could benefit from Gantt-style timeline
+
+### Priority Recommendations for Next Phase
+1. **HIGH**: Add more data visualization to Reports page (pie charts, heatmaps)
+2. **MEDIUM**: Add export-to-PDF functionality for Reports
+3. **MEDIUM**: Enhance Diagnostics with alert correlation (which alarms caused which performance issues)
+4. **MEDIUM**: Add real-time threshold-based alerting to Diagnostics
+5. **LOW**: Add keyboard shortcuts page
+6. **LOW**: Add notification sound preferences (audio for critical alarms)
+7. **LOW**: Mobile responsive testing on 768px tablet breakpoint
+8. **LOW**: Add data pagination improvements (server-side pagination pattern)

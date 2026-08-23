@@ -157,7 +157,7 @@ export function SitesPage() {
           {mockSites.map((site, idx) => {
             const sc = siteStatusConfig[site.status]
             return (
-              <Card key={site.id} className={`border-border/40 hover:border-border/60 transition-colors duration-300 relative overflow-hidden ${site.status === 'inactive' ? 'opacity-60' : ''}`} style={{ animationDelay: `${idx * 50}ms` }}>
+              <Card key={site.id} className={`border-border/40 hover:border-border/60 transition-colors duration-300 relative overflow-hidden ${site.status === 'inactive' ? 'grayscale-[40%] brightness-90' : ''}`} style={{ animationDelay: `${idx * 50}ms` }}>
                 <div className={`absolute top-0 left-0 right-0 h-[2px] ${site.status === 'active' ? 'bg-emerald-500' : site.status === 'commissioning' ? 'bg-amber-500' : 'bg-red-500'}`} />
                 <CardHeader className="pb-3 pt-5 px-5">
                   <div className="flex items-start justify-between">
@@ -216,7 +216,7 @@ export function SitesPage() {
                   {mockSites.map((site) => {
                     const sc = siteStatusConfig[site.status]
                     return (
-                      <TableRow key={site.id} className={`table-row-severity hover:bg-muted/20 transition-colors duration-150 ${site.status === 'inactive' ? 'opacity-60' : ''}`}>
+                      <TableRow key={site.id} className={`table-row-severity hover:bg-muted/20 transition-colors duration-150 ${site.status === 'inactive' ? 'grayscale-[30%]' : ''}`}>
                         <TableCell className="font-medium text-sm py-3">{site.name}</TableCell>
                         <TableCell className="font-mono text-xs py-3">{site.code}</TableCell>
                         <TableCell className="hidden md:table-cell text-xs text-muted-foreground max-w-[200px] truncate py-3">{site.address}</TableCell>

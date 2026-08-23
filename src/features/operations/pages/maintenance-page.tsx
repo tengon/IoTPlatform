@@ -443,25 +443,25 @@ export function MaintenancePage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-red-500/20 kpi-card-hover">
+        <Card className="border-red-500/20 kpi-card-hover cursor-pointer" onClick={() => { setFilterStatus(filterStatus === 'Overdue' ? 'all' : 'Overdue') }}>
           <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10">
               <AlertTriangle className="size-5 text-red-400" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground metric-label">Overdue Tasks</p>
+              <p className="text-xs text-muted-foreground metric-label">Overdue Tasks {filterStatus === 'Overdue' ? '(filtered)' : ''}</p>
               <p className="text-2xl font-bold text-red-400 metric-value">{stats.overdue}</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Requires attention</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Click to filter</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-emerald-500/20 kpi-card-hover">
+        <Card className="border-emerald-500/20 kpi-card-hover cursor-pointer" onClick={() => { setFilterStatus(filterStatus === 'Completed' ? 'all' : 'Completed') }}>
           <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
               <CheckCircle2 className="size-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground metric-label">Completed This Month</p>
+              <p className="text-xs text-muted-foreground metric-label">Completed This Month {filterStatus === 'Completed' ? '(filtered)' : ''}</p>
               <p className="text-2xl font-bold text-emerald-400 metric-value">{stats.completedThisMonth}</p>
               <p className="text-[10px] text-muted-foreground/60 mt-0.5">On schedule</p>
             </div>
@@ -583,7 +583,7 @@ export function MaintenancePage() {
                       const chipClass = statusChipClass[task.status]
                       const dotColor = statusDotColor[task.status]
                       return (
-                        <TableRow key={task.id} className="table-row-severity">
+                        <TableRow key={task.id} className={`table-row-severity zebra-row ${index % 2 === 0 ? '' : 'bg-muted/[0.02]'}`}>
                           <TableCell className="font-mono text-xs font-medium py-3">{task.id}</TableCell>
                           <TableCell className="py-3">
                             <div className="font-medium text-sm">{task.machine}</div>

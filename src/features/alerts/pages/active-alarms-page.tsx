@@ -439,7 +439,11 @@ export function ActiveAlarmsPage() {
                             <span className="text-sm font-medium text-foreground/90">{alarm.source}</span>
                           </TableCell>
                           <TableCell className="py-3 max-w-xs">
-                            <span className={`text-sm ${alarm.severity === 'critical' ? 'text-red-300 font-medium' : 'text-foreground/80'}`}>
+                            <span className={`text-sm ${
+                              alarm.severity === 'critical' ? 'text-red-300 font-medium' :
+                              alarm.severity === 'warning' ? 'text-amber-300' :
+                              'text-foreground/80'
+                            }`}>
                               {alarm.message}
                             </span>
                           </TableCell>

@@ -50,6 +50,7 @@ const pageLabels: Record<string, string> = {
   analytics: 'Analytics',
   'energy-monitoring': 'Energy Monitoring',
   oee: 'OEE',
+  reports: 'Reports',
   'active-alarms': 'Active Alarms',
   'alarm-history': 'Alarm History',
   'alert-rules': 'Alert Rules',
@@ -59,6 +60,7 @@ const pageLabels: Record<string, string> = {
   users: 'Users',
   sites: 'Sites',
   'roles-permissions': 'Roles & Permissions',
+  diagnostics: 'Diagnostics',
   settings: 'Platform Settings',
 }
 
@@ -72,6 +74,7 @@ const groupLabels: Record<string, string> = {
   analytics: 'Analytics',
   'energy-monitoring': 'Analytics',
   oee: 'Analytics',
+  reports: 'Analytics',
   'active-alarms': 'Alerts',
   'alarm-history': 'Alerts',
   'alert-rules': 'Alerts',
@@ -81,6 +84,7 @@ const groupLabels: Record<string, string> = {
   users: 'Administration',
   sites: 'Administration',
   'roles-permissions': 'Administration',
+  diagnostics: 'Administration',
   settings: 'Administration',
 }
 

@@ -10,6 +10,7 @@ export type PageId =
   | 'analytics'
   | 'energy-monitoring'
   | 'oee'
+  | 'reports'
   | 'active-alarms'
   | 'alarm-history'
   | 'alert-rules'
@@ -19,6 +20,7 @@ export type PageId =
   | 'users'
   | 'sites'
   | 'roles-permissions'
+  | 'diagnostics'
   | 'settings'
 
 interface NavigationState {

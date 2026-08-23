@@ -14,6 +14,7 @@ import { HistoricalDataPage } from '@/features/analytics/pages/historical-data-p
 import { AnalyticsPage } from '@/features/analytics/pages/analytics-page'
 import { EnergyMonitoringPage } from '@/features/energy/pages/energy-monitoring-page'
 import { OEEPage } from '@/features/analytics/pages/oee-page'
+import { ReportsPage } from '@/features/analytics/pages/reports-page'
 import { AssetsMachinesPage } from '@/features/devices/pages/assets-machines-page'
 import { ProductionPage } from '@/features/devices/pages/production-page'
 import { MaintenancePage } from '@/features/operations/pages/maintenance-page'
@@ -22,6 +23,7 @@ import { GatewaysPage } from '@/features/devices/pages/gateways-page'
 import { FirmwareOTAPage } from '@/features/devices/pages/firmware-ota-page'
 import { UsersPage } from '@/features/administration/pages/users-page'
 import { SitesPage, RolesPermissionsPage, SettingsPage } from '@/features/administration/pages/admin-pages'
+import { DiagnosticsPage } from '@/features/administration/pages/diagnostics-page'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { AlarmToast } from '@/components/layout/alarm-toast'
 
@@ -35,6 +37,7 @@ const pageComponents: Record<PageId, React.ComponentType> = {
   analytics: AnalyticsPage,
   'energy-monitoring': EnergyMonitoringPage,
   oee: OEEPage,
+  reports: ReportsPage,
   'active-alarms': ActiveAlarmsPage,
   'alarm-history': AlarmHistoryPage,
   'alert-rules': AlertRulesPage,
@@ -44,6 +47,7 @@ const pageComponents: Record<PageId, React.ComponentType> = {
   users: UsersPage,
   sites: SitesPage,
   'roles-permissions': RolesPermissionsPage,
+  diagnostics: DiagnosticsPage,
   settings: SettingsPage,
 }
 

@@ -300,7 +300,7 @@ function MachineCard({ machine, telemetry, onSelect }: {
           </div>
         </div>
 
-        {/* OEE Segmented Bar */}
+        {/* OEE Solid Bar with Target Marker */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -311,17 +311,17 @@ function MachineCard({ machine, telemetry, onSelect }: {
               {machine.oee.toFixed(1)}%
             </span>
           </div>
-          <div className="flex gap-0.5">
-            {[100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5].map((mark) => (
-              <div
-                key={mark}
-                className={`h-1.5 flex-1 rounded-sm transition-colors duration-500 ${
-                  machine.oee >= mark
-                    ? oeeBarColor(machine.oee)
-                    : 'bg-muted/30'
-                }`}
-              />
-            ))}
+          <div className="relative h-2.5 w-full rounded-full bg-muted/40 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${oeeBarColor(machine.oee)}`}
+              style={{ width: `${Math.min(100, machine.oee)}%` }}
+            />
+            {/* 85% Target marker */}
+            <div
+              className="absolute top-0 bottom-0 w-px bg-foreground/30"
+              style={{ left: '85%' }}
+              title="Target: 85%"
+            />
           </div>
         </div>
 
@@ -395,6 +395,7 @@ export function LiveMonitoringPage() {
   // Flatten all live telemetry into a displayable list
   const flatTelemetry = useMemo(() => {
     const entries: { key: string; label: string; value: number; unit?: string }[] = []
+    // Device-level telemetry from WebSocket (temperature data)
     Object.entries(liveTelemetry).forEach(([id, points]) => {
       if (points.length > 0) {
         const latest = points[points.length - 1]
@@ -403,12 +404,13 @@ export function LiveMonitoringPage() {
         const label = machine?.name || device?.name || id
         entries.push({
           key: `${id}-temp`,
-          label: `${label} (temp)`,
+          label: `${label} (Temp)`,
           value: latest.value,
           unit: '°C',
         })
       }
     })
+    // Machine-level metrics from store
     machines.forEach((m) => {
       entries.push(
         { key: `${m.id}-rpm`, label: `${m.name} (RPM)`, value: m.rpm, unit: 'rpm' },

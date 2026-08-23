@@ -20,6 +20,8 @@ import {
   Building2,
   Shield,
   Cog,
+  HeartPulse,
+  FileText,
 } from 'lucide-react'
 import { useNavigation, type PageId } from '@/store/navigation'
 import { useIIoTStore } from '@/store/iiot'
@@ -74,6 +76,7 @@ const menuGroups: MenuGroup[] = [
       { id: 'analytics', label: 'Analytics', icon: BarChart3 },
       { id: 'energy-monitoring', label: 'Energy Monitoring', icon: Zap },
       { id: 'oee', label: 'OEE', icon: Gauge },
+      { id: 'reports', label: 'Reports', icon: FileText },
     ],
   },
   {
@@ -98,6 +101,7 @@ const menuGroups: MenuGroup[] = [
       { id: 'users', label: 'Users', icon: Users },
       { id: 'sites', label: 'Sites', icon: Building2 },
       { id: 'roles-permissions', label: 'Roles & Permissions', icon: Shield },
+      { id: 'diagnostics', label: 'Diagnostics', icon: HeartPulse },
       { id: 'settings', label: 'Platform Settings', icon: Cog },
     ],
   },
