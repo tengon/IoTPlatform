@@ -308,7 +308,7 @@ export function UsersPage() {
                           {formatDistanceToNow(new Date(user.lastLogin), { addSuffix: true })}
                         </TableCell>
                         <TableCell className="py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1 ghost-action-btn">
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50">
                               <Pencil className="size-3.5" />
                             </Button>

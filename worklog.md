@@ -595,9 +595,203 @@ Stage Summary:
 2. **HIGH: Data Persistence** — Prisma schema defined, 7 REST APIs exist with mock data. Connect APIs to SQLite via Prisma for real CRUD
 3. **MEDIUM: WebSocket → REST API Integration** — Currently WebSocket provides all real-time data. Add socket.io-emitter to bridge server-side events
 4. **MEDIUM: PDF Report Export** — CSV export implemented for Alarms + Energy. Add PDF report generation with charts
-5. **MEDIUM: Mobile Responsive Testing** — Desktop QA done via agent-browser. Test on mobile viewports (375px, 768px)
-6. **MEDIUM: Light Theme** — Dark theme is polished. Light theme needs refinements for contrast and readability
-7. **LOW: Audit Logging** — Prisma AuditLog model exists. Add user action tracking to API routes
-8. **LOW: Command Palette Expansion** — Currently searches pages, machines, devices, alarms. Add production orders, sites, users
-9. **LOW: Real-time Notification Sounds** — Toast for critical alarms exists. Add optional audio alert for control rooms
-10. **LOW: Data Visualization Export** — Charts use Recharts. Add chart-to-PNG/SVG export for reports
+5. **MEDIUM: Light Theme Refinements** — Dark theme is polished (9/10). Light theme needs CSS variable adjustments for contrast and readability
+6. **LOW: Audit Logging** — Prisma AuditLog model exists. Add user action tracking to API routes
+7. **LOW: Real-time Notification Sounds** — Toast for critical alarms exists. Add optional audio alert for control rooms
+8. **LOW: Data Visualization Export** — Charts use Recharts. Add chart-to-PNG/SVG export for reports
+9. **LOW: Machine Detail Dialog Enhancement** — Dialog exists but could show historical telemetry charts and recent alarm history
+10. **LOW: 768px Tablet Responsive** — Mobile (375px) and desktop (1920px) tested. Tablet breakpoint needs verification
+
+## Current Project Status (Post Round 5)
+- Platform fully functional with 18 pages across 6 menu groups
+- Real-time WebSocket data simulation (port 3002)
+- Dark industrial theme with emerald green primary
+- VLM ratings: Dashboard 9/10 (up from 7.5), Live Monitoring 9/10, Analytics 8.5/10, Active Alarms 8/10, Energy 9/10, OEE 8/10, Settings 10/10, Sites 9/10
+- Mobile UX: 8/10 (up from 4/10)
+- Command palette: 7 search groups (pages, machines, devices, production orders, sites, users, alarms)
+- All pages render without errors, lint passes clean (0 errors, 0 warnings)
+
+## Completed This Round (Task IDs 16-1 through 16-10)
+
+### Styling Improvements (Mandatory)
+1. **Chart grid lines**: Visible dashed grid lines (rgba 0.06 opacity) for all Recharts charts
+2. **Chart axis labels**: Improved contrast from gray-500 to gray-400 equivalent
+3. **Chart glass containers**: `chart-container-glass` class applied to 10+ chart cards across Dashboard, Energy, OEE
+4. **Ghost action buttons**: `ghost-action-btn` class for table row action icons (hover: bg, border, scale)
+5. **Table row severity hover**: `table-row-severity` class with inset left border on hover
+6. **Notification badge color fix**: Emerald (on-brand) for counts, red glow only for critical (was always red)
+7. **Toast critical glassmorphism**: Gradient + left border + shadow for destructive toasts
+8. **Temperature alert glow**: CSS animation for alert-state temperature bars
+9. **Search bar truncation fix**: Widened from w-56→w-64/focused w-80, min-width protection
+10. **Status pills**: Already had borders from previous round's StatusBadge component
+11. **Stat group styling**: `stat-group`/`stat-item`/`stat-item-label`/`stat-item-value` for Sites page
+12. **Mobile footer hide**: `platform-footer` class hidden on <640px
+13. **Mobile touch targets**: Min-height 36px on mobile for all buttons
+14. **Mobile font contrast**: Improved muted-foreground contrast on small screens
+
+### Dashboard-Specific Improvements
+- Alarm Summary: 2-column layout (donut gauge + severity breakdown list) fills empty space
+- Bottom row: Balanced 50/50 grid (was 1:2 asymmetric)
+- KPI cards: Color-coded gradient backgrounds (kpi-gradient-green/cyan/red/amber)
+- Machine Status: More compact padding (py-2.5 px-3)
+- Active Alarms banner: Polished alert bar with left border, uppercase label, large count
+
+### New Features (Mandatory)
+1. **OEE 24h Trend Chart**: New AreaChart with 24 hourly data points (65-95% range), gradient fill
+2. **OEE Loss Analysis Labels**: Inline percentage labels on all loss bars, bar width 50% increase
+3. **Command Palette Expansion**: 3 new search groups (Production Orders, Sites, Users) with 14 additional searchable items
+4. **Settings Page - Display Card**: Theme selection (3 styled buttons), default page dropdown, compact mode toggle, sparklines toggle
+5. **Settings Page - Enhanced Notifications**: Sound alerts toggle, desktop push notifications toggle
+6. **Settings Page - WebSocket Card**: Live connection status indicator, reconnection interval, max retry, test connection button
+7. **Settings Page - Danger Zone**: Red-bordered card with reset/export buttons and warning text
+8. **Settings Page - Save Toast**: Success notification on save
+
+### Bug Fixes
+- Energy Monitoring voltage chart line: Changed to cyan-400, strokeWidth 2.5 for visibility
+
+### VLM QA Results (Pre → Post)
+| Page | Before | After |
+|------|--------|-------|
+| Dashboard | 7.5/10 | 9/10 |
+| Mobile View | 4/10 | 8/10 |
+| Settings | N/A (new features) | 10/10 |
+| Energy | ~7.5/10 | 9/10 |
+| Sites | ~8/10 | 9/10 |
+| OEE | ~7.5/10 | 8/10 |
+
+---
+Task ID: 16-1
+Agent: general-purpose
+Task: Global CSS + Layout polish
+
+Work Log:
+- Appended Round 5 QA-driven styling improvements to globals.css: Recharts grid lines, chart axis labels, ghost action buttons, severity table rows, notification badge classes, stat group/item for cards, toast-critical glassmorphism, temp-bar-alert glow, search-bar-topbar min-width, mobile responsive improvements (footer hide, touch targets, font contrast), chart-container-glass, temp-alert-glow animation
+- Added `platform-footer` class to footer in page.tsx for mobile hide via CSS media query
+- Updated search bar container in app-topbar.tsx: added `search-bar-topbar` class, widened from w-56/w-72 to w-64/w-80
+- Updated notification badge in notification-panel.tsx: replaced red/amber inline Tailwind classes with `notification-badge-critical`/`notification-badge-count` CSS utility classes (emerald primary for counts, red glow only for critical)
+- Ran lint: passed clean
+
+Stage Summary:
+- 15+ new CSS utility classes added for charts, tables, notifications, stats, toasts, mobile responsiveness
+- Footer hidden on mobile (<640px) to maximize content area
+- Search bar widened with min-width protection against truncation
+- Notification badge uses on-brand emerald color for normal counts, red glow reserved for critical alarms
+
+---
+Task ID: 16-2
+Agent: general-purpose
+Task: Dashboard page styling fixes
+
+Work Log:
+- Alarm Summary Card: Replaced single gauge + legend row with 2-column layout (donut gauge left, severity breakdown list right) to fill empty space. Breakdown shows Critical/Warning/Info with colored dot indicators and dynamic counts.
+- Bottom row grid: Changed Alarm Summary + Machine Status grid from `lg:grid-cols-3` (1:2 asymmetric) to `lg:grid-cols-2` (1:1 equal) with `gap-6`. Updated Machine Status col-span from 2 to 1.
+- KPI card gradients: Added `kpi-gradient-green`, `kpi-gradient-cyan`, `kpi-gradient-red`, `kpi-gradient-amber` classes to the 4 KPI cards (Total Devices, Active Machines, Active Alarms, Energy) for subtle theme-colored gradient backgrounds.
+- Machine Status compact: Reduced item padding from `p-3.5` to `py-2.5 px-3` and badge height from `h-5` to `h-4`.
+- Production Overview chart: Added `chart-container-glass` class for glassmorphism effect.
+- Energy chart: Added `chart-container-glass` class for glassmorphism effect.
+- Active Alarms banner: Added polished alert bar at bottom with subtle left border (`border-l-[3px] border-l-red-500/70`), red-tinted background, `text-xs uppercase tracking-wider` label, `text-2xl font-bold` count, and ghost "View All" button.
+- Ran lint: passed clean (0 errors)
+
+Stage Summary:
+- 7 targeted styling improvements applied to dashboard-page.tsx
+- All changes are surgical CSS/class edits; no logic or data flow changes
+- Alarm summary card now uses space efficiently with side-by-side gauge + breakdown
+- Charts have glassmorphism treatment via existing CSS utility
+- New Active Alarms banner provides prominent bottom-of-page alert visibility
+- Lint: 0 errors
+
+---
+Task ID: 16-4
+Agent: main
+Task: Energy Monitoring Page improvements
+
+Work Log:
+- Verified bottom grid already uses grid-cols-1 lg:grid-cols-2 with no col-span on either card
+- Increased Voltage line strokeWidth from 2 to 2.5 and changed stroke to #22d3ee (cyan-400) for better visibility
+- Added animationDuration={0} to Voltage line for instant rendering
+- Added chart-container-glass class to Real-time Power Consumption chart card
+
+Stage Summary:
+- Voltage chart line now clearly visible with cyan-400 color and thicker stroke
+- Power consumption chart wrapped with glassmorphism container class
+- Bottom grid layout confirmed balanced (equal sizing, no col-span)
+
+---
+Task ID: 16-5
+Agent: main
+Task: Sites Page Stat Group Styling
+
+Work Log:
+- Replaced plain grid-based device/machine count display with stat-group pattern
+- Updated HTML structure to use stat-group, stat-item, stat-item-label, stat-item-value CSS classes
+- Removed unused Monitor and Cpu icon imports from lucide-react
+
+Stage Summary:
+- Sites cards now use consistent stat-group component pattern
+- Clean semantic markup with dedicated label/value spans
+- Removed dead imports to maintain lint cleanliness
+
+---
+Task ID: 16-9
+Agent: main
+Task: OEE Page Improvements
+
+Work Log:
+- Added OEE Trend (24h) AreaChart with 24 data points (65-95% range) and gradient fill
+- Imported LabelList from recharts for bar chart labels
+- Increased loss analysis bar size from 20 to 30 for wider bars
+- Added LabelList to each loss bar (Avail. Loss, Perf. Loss, Quality Loss) with percentage labels
+- Wrapped all chart cards with chart-container-glass class (gauge, 24h trend, per-machine, 30-day trends, loss analysis, target vs actual)
+
+Stage Summary:
+- New 24h OEE trend chart provides hourly OEE visualization with AreaChart and gradient fill
+- Loss analysis bars are 50% wider with inline percentage labels using LabelList
+- All OEE page charts now have consistent glassmorphism container styling
+- Lint: 0 errors
+
+---
+Task ID: 16-7
+Agent: general-purpose
+Task: Command palette expansion + Users action buttons styling
+
+Work Log:
+- Added "Production Orders" command palette group with 5 mock orders (PO-2401..PO-2405), Package icon, status color coding, navigates to production page
+- Added "Sites" command palette group with 4 mock sites (Shanghai, Suzhou, Hangzhou, Beijing), Building2 icon, device/machine counts, navigates to sites page
+- Added "Users" command palette group with 5 mock users, Users icon, role display, status color coding, navigates to users page
+- Verified store has `production` field (not `productionOrders`), used mock data as instructed
+- Updated CommandInput placeholder from "Search pages, machines, devices, alarms..." to "Search anything..."
+- Updated footer hint from "Search pages, machines, devices & alarms" to "Search pages, machines, devices, alarms, orders & more"
+- Added ORDER_STATUS_COLORS and USER_STATUS_COLORS lookup maps for palette item styling
+- Added handleProductionSelect, handleSiteSelect, handleUserSelect navigation handlers
+- Applied `ghost-action-btn` CSS class to action button container div in Users page table
+- Applied `table-row-severity` CSS class to SitesPage table rows for enhanced hover effect
+
+Stage Summary:
+- Command palette now searches 7 groups: Pages, Machines, Devices, Production Orders, Sites, Users, and Recent Alarms
+- Icons: Package (production), Building2 (sites), Users (users) — all already imported
+- Users page action buttons use ghost-action-btn for improved hover/affordance
+- Sites page table rows use table-row-severity for enhanced hover effect
+- Lint: 0 errors
+
+---
+Task ID: 16-8
+Agent: general-purpose
+Task: Enhance Platform Settings page with more functional features and richer UI
+
+Work Log:
+- Added imports: Sun, Moon, Monitor, AlertTriangle, Volume2, Trash2 from lucide-react; useToast from @/hooks/use-toast
+- Added new settings state fields: soundAlerts, desktopPush, theme, defaultPage, compactMode, showSparklines, reconnectInterval, maxRetryAttempts
+- Wired up `isConnected` from useIIoTStore for live WebSocket status display
+- Wired up `useToast` hook for save and test-connection toasts
+- Added Display settings card (between General and Notifications) with: Theme selection via 3 styled icon buttons (Sun/Moon/Monitor), Default Page on Login dropdown (Dashboard/Live Monitoring/Active Alarms), Compact Mode toggle, Show Sparklines on Dashboard toggle (default: true)
+- Enhanced Notifications card with: Sound Alerts toggle (with Volume2 icon, "Play audio for critical alarms"), Desktop Push Notifications toggle ("Browser push for background alerts")
+- Added WebSocket settings card (after API card) with: Connection status indicator (green/red dot with glow shadow, Connected/Disconnected text), Reconnection Interval number input (default 5000ms), Max Retry Attempts number input (default 10), Test Connection button showing "Connection OK" toast
+- Added Danger Zone card (after WebSocket) with: red-bordered card (`border-red-500/30 hover:border-red-500/50`), Reset All Settings to Default button (destructive variant + Trash2 icon, console.log), Export All Data button (outline variant, console.log), warning text in red
+- Added onClick handler to Save Settings button that shows success toast: "Settings saved successfully"
+
+Stage Summary:
+- Settings page now has 8 cards: General, Display, Notifications (enhanced), Data Retention, Security, API, WebSocket, Danger Zone
+- All new toggles and inputs are fully wired to local state
+- Toast notifications on save and test connection
+- Live WebSocket connection status from Zustand store
+- Lint: 0 errors

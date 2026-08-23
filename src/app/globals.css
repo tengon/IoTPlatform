@@ -342,3 +342,195 @@
   outline-offset: -1px;
   border-radius: 4px;
 }
+
+/* ============================================
+   ROUND 5 - QA-DRIVEN STYLING IMPROVEMENTS
+   ============================================ */
+
+/* Enhanced Recharts grid lines - visible but not distracting */
+.dark .recharts-cartesian-grid-horizontal line,
+.dark .recharts-cartesian-grid-vertical line {
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-dasharray: 4 4;
+}
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(0, 0, 0, 0.06);
+  stroke-dasharray: 4 4;
+}
+
+/* Chart axis labels - improved contrast */
+.dark .recharts-text {
+  fill: oklch(0.65 0.01 155);
+  font-size: 11px;
+}
+.recharts-text {
+  fill: oklch(0.4 0.005 155);
+  font-size: 11px;
+}
+
+/* Ghost action button for tables */
+.ghost-action-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: oklch(0.65 0.01 155);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.ghost-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: scale(1.05);
+}
+.dark .ghost-action-btn {
+  color: oklch(0.65 0.01 155);
+}
+.dark .ghost-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Enhanced table row with severity left border on hover */
+.table-row-severity {
+  transition: all 0.2s ease;
+}
+.table-row-severity:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 3px 0 0 oklch(0.65 0.17 155 / 50%);
+}
+
+/* Notification badge - use primary color instead of red for counts */
+.notification-badge-count {
+  background: oklch(0.65 0.17 155);
+  color: #fff;
+  box-shadow: 0 0 8px oklch(0.65 0.17 155 / 40%);
+}
+.notification-badge-critical {
+  background: oklch(0.65 0.22 25);
+  color: #fff;
+  box-shadow: 0 0 10px oklch(0.65 0.22 25 / 50%);
+}
+
+/* Stat group for site/device cards */
+.stat-group {
+  display: flex;
+  gap: 24px;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.dark .stat-group {
+  border-top-color: oklch(0.25 0.008 155 / 50%);
+}
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-item-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: oklch(0.55 0.01 155);
+  font-weight: 500;
+}
+.stat-item-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: oklch(0.92 0.01 155);
+  font-variant-numeric: tabular-nums;
+}
+.dark .stat-item-label {
+  color: oklch(0.65 0.01 155);
+}
+.dark .stat-item-value {
+  color: oklch(0.92 0.01 155);
+}
+
+/* Toast depth/glassmorphism for critical alarms */
+.toast-critical {
+  background: linear-gradient(135deg, oklch(0.55 0.2 25) 0%, oklch(0.45 0.18 25) 100%) !important;
+  border-left: 4px solid oklch(0.75 0.15 25) !important;
+  box-shadow: 
+    0 10px 25px -5px oklch(0.5 0.2 25 / 30%),
+    0 8px 10px -6px oklch(0 0 0 / 40%) !important;
+}
+
+/* Temperature bar alert glow */
+.temp-bar-alert {
+  position: relative;
+}
+.temp-bar-alert::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow: 0 0 8px oklch(0.65 0.22 25 / 50%);
+  animation: pulse-red 2s ease-in-out infinite;
+}
+@keyframes pulse-red {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Search bar - prevent truncation */
+.search-bar-topbar {
+  min-width: 200px !important;
+  max-width: none !important;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE IMPROVEMENTS
+   ============================================ */
+
+/* Hide footer on mobile to maximize content area */
+@media (max-width: 639px) {
+  .platform-footer {
+    display: none;
+  }
+}
+
+/* Mobile touch targets - minimum 44px */
+@media (max-width: 768px) {
+  button, [role="button"], .touch-target {
+    min-height: 36px;
+  }
+  
+  /* Improve font readability on mobile */
+  body {
+    font-size: 15px;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Better subtitle contrast on mobile */
+  .text-muted-foreground {
+    color: oklch(0.6 0.01 155) !important;
+  }
+}
+
+/* Chart container glass effect */
+.chart-container-glass {
+  background: linear-gradient(145deg, oklch(0.17 0.006 155 / 100%), oklch(0.15 0.004 155 / 100%));
+  border: 1px solid oklch(0.3 0.01 155 / 50%);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px oklch(0 0 0 / 20%);
+  padding: 16px;
+}
+.dark .chart-container-glass {
+  background: linear-gradient(145deg, oklch(0.17 0.006 155 / 100%), oklch(0.15 0.004 155 / 100%));
+  border-color: oklch(0.3 0.01 155 / 50%);
+}
+
+/* Pulse glow for alert temperature bars */
+@keyframes tempAlertGlow {
+  0%, 100% { box-shadow: 0 0 4px oklch(0.65 0.22 25 / 30%); }
+  50% { box-shadow: 0 0 12px oklch(0.65 0.22 25 / 60%); }
+}
+.temp-alert-glow {
+  animation: tempAlertGlow 2s ease-in-out infinite;
+}

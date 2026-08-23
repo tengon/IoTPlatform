@@ -122,7 +122,7 @@ export function AppTopbar() {
 
       <div className="ml-auto flex items-center gap-1.5">
         {/* Search Bar */}
-        <div className={`hidden md:flex relative transition-all duration-200 ${searchFocused ? 'w-72' : 'w-56'}`}>
+        <div className={`hidden md:flex relative transition-all duration-200 search-bar-topbar ${searchFocused ? 'w-80' : 'w-64'}`}>
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60" />
           <Input
             placeholder="Search devices, machines, alarms..."

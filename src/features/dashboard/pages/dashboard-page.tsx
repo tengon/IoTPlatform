@@ -449,6 +449,7 @@ export function DashboardPage() {
             sparkData={deviceSparkData}
             sparkColor={C_GREEN}
             accentColor={C_GREEN}
+            className="kpi-gradient-green"
           />
         </div>
         <div className={`animate-slide-up ${staggerClass(1)}`}>
@@ -461,6 +462,7 @@ export function DashboardPage() {
             sparkData={machineSparkData}
             sparkColor={C_GREEN}
             accentColor={C_CYAN}
+            className="kpi-gradient-cyan"
           />
         </div>
         <div className={`animate-slide-up ${staggerClass(2)}`}>
@@ -473,6 +475,7 @@ export function DashboardPage() {
             sparkData={activeAlarms.map(() => Math.random())}
             sparkColor={criticalAlarms > 0 ? C_RED : C_YELLOW}
             accentColor={criticalAlarms > 0 ? C_RED : C_YELLOW}
+            className="kpi-gradient-red"
             onClick={() => setCurrentPage('active-alarms')}
           />
         </div>
@@ -486,6 +489,7 @@ export function DashboardPage() {
             sparkData={energySparkData}
             sparkColor={C_ORANGE}
             accentColor={C_ORANGE}
+            className="kpi-gradient-amber"
           />
         </div>
       </div>
@@ -498,7 +502,7 @@ export function DashboardPage() {
           description="24-hour production output vs target"
           icon={TrendingUp}
           iconColor="text-emerald-400"
-          className="lg:col-span-3"
+          className="lg:col-span-3 chart-container-glass"
           actions={
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
               <RefreshCw className={`size-3 ${isConnected ? 'animate-spin' : ''}`} style={isConnected ? { animationDuration: '3s' } : {}} />
@@ -574,7 +578,7 @@ export function DashboardPage() {
       </div>
 
       {/* ── Alarm Summary + Machine Status Grid ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 animate-slide-up stagger-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-slide-up stagger-5">
         {/* Alarm Summary */}
         <ChartCard
           title="Alarm Summary"
@@ -584,59 +588,64 @@ export function DashboardPage() {
           className="lg:col-span-1 flex flex-col"
         >
           <div className="flex flex-col gap-4 flex-1">
-            {/* Donut Chart */}
-            <div className="flex items-center justify-center h-[150px]">
-              {alarmDistribution.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={alarmDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={42}
-                      outerRadius={65}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="none"
-                      animationBegin={0}
-                      animationDuration={800}
-                    >
-                      {alarmDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'oklch(0.17 0.006 155)',
-                        border: '1px solid oklch(0.25 0.008 155)',
-                        borderRadius: '10px',
-                        fontSize: '12px',
-                        color: 'oklch(0.92 0.01 155)',
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <Bell className="size-8 opacity-30" />
-                  <span className="text-xs">No active alarms</span>
-                </div>
-              )}
-            </div>
+            {/* Gauge + Breakdown */}
+            <div className="flex items-center gap-4 h-[130px]">
+              {/* Donut Gauge - left */}
+              <div className="w-[130px] shrink-0 h-full">
+                {alarmDistribution.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={alarmDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={55}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke="none"
+                        animationBegin={0}
+                        animationDuration={800}
+                      >
+                        {alarmDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'oklch(0.17 0.006 155)',
+                          border: '1px solid oklch(0.25 0.008 155)',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          color: 'oklch(0.92 0.01 155)',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <Bell className="size-6 opacity-30" />
+                  </div>
+                )}
+              </div>
 
-            {/* Legend row */}
-            <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-full bg-red-500 ring-2 ring-red-500/20" />
-                Critical ({alarmDistribution.find(d => d.name === 'Critical')?.value || 0})
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-full bg-yellow-500 ring-2 ring-yellow-500/20" />
-                Warning ({alarmDistribution.find(d => d.name === 'Warning')?.value || 0})
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-full bg-cyan-500 ring-2 ring-cyan-500/20" />
-                Info ({alarmDistribution.find(d => d.name === 'Info')?.value || 0})
+              {/* Breakdown list - right */}
+              <div className="flex flex-col justify-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="size-2.5 rounded-full bg-red-500 ring-2 ring-red-500/20 shrink-0" />
+                  <span className="text-sm text-muted-foreground flex-1">Critical</span>
+                  <span className="text-sm font-bold text-red-400 metric-value">{alarmDistribution.find(d => d.name === 'Critical')?.value || 0}</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className="size-2.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
+                  <span className="text-sm text-muted-foreground flex-1">Warning</span>
+                  <span className="text-sm font-bold text-amber-400 metric-value">{alarmDistribution.find(d => d.name === 'Warning')?.value || 0}</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className="size-2.5 rounded-full bg-cyan-500 ring-2 ring-cyan-500/20 shrink-0" />
+                  <span className="text-sm text-muted-foreground flex-1">Info</span>
+                  <span className="text-sm font-bold text-cyan-400 metric-value">{alarmDistribution.find(d => d.name === 'Info')?.value || 0}</span>
+                </div>
               </div>
             </div>
 
@@ -699,7 +708,7 @@ export function DashboardPage() {
           description="Real-time status of all connected machines"
           icon={Factory}
           iconColor="text-emerald-400"
-          className="lg:col-span-2"
+          className="lg:col-span-1"
           actions={
             <Badge variant="secondary" className="text-[10px]">
               {machines.length} machines
@@ -721,7 +730,7 @@ export function DashboardPage() {
                   return (
                     <div
                       key={machine.id}
-                      className="relative rounded-xl border border-border/40 p-3.5 transition-all duration-200 hover:bg-muted/20 hover:border-border/60 cursor-pointer group/machine"
+                      className="relative rounded-xl border border-border/40 py-2.5 px-3 transition-all duration-200 hover:bg-muted/20 hover:border-border/60 cursor-pointer group/machine"
                       onClick={() => {
                         setSelectedMachine(machine)
                         setMachineDialogOpen(true)
@@ -739,7 +748,7 @@ export function DashboardPage() {
                         </div>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] px-1.5 py-0 h-5 capitalize transition-colors ${
+                          className={`text-[10px] px-1.5 py-0 h-4 capitalize transition-colors ${
                             machine.status === 'running'
                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                               : machine.status === 'error'
@@ -805,6 +814,7 @@ export function DashboardPage() {
       <div className="animate-slide-up stagger-6">
         <ChartCard
           title="Energy Consumption"
+          className="chart-container-glass"
           description="Real-time power consumption (kWh) and voltage levels"
           icon={Zap}
           iconColor="text-orange-400"
@@ -905,6 +915,25 @@ export function DashboardPage() {
             )}
           </div>
         </ChartCard>
+      </div>
+
+      {/* ── Active Alarms Banner ── */}
+      <div className="animate-slide-up stagger-7 flex items-center gap-4 rounded-xl border border-red-500/20 bg-red-500/[0.03] px-5 py-3.5 border-l-[3px] border-l-red-500/70">
+        <AlertTriangle className="size-5 text-red-400 shrink-0" />
+        <div className="flex items-baseline gap-3 min-w-0">
+          <span className="text-xs uppercase tracking-wider text-red-400/80 font-medium">Active Alarms</span>
+          <span className="text-2xl font-bold text-red-400 leading-none">{activeAlarms.length}</span>
+        </div>
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs gap-1.5 text-red-400/80 hover:text-red-300 hover:bg-red-500/10 shrink-0"
+          onClick={() => setCurrentPage('active-alarms')}
+        >
+          View All
+          <ArrowRight className="size-3.5" />
+        </Button>
       </div>
 
       {/* Machine Detail Dialog */}

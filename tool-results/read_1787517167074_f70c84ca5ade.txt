@@ -1,0 +1,620 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import {
+     5→  Building2, Shield, Cog, Plus, MapPin, Clock,
+     6→  LayoutGrid, List, Pencil, Eye, Bell, Globe, Database, Lock, Webhook,
+     7→} from 'lucide-react'
+     8→import { PageHeader } from '@/shared/components/page-header'
+     9→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    10→import { Badge } from '@/components/ui/badge'
+    11→import { Button } from '@/components/ui/button'
+    12→import { Input } from '@/components/ui/input'
+    13→import { Label } from '@/components/ui/label'
+    14→import { Switch } from '@/components/ui/switch'
+    15→import { Separator } from '@/components/ui/separator'
+    16→import { Textarea } from '@/components/ui/textarea'
+    17→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    18→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    19→import { Checkbox } from '@/components/ui/checkbox'
+    20→import {
+    21→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    22→} from '@/components/ui/table'
+    23→import {
+    24→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter,
+    25→} from '@/components/ui/dialog'
+    26→import { useIIoTStore } from '@/store/iiot'
+    27→import { formatDistanceToNow } from 'date-fns'
+    28→
+    29→// ============================================================
+    30→// SITES PAGE
+    31→// ============================================================
+    32→
+    33→interface Site {
+    34→  id: string
+    35→  name: string
+    36→  code: string
+    37→  address: string
+    38→  timezone: string
+    39→  deviceCount: number
+    40→  machineCount: number
+    41→  status: 'active' | 'inactive' | 'commissioning'
+    42→}
+    43→
+    44→const mockSites: Site[] = [
+    45→  { id: 'SITE-001', name: 'Main Factory - Shanghai', code: 'SH-01', address: '1234 Industrial Blvd, Pudong, Shanghai', timezone: 'Asia/Shanghai', deviceCount: 124, machineCount: 32, status: 'active' },
+    46→  { id: 'SITE-002', name: 'Assembly Plant - Suzhou', code: 'SZ-01', address: '5678 Tech Park Rd, SIP, Suzhou', timezone: 'Asia/Shanghai', deviceCount: 86, machineCount: 18, status: 'active' },
+    47→  { id: 'SITE-003', name: 'Warehouse - Hangzhou', code: 'HZ-01', address: '9101 Logistics Ave, Xiaoshan, Hangzhou', timezone: 'Asia/Shanghai', deviceCount: 42, machineCount: 8, status: 'commissioning' },
+    48→  { id: 'SITE-004', name: 'R&D Center - Beijing', code: 'BJ-01', address: '1115 Innovation St, Haidian, Beijing', timezone: 'Asia/Shanghai', deviceCount: 28, machineCount: 5, status: 'inactive' },
+    49→]
+    50→
+    51→const siteStatusConfig: Record<string, { color: string; bg: string; border: string; label: string }> = {
+    52→  active: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'Active' },
+    53→  inactive: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', label: 'Inactive' },
+    54→  commissioning: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', label: 'Commissioning' },
+    55→}
+    56→
+    57→export function SitesPage() {
+    58→  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+    59→  const [dialogOpen, setDialogOpen] = useState(false)
+    60→  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
+    61→  const [lastUpdatedText, setLastUpdatedText] = useState('')
+    62→
+    63→  useEffect(() => {
+    64→    function update() {
+    65→      if (lastUpdate) {
+    66→        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+    67→      }
+    68→    }
+    69→    update()
+    70→    const interval = setInterval(update, 10000)
+    71→    return () => clearInterval(interval)
+    72→  }, [lastUpdate])
+    73→
+    74→  return (
+    75→    <div className="space-y-6 animate-slide-up">
+    76→      <PageHeader
+    77→        icon={Building2}
+    78→        title="Sites"
+    79→        description="Manage factory sites and locations"
+    80→        lastUpdated={lastUpdatedText}
+    81→        actions={
+    82→          <div className="flex items-center gap-2">
+    83→            <div className="flex items-center rounded-lg border border-border/40 overflow-hidden">
+    84→              <Button
+    85→                variant="ghost"
+    86→                size="sm"
+    87→                className={`h-8 w-9 p-0 rounded-none border-0 ${viewMode === 'cards' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+    88→                onClick={() => setViewMode('cards')}
+    89→              >
+    90→                <LayoutGrid className="size-4" />
+    91→              </Button>
+    92→              <Button
+    93→                variant="ghost"
+    94→                size="sm"
+    95→                className={`h-8 w-9 p-0 rounded-none border-0 ${viewMode === 'table' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+    96→                onClick={() => setViewMode('table')}
+    97→              >
+    98→                <List className="size-4" />
+    99→              </Button>
+   100→            </div>
+   101→            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   102→              <DialogTrigger asChild>
+   103→                <Button size="sm" className="gap-2">
+   104→                  <Plus className="size-4" />
+   105→                  Add Site
+   106→                </Button>
+   107→              </DialogTrigger>
+   108→              <DialogContent className="sm:max-w-[480px]">
+   109→                <DialogHeader>
+   110→                  <DialogTitle>Add New Site</DialogTitle>
+   111→                  <DialogDescription>Create a new factory site location</DialogDescription>
+   112→                </DialogHeader>
+   113→                <Separator />
+   114→                <div className="space-y-4 py-2">
+   115→                  <div className="space-y-2">
+   116→                    <Label>Site Name</Label>
+   117→                    <Input placeholder="e.g., Main Factory - Location" className="border-border/50" />
+   118→                  </div>
+   119→                  <div className="space-y-2">
+   120→                    <Label>Site Code</Label>
+   121→                    <Input placeholder="e.g., SH-02" className="border-border/50" />
+   122→                  </div>
+   123→                  <div className="space-y-2">
+   124→                    <Label>Address</Label>
+   125→                    <Textarea placeholder="Full address" className="border-border/50" />
+   126→                  </div>
+   127→                  <div className="space-y-2">
+   128→                    <Label>Timezone</Label>
+   129→                    <Select defaultValue="Asia/Shanghai">
+   130→                      <SelectTrigger className="w-full border-border/50">
+   131→                        <SelectValue />
+   132→                      </SelectTrigger>
+   133→                      <SelectContent>
+   134→                        <SelectItem value="Asia/Shanghai">Asia/Shanghai (UTC+8)</SelectItem>
+   135→                        <SelectItem value="Asia/Tokyo">Asia/Tokyo (UTC+9)</SelectItem>
+   136→                        <SelectItem value="America/New_York">America/New_York (UTC-5)</SelectItem>
+   137→                        <SelectItem value="Europe/Berlin">Europe/Berlin (UTC+1)</SelectItem>
+   138→                      </SelectContent>
+   139→                    </Select>
+   140→                  </div>
+   141→                </div>
+   142→                <Separator />
+   143→                <DialogFooter>
+   144→                  <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+   145→                  <Button onClick={() => setDialogOpen(false)}>Create Site</Button>
+   146→                </DialogFooter>
+   147→              </DialogContent>
+   148→            </Dialog>
+   149→          </div>
+   150→        }
+   151→      />
+   152→
+   153→      {viewMode === 'cards' ? (
+   154→        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   155→          {mockSites.map((site, idx) => {
+   156→            const sc = siteStatusConfig[site.status]
+   157→            return (
+   158→              <Card key={site.id} className={`border-border/40 hover:border-border/60 transition-colors duration-300 relative overflow-hidden ${site.status === 'inactive' ? 'opacity-60' : ''}`} style={{ animationDelay: `${idx * 50}ms` }}>
+   159→                <div className={`absolute top-0 left-0 right-0 h-[2px] ${site.status === 'active' ? 'bg-emerald-500' : site.status === 'commissioning' ? 'bg-amber-500' : 'bg-red-500'}`} />
+   160→                <CardHeader className="pb-3 pt-5 px-5">
+   161→                  <div className="flex items-start justify-between">
+   162→                    <div className="space-y-1">
+   163→                      <CardTitle className="text-base font-semibold">{site.name}</CardTitle>
+   164→                      <div className="flex items-center gap-2">
+   165→                        <span className="text-xs font-mono text-muted-foreground">{site.code}</span>
+   166→                        <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} text-xs`}>{sc.label}</Badge>
+   167→                      </div>
+   168→                    </div>
+   169→                  </div>
+   170→                </CardHeader>
+   171→                <CardContent className="px-5 pb-5 space-y-3">
+   172→                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+   173→                    <MapPin className="size-3.5 mt-0.5 shrink-0" />
+   174→                    <span className="text-xs leading-relaxed">{site.address}</span>
+   175→                  </div>
+   176→                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+   177→                    <Clock className="size-3.5 shrink-0" />
+   178→                    <span className="text-xs">{site.timezone}</span>
+   179→                  </div>
+   180→                  <Separator className="my-2" />
+   181→                  <div className="stat-group">
+   182→                    <div className="stat-item">
+   183→                      <span className="stat-item-label">Devices</span>
+   184→                      <span className="stat-item-value">{site.deviceCount}</span>
+   185→                    </div>
+   186→                    <div className="stat-item">
+   187→                      <span className="stat-item-label">Machines</span>
+   188→                      <span className="stat-item-value">{site.machineCount}</span>
+   189→                    </div>
+   190→                  </div>
+   191→                </CardContent>
+   192→              </Card>
+   193→            )
+   194→          })}
+   195→        </div>
+   196→      ) : (
+   197→        <Card className="border-border/40">
+   198→          <CardContent className="pt-5 px-5 pb-5">
+   199→            <div className="max-h-[calc(100vh-300px)] overflow-y-auto rounded-lg border border-border/40">
+   200→              <Table>
+   201→                <TableHeader>
+   202→                  <TableRow className="hover:bg-transparent border-border/30">
+   203→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Site</TableHead>
+   204→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Code</TableHead>
+   205→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden md:table-cell">Address</TableHead>
+   206→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden lg:table-cell">Timezone</TableHead>
+   207→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Devices</TableHead>
+   208→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Machines</TableHead>
+   209→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Status</TableHead>
+   210→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 text-right">Actions</TableHead>
+   211→                  </TableRow>
+   212→                </TableHeader>
+   213→                <TableBody>
+   214→                  {mockSites.map((site) => {
+   215→                    const sc = siteStatusConfig[site.status]
+   216→                    return (
+   217→                      <TableRow key={site.id} className={`hover:bg-muted/20 transition-colors duration-150 ${site.status === 'inactive' ? 'opacity-60' : ''}`}>
+   218→                        <TableCell className="font-medium text-sm py-3">{site.name}</TableCell>
+   219→                        <TableCell className="font-mono text-xs py-3">{site.code}</TableCell>
+   220→                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground max-w-[200px] truncate py-3">{site.address}</TableCell>
+   221→                        <TableCell className="hidden lg:table-cell text-xs text-muted-foreground py-3">{site.timezone}</TableCell>
+   222→                        <TableCell className="font-mono text-sm py-3 metric-value">{site.deviceCount}</TableCell>
+   223→                        <TableCell className="font-mono text-sm py-3 metric-value">{site.machineCount}</TableCell>
+   224→                        <TableCell className="py-3">
+   225→                          <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} text-xs`}>{sc.label}</Badge>
+   226→                        </TableCell>
+   227→                        <TableCell className="py-3 text-right">
+   228→                          <div className="flex items-center justify-end gap-1">
+   229→                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50">
+   230→                              <Eye className="size-3.5" />
+   231→                            </Button>
+   232→                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50">
+   233→                              <Pencil className="size-3.5" />
+   234→                            </Button>
+   235→                          </div>
+   236→                        </TableCell>
+   237→                      </TableRow>
+   238→                    )
+   239→                  })}
+   240→                </TableBody>
+   241→              </Table>
+   242→            </div>
+   243→          </CardContent>
+   244→        </Card>
+   245→      )}
+   246→    </div>
+   247→  )
+   248→}
+   249→
+   250→// ============================================================
+   251→// ROLES & PERMISSIONS PAGE
+   252→// ============================================================
+   253→
+   254→interface RolePermission {
+   255→  id: string
+   256→  name: string
+   257→  description: string
+   258→  userCount: number
+   259→  color: string
+   260→  bg: string
+   261→  border: string
+   262→  permissions: {
+   263→    Dashboard: boolean
+   264→    Monitoring: boolean
+   265→    Analytics: boolean
+   266→    Alerts: boolean
+   267→    Devices: boolean
+   268→    Admin: boolean
+   269→  }
+   270→}
+   271→
+   272→const permissionKeys = ['Dashboard', 'Monitoring', 'Analytics', 'Alerts', 'Devices', 'Admin'] as const
+   273→
+   274→const initialRoles: RolePermission[] = [
+   275→  { id: 'role-admin', name: 'Admin', description: 'Full system access with all administrative privileges', userCount: 2, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: true } },
+   276→  { id: 'role-manager', name: 'Manager', description: 'Supervisory access with production and analytics capabilities', userCount: 3, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: false } },
+   277→  { id: 'role-supervisor', name: 'Supervisor', description: 'Shift oversight with monitoring and alert management', userCount: 5, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: false, Admin: false } },
+   278→  { id: 'role-engineer', name: 'Engineer', description: 'Technical access for device management and analytics', userCount: 8, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: false } },
+   279→  { id: 'role-operator', name: 'Operator', description: 'Basic access for monitoring and dashboard viewing', userCount: 15, color: 'text-muted-foreground', bg: 'bg-primary/10', border: 'border-primary/30', permissions: { Dashboard: true, Monitoring: true, Analytics: false, Alerts: true, Devices: false, Admin: false } },
+   280→]
+   281→
+   282→export function RolesPermissionsPage() {
+   283→  const [roles, setRoles] = useState<RolePermission[]>(initialRoles)
+   284→  const [editingRole, setEditingRole] = useState<RolePermission | null>(null)
+   285→  const [tempPerms, setTempPerms] = useState<RolePermission['permissions'] | null>(null)
+   286→  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
+   287→  const [lastUpdatedText, setLastUpdatedText] = useState('')
+   288→
+   289→  useEffect(() => {
+   290→    function update() {
+   291→      if (lastUpdate) {
+   292→        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+   293→      }
+   294→    }
+   295→    update()
+   296→    const interval = setInterval(update, 10000)
+   297→    return () => clearInterval(interval)
+   298→  }, [lastUpdate])
+   299→
+   300→  const openEditDialog = (role: RolePermission) => {
+   301→    setEditingRole(role)
+   302→    setTempPerms({ ...role.permissions })
+   303→  }
+   304→
+   305→  const savePermissions = () => {
+   306→    if (!editingRole || !tempPerms) return
+   307→    setRoles(roles.map((r) => r.id === editingRole.id ? { ...r, permissions: tempPerms } : r))
+   308→    setEditingRole(null)
+   309→    setTempPerms(null)
+   310→  }
+   311→
+   312→  const togglePerm = (key: keyof RolePermission['permissions']) => {
+   313→    if (!tempPerms) return
+   314→    setTempPerms({ ...tempPerms, [key]: !tempPerms[key] })
+   315→  }
+   316→
+   317→  return (
+   318→    <div className="space-y-6 animate-slide-up">
+   319→      <PageHeader
+   320→        icon={Shield}
+   321→        title="Roles & Permissions"
+   322→        description="Configure user roles and permissions"
+   323→        lastUpdated={lastUpdatedText}
+   324→      />
+   325→
+   326→      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+   327→        {roles.map((role, idx) => (
+   328→          <Card key={role.id} className="border-border/40 hover:border-border/60 transition-colors duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+   329→            <CardHeader className="pb-3 pt-5 px-5">
+   330→              <div className="flex items-start justify-between">
+   331→                <div className="space-y-1">
+   332→                  <div className="flex items-center gap-2">
+   333→                    <CardTitle className="text-base font-semibold">{role.name}</CardTitle>
+   334→                    <Badge variant="outline" className={`${role.bg} ${role.color} ${role.border} text-xs`}>{role.userCount} users</Badge>
+   335→                  </div>
+   336→                  <CardDescription className="text-xs">{role.description}</CardDescription>
+   337→                </div>
+   338→                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50" onClick={() => openEditDialog(role)}>
+   339→                  <Pencil className="size-3.5" />
+   340→                </Button>
+   341→              </div>
+   342→            </CardHeader>
+   343→            <CardContent className="px-5 pb-5">
+   344→              <Separator className="mb-3" />
+   345→              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+   346→                {permissionKeys.map((key) => (
+   347→                  <div key={key} className="flex items-center gap-2">
+   348→                    <div className={`size-4 rounded flex items-center justify-center shrink-0 ${role.permissions[key] ? 'bg-emerald-500/20' : 'bg-muted/50'}`}>
+   349→                      {role.permissions[key] && (
+   350→                        <svg className="size-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+   351→                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+   352→                        </svg>
+   353→                      )}
+   354→                    </div>
+   355→                    <span className={`text-xs ${role.permissions[key] ? 'text-foreground' : 'text-muted-foreground/60'}`}>{key}</span>
+   356→                  </div>
+   357→                ))}
+   358→              </div>
+   359→            </CardContent>
+   360→          </Card>
+   361→        ))}
+   362→      </div>
+   363→
+   364→      <Dialog open={!!editingRole} onOpenChange={(open) => { if (!open) { setEditingRole(null); setTempPerms(null) } }}>
+   365→        <DialogContent className="sm:max-w-[440px]">
+   366→          <DialogHeader>
+   367→            <DialogTitle>Edit Permissions - {editingRole?.name}</DialogTitle>
+   368→            <DialogDescription>Toggle permissions for the {editingRole?.name} role</DialogDescription>
+   369→          </DialogHeader>
+   370→          <Separator />
+   371→          <div className="py-2 space-y-3">
+   372→            {permissionKeys.map((key) => (
+   373→              <div key={key} className="flex items-center justify-between py-1">
+   374→                <Label className="text-sm">{key}</Label>
+   375→                <Switch
+   376→                  checked={tempPerms?.[key] ?? false}
+   377→                  onCheckedChange={() => togglePerm(key)}
+   378→                />
+   379→              </div>
+   380→            ))}
+   381→          </div>
+   382→          <Separator />
+   383→          <DialogFooter>
+   384→            <Button variant="outline" onClick={() => { setEditingRole(null); setTempPerms(null) }}>Cancel</Button>
+   385→            <Button onClick={savePermissions}>Save Permissions</Button>
+   386→          </DialogFooter>
+   387→        </DialogContent>
+   388→      </Dialog>
+   389→    </div>
+   390→  )
+   391→}
+   392→
+   393→// ============================================================
+   394→// SETTINGS PAGE
+   395→// ============================================================
+   396→
+   397→export function SettingsPage() {
+   398→  const [settings, setSettings] = useState({
+   399→    platformName: 'IIoT Monitor Pro',
+   400→    timezone: 'Asia/Shanghai',
+   401→    language: 'en',
+   402→    emailNotif: true,
+   403→    smsNotif: false,
+   404→    inAppNotif: true,
+   405→    retentionDays: 90,
+   406→    sessionTimeout: 30,
+   407→    twoFactor: false,
+   408→    rateLimit: '1000',
+   409→    webhookUrl: '',
+   410→  })
+   411→  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
+   412→  const [lastUpdatedText, setLastUpdatedText] = useState('')
+   413→
+   414→  useEffect(() => {
+   415→    function update() {
+   416→      if (lastUpdate) {
+   417→        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+   418→      }
+   419→    }
+   420→    update()
+   421→    const interval = setInterval(update, 10000)
+   422→    return () => clearInterval(interval)
+   423→  }, [lastUpdate])
+   424→
+   425→  const update = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
+   426→    setSettings((prev) => ({ ...prev, [key]: value }))
+   427→  }
+   428→
+   429→  return (
+   430→    <div className="space-y-8 animate-slide-up">
+   431→      <PageHeader
+   432→        icon={Cog}
+   433→        title="Platform Settings"
+   434→        description="Configure platform-wide settings"
+   435→        lastUpdated={lastUpdatedText}
+   436→        actions={
+   437→          <Button size="sm" className="gap-2">
+   438→            <Cog className="size-4" />
+   439→            Save Settings
+   440→          </Button>
+   441→        }
+   442→      />
+   443→
+   444→      <div className="space-y-8 max-w-3xl">
+   445→        {/* General */}
+   446→        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+   447→          <CardHeader className="pb-4 pt-5 px-5">
+   448→            <div className="flex items-center gap-2">
+   449→              <Globe className="size-4 text-primary" />
+   450→              <CardTitle className="text-sm font-semibold">General</CardTitle>
+   451→            </div>
+   452→            <CardDescription className="text-xs">Basic platform configuration</CardDescription>
+   453→          </CardHeader>
+   454→          <CardContent className="px-5 pb-5 space-y-4">
+   455→            <div className="grid gap-4 sm:grid-cols-2">
+   456→              <div className="space-y-2">
+   457→                <Label>Platform Name</Label>
+   458→                <Input value={settings.platformName} onChange={(e) => update('platformName', e.target.value)} className="border-border/50" />
+   459→              </div>
+   460→              <div className="space-y-2">
+   461→                <Label>Timezone</Label>
+   462→                <Select value={settings.timezone} onValueChange={(v) => update('timezone', v)}>
+   463→                  <SelectTrigger className="w-full border-border/50">
+   464→                    <SelectValue />
+   465→                  </SelectTrigger>
+   466→                  <SelectContent>
+   467→                    <SelectItem value="Asia/Shanghai">Asia/Shanghai (UTC+8)</SelectItem>
+   468→                    <SelectItem value="Asia/Tokyo">Asia/Tokyo (UTC+9)</SelectItem>
+   469→                    <SelectItem value="America/New_York">America/New_York (UTC-5)</SelectItem>
+   470→                    <SelectItem value="Europe/Berlin">Europe/Berlin (UTC+1)</SelectItem>
+   471→                  </SelectContent>
+   472→                </Select>
+   473→              </div>
+   474→            </div>
+   475→            <div className="space-y-2">
+   476→              <Label>Language</Label>
+   477→              <Select value={settings.language} onValueChange={(v) => update('language', v)}>
+   478→                <SelectTrigger className="w-full max-w-xs border-border/50">
+   479→                  <SelectValue />
+   480→                </SelectTrigger>
+   481→                <SelectContent>
+   482→                  <SelectItem value="en">English</SelectItem>
+   483→                  <SelectItem value="zh">Chinese (Simplified)</SelectItem>
+   484→                  <SelectItem value="ja">Japanese</SelectItem>
+   485→                  <SelectItem value="de">German</SelectItem>
+   486→                </SelectContent>
+   487→              </Select>
+   488→            </div>
+   489→          </CardContent>
+   490→        </Card>
+   491→
+   492→        {/* Notifications */}
+   493→        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+   494→          <CardHeader className="pb-4 pt-5 px-5">
+   495→            <div className="flex items-center gap-2">
+   496→              <Bell className="size-4 text-primary" />
+   497→              <CardTitle className="text-sm font-semibold">Notifications</CardTitle>
+   498→            </div>
+   499→            <CardDescription className="text-xs">Configure notification delivery channels</CardDescription>
+   500→          </CardHeader>
+   501→          <CardContent className="px-5 pb-5 space-y-4">
+   502→            <div className="flex items-center justify-between">
+   503→              <div className="space-y-0.5">
+   504→                <Label>Email Notifications</Label>
+   505→                <p className="text-xs text-muted-foreground">Receive alerts via email</p>
+   506→              </div>
+   507→              <Switch checked={settings.emailNotif} onCheckedChange={(v) => update('emailNotif', v)} />
+   508→            </div>
+   509→            <Separator />
+   510→            <div className="flex items-center justify-between">
+   511→              <div className="space-y-0.5">
+   512→                <Label>SMS Notifications</Label>
+   513→                <p className="text-xs text-muted-foreground">Receive critical alerts via SMS</p>
+   514→              </div>
+   515→              <Switch checked={settings.smsNotif} onCheckedChange={(v) => update('smsNotif', v)} />
+   516→            </div>
+   517→            <Separator />
+   518→            <div className="flex items-center justify-between">
+   519→              <div className="space-y-0.5">
+   520→                <Label>In-App Notifications</Label>
+   521→                <p className="text-xs text-muted-foreground">Show notifications in the platform</p>
+   522→              </div>
+   523→              <Switch checked={settings.inAppNotif} onCheckedChange={(v) => update('inAppNotif', v)} />
+   524→            </div>
+   525→          </CardContent>
+   526→        </Card>
+   527→
+   528→        {/* Data Retention */}
+   529→        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+   530→          <CardHeader className="pb-4 pt-5 px-5">
+   531→            <div className="flex items-center gap-2">
+   532→              <Database className="size-4 text-primary" />
+   533→              <CardTitle className="text-sm font-semibold">Data Retention</CardTitle>
+   534→            </div>
+   535→            <CardDescription className="text-xs">Manage how long data is stored</CardDescription>
+   536→          </CardHeader>
+   537→          <CardContent className="px-5 pb-5 space-y-4">
+   538→            <div className="space-y-2 max-w-xs">
+   539→              <Label>Retention Period (Days)</Label>
+   540→              <Input
+   541→                type="number"
+   542→                value={settings.retentionDays}
+   543→                onChange={(e) => update('retentionDays', Number(e.target.value))}
+   544→                min={1}
+   545→                max={3650}
+   546→                className="border-border/50"
+   547→              />
+   548→              <p className="text-xs text-muted-foreground">Data older than this will be automatically purged</p>
+   549→            </div>
+   550→          </CardContent>
+   551→        </Card>
+   552→
+   553→        {/* Security */}
+   554→        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+   555→          <CardHeader className="pb-4 pt-5 px-5">
+   556→            <div className="flex items-center gap-2">
+   557→              <Lock className="size-4 text-primary" />
+   558→              <CardTitle className="text-sm font-semibold">Security</CardTitle>
+   559→            </div>
+   560→            <CardDescription className="text-xs">Platform security configuration</CardDescription>
+   561→          </CardHeader>
+   562→          <CardContent className="px-5 pb-5 space-y-4">
+   563→            <div className="grid gap-4 sm:grid-cols-2">
+   564→              <div className="space-y-2">
+   565→                <Label>Session Timeout (Minutes)</Label>
+   566→                <Input
+   567→                  type="number"
+   568→                  value={settings.sessionTimeout}
+   569→                  onChange={(e) => update('sessionTimeout', Number(e.target.value))}
+   570→                  min={5}
+   571→                  max={480}
+   572→                  className="border-border/50"
+   573→                />
+   574→              </div>
+   575→              <div className="flex items-center justify-between sm:pt-6">
+   576→                <div className="space-y-0.5">
+   577→                  <Label>Two-Factor Authentication</Label>
+   578→                  <p className="text-xs text-muted-foreground">Require 2FA for all users</p>
+   579→                </div>
+   580→                <Switch checked={settings.twoFactor} onCheckedChange={(v) => update('twoFactor', v)} />
+   581→              </div>
+   582→            </div>
+   583→          </CardContent>
+   584→        </Card>
+   585→
+   586→        {/* API */}
+   587→        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+   588→          <CardHeader className="pb-4 pt-5 px-5">
+   589→            <div className="flex items-center gap-2">
+   590→              <Webhook className="size-4 text-primary" />
+   591→              <CardTitle className="text-sm font-semibold">API</CardTitle>
+   592→            </div>
+   593→            <CardDescription className="text-xs">API access and webhook configuration</CardDescription>
+   594→          </CardHeader>
+   595→          <CardContent className="px-5 pb-5 space-y-4">
+   596→            <div className="grid gap-4 sm:grid-cols-2">
+   597→              <div className="space-y-2">
+   598→                <Label>Rate Limit (requests/min)</Label>
+   599→                <Input
+   600→                  value={settings.rateLimit}
+   601→                  onChange={(e) => update('rateLimit', e.target.value)}
+   602→                  className="border-border/50"
+   603→                />
+   604→              </div>
+   605→              <div className="space-y-2">
+   606→                <Label>Webhook URL</Label>
+   607→                <Input
+   608→                  placeholder="https://your-webhook.com/endpoint"
+   609→                  value={settings.webhookUrl}
+   610→                  onChange={(e) => update('webhookUrl', e.target.value)}
+   611→                  className="border-border/50"
+   612→                />
+   613→              </div>
+   614→            </div>
+   615→          </CardContent>
+   616→        </Card>
+   617→      </div>
+   618→    </div>
+   619→  )
+   620→}

@@ -23,6 +23,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  LabelList,
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
@@ -316,6 +317,20 @@ export function OEEPage() {
     [machineData]
   )
 
+  // ── 24h OEE trend data ──────────────────────────────────────────────────
+  const oeeTrend24h = useMemo(() => {
+    const data: Array<{ hour: string; OEE: number }> = []
+    let val = overallOEE
+    for (let i = 0; i < 24; i++) {
+      val = Math.max(65, Math.min(95, val + (Math.random() - 0.45) * 6))
+      data.push({
+        hour: `${String(i).padStart(2, '0')}:00`,
+        OEE: Math.round(val * 10) / 10,
+      })
+    }
+    return data
+  }, [overallOEE])
+
   // ── 30-day OEE trend data ─────────────────────────────────────────────────
   const trendData = useMemo(() => {
     const data: Array<{
@@ -368,7 +383,7 @@ export function OEEPage() {
       />
 
       {/* OEE Gauge */}
-      <Card className="hover:border-border/60 transition-colors duration-300 animate-slide-up">
+      <Card className="chart-container-glass hover:border-border/60 transition-colors duration-300 animate-slide-up">
         <CardContent className="pt-6 flex flex-col items-center px-5 pb-5">
           <OEEGauge value={overallOEE} />
           <div className="flex items-center gap-2 mt-2">
@@ -388,6 +403,39 @@ export function OEEPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* OEE Trend (24h) */}
+      <ChartCard
+        title="OEE Trend (24h)"
+        description="Hourly OEE percentage over the last 24 hours"
+        icon={TrendingUp}
+        className="chart-container-glass animate-slide-up stagger-1"
+      >
+        <div className="h-[250px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={oeeTrend24h}>
+              <defs>
+                <linearGradient id="oeeTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+              <XAxis dataKey="hour" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} interval={3} />
+              <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[60, 100]} width={35} />
+              <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+              <Area
+                type="monotone"
+                dataKey="OEE"
+                stroke={C_GREEN}
+                fill="url(#oeeTrendGrad)"
+                strokeWidth={2}
+                dot={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartCard>
 
       {/* A × P × Q = OEE Breakdown */}
       <div className="animate-slide-up stagger-2">
@@ -454,6 +502,7 @@ export function OEEPage() {
             title="Per-Machine OEE Breakdown"
             description="Each factor shown with inline bar visualization"
             icon={BarChart3}
+            className="chart-container-glass"
           >
             <div className="max-h-[400px] overflow-y-auto rounded-md border border-border/30">
               <Table>
@@ -549,6 +598,7 @@ export function OEEPage() {
             title="OEE Component Trends — 30 Days"
             description="Availability, Performance, and Quality over time"
             icon={TrendingUp}
+            className="chart-container-glass"
           >
             <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -587,6 +637,7 @@ export function OEEPage() {
             title="Loss Analysis by Machine"
             description="Breakdown of Availability, Performance, and Quality losses"
             icon={Layers}
+            className="chart-container-glass"
           >
             <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -596,9 +647,15 @@ export function OEEPage() {
                   <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} width={40} />
                   <Tooltip content={<ChartTooltip valueSuffix="%" />} />
                   <Legend wrapperStyle={LEGEND_STYLE} />
-                  <Bar dataKey="Avail. Loss" stackId="loss" fill={C_RED} radius={[0, 0, 0, 0]} barSize={20} />
-                  <Bar dataKey="Perf. Loss" stackId="loss" fill={C_ORANGE} barSize={20} />
-                  <Bar dataKey="Quality Loss" stackId="loss" fill={C_YELLOW} radius={[3, 3, 0, 0]} barSize={20} />
+                  <Bar dataKey="Avail. Loss" stackId="loss" fill={C_RED} radius={[0, 0, 0, 0]} barSize={30}>
+                    <LabelList dataKey="Avail. Loss" position="center" style={{ fontSize: 10, fontWeight: 500, fill: '#fff' }} />
+                  </Bar>
+                  <Bar dataKey="Perf. Loss" stackId="loss" fill={C_ORANGE} barSize={30}>
+                    <LabelList dataKey="Perf. Loss" position="center" style={{ fontSize: 10, fontWeight: 500, fill: '#fff' }} />
+                  </Bar>
+                  <Bar dataKey="Quality Loss" stackId="loss" fill={C_YELLOW} radius={[3, 3, 0, 0]} barSize={30}>
+                    <LabelList dataKey="Quality Loss" position="center" style={{ fontSize: 10, fontWeight: 500, fill: '#fff' }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -611,6 +668,7 @@ export function OEEPage() {
             title="Target vs Actual OEE"
             description={`Comparing each machine against the ${OEE_TARGET}% OEE target`}
             icon={Crosshair}
+            className="chart-container-glass"
           >
             <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">

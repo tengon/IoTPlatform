@@ -61,7 +61,7 @@ export default function Home() {
           <main key={currentPage} className="flex-1 min-h-0 p-4 md:p-6 overflow-auto animate-fade-in">
             {PageComponent ? <PageComponent key={currentPage} /> : null}
           </main>
-          <footer className="border-t border-border/30 bg-card/50 backdrop-blur-sm px-6 py-3.5 mt-auto">
+          <footer className="platform-footer border-t border-border/30 bg-card/50 backdrop-blur-sm px-6 py-3.5 mt-auto">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 text-[11px] text-muted-foreground/60">
               <div className="flex items-center gap-3">
                 <span className="font-semibold text-muted-foreground/80">IIoT Platform</span>

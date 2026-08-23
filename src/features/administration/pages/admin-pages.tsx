@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Building2, Shield, Cog, Plus, MapPin, Clock, Monitor, Cpu,
+  Building2, Shield, Cog, Plus, MapPin, Clock,
   LayoutGrid, List, Pencil, Eye, Bell, Globe, Database, Lock, Webhook,
+  Sun, Moon, Monitor, AlertTriangle, Volume2, Trash2,
 } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/shared/components/page-header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -178,20 +180,14 @@ export function SitesPage() {
                     <span className="text-xs">{site.timezone}</span>
                   </div>
                   <Separator className="my-2" />
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2">
-                      <Monitor className="size-3.5 text-emerald-400" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Devices</p>
-                        <p className="text-sm font-semibold metric-value">{site.deviceCount}</p>
-                      </div>
+                  <div className="stat-group">
+                    <div className="stat-item">
+                      <span className="stat-item-label">Devices</span>
+                      <span className="stat-item-value">{site.deviceCount}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Cpu className="size-3.5 text-cyan-400" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Machines</p>
-                        <p className="text-sm font-semibold metric-value">{site.machineCount}</p>
-                      </div>
+                    <div className="stat-item">
+                      <span className="stat-item-label">Machines</span>
+                      <span className="stat-item-value">{site.machineCount}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -220,7 +216,7 @@ export function SitesPage() {
                   {mockSites.map((site) => {
                     const sc = siteStatusConfig[site.status]
                     return (
-                      <TableRow key={site.id} className={`hover:bg-muted/20 transition-colors duration-150 ${site.status === 'inactive' ? 'opacity-60' : ''}`}>
+                      <TableRow key={site.id} className={`table-row-severity hover:bg-muted/20 transition-colors duration-150 ${site.status === 'inactive' ? 'opacity-60' : ''}`}>
                         <TableCell className="font-medium text-sm py-3">{site.name}</TableCell>
                         <TableCell className="font-mono text-xs py-3">{site.code}</TableCell>
                         <TableCell className="hidden md:table-cell text-xs text-muted-foreground max-w-[200px] truncate py-3">{site.address}</TableCell>
@@ -401,6 +397,9 @@ export function RolesPermissionsPage() {
 // ============================================================
 
 export function SettingsPage() {
+  const { toast } = useToast()
+  const isConnected = useIIoTStore((s) => s.isConnected)
+  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
   const [settings, setSettings] = useState({
     platformName: 'IIoT Monitor Pro',
     timezone: 'Asia/Shanghai',
@@ -408,13 +407,20 @@ export function SettingsPage() {
     emailNotif: true,
     smsNotif: false,
     inAppNotif: true,
+    soundAlerts: false,
+    desktopPush: false,
+    theme: 'system' as 'light' | 'dark' | 'system',
+    defaultPage: 'dashboard' as string,
+    compactMode: false,
+    showSparklines: true,
     retentionDays: 90,
     sessionTimeout: 30,
     twoFactor: false,
     rateLimit: '1000',
     webhookUrl: '',
+    reconnectInterval: 5000,
+    maxRetryAttempts: 10,
   })
-  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
   const [lastUpdatedText, setLastUpdatedText] = useState('')
 
   useEffect(() => {
@@ -440,7 +446,7 @@ export function SettingsPage() {
         description="Configure platform-wide settings"
         lastUpdated={lastUpdatedText}
         actions={
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => toast({ title: 'Settings saved successfully' })}>
             <Cog className="size-4" />
             Save Settings
           </Button>
@@ -495,6 +501,70 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Display */}
+        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+          <CardHeader className="pb-4 pt-5 px-5">
+            <div className="flex items-center gap-2">
+              <Sun className="size-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">Display</CardTitle>
+            </div>
+            <CardDescription className="text-xs">Customize appearance and layout preferences</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-4">
+            <div className="space-y-2">
+              <Label>Theme</Label>
+              <div className="flex gap-2">
+                {([
+                  { value: 'light' as const, icon: Sun, label: 'Light' },
+                  { value: 'dark' as const, icon: Moon, label: 'Dark' },
+                  { value: 'system' as const, icon: Monitor, label: 'System' },
+                ]).map(({ value, icon: Icon, label }) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    variant={settings.theme === value ? 'default' : 'outline'}
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => update('theme', value)}
+                  >
+                    <Icon className="size-4" />
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Default Page on Login</Label>
+              <Select value={settings.defaultPage} onValueChange={(v) => update('defaultPage', v)}>
+                <SelectTrigger className="w-full max-w-xs border-border/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dashboard">Dashboard</SelectItem>
+                  <SelectItem value="live-monitoring">Live Monitoring</SelectItem>
+                  <SelectItem value="active-alarms">Active Alarms</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Compact Mode</Label>
+                <p className="text-xs text-muted-foreground">Reduce spacing and element sizes</p>
+              </div>
+              <Switch checked={settings.compactMode} onCheckedChange={(v) => update('compactMode', v)} />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Show Sparklines on Dashboard</Label>
+                <p className="text-xs text-muted-foreground">Display mini trend charts on dashboard cards</p>
+              </div>
+              <Switch checked={settings.showSparklines} onCheckedChange={(v) => update('showSparklines', v)} />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Notifications */}
         <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
           <CardHeader className="pb-4 pt-5 px-5">
@@ -527,6 +597,22 @@ export function SettingsPage() {
                 <p className="text-xs text-muted-foreground">Show notifications in the platform</p>
               </div>
               <Switch checked={settings.inAppNotif} onCheckedChange={(v) => update('inAppNotif', v)} />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="flex items-center gap-1.5"><Volume2 className="size-3.5" /> Sound Alerts</Label>
+                <p className="text-xs text-muted-foreground">Play audio for critical alarms</p>
+              </div>
+              <Switch checked={settings.soundAlerts} onCheckedChange={(v) => update('soundAlerts', v)} />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Desktop Push Notifications</Label>
+                <p className="text-xs text-muted-foreground">Browser push for background alerts</p>
+              </div>
+              <Switch checked={settings.desktopPush} onCheckedChange={(v) => update('desktopPush', v)} />
             </div>
           </CardContent>
         </Card>
@@ -618,6 +704,87 @@ export function SettingsPage() {
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
+        {/* WebSocket */}
+        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+          <CardHeader className="pb-4 pt-5 px-5">
+            <div className="flex items-center gap-2">
+              <Webhook className="size-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">WebSocket</CardTitle>
+            </div>
+            <CardDescription className="text-xs">Real-time connection settings</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className={`size-2 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]'}`} />
+              <span className="text-sm font-medium">{isConnected ? 'Connected' : 'Disconnected'}</span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Reconnection Interval (ms)</Label>
+                <Input
+                  type="number"
+                  value={settings.reconnectInterval}
+                  onChange={(e) => update('reconnectInterval', Number(e.target.value))}
+                  min={1000}
+                  max={60000}
+                  className="border-border/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Max Retry Attempts</Label>
+                <Input
+                  type="number"
+                  value={settings.maxRetryAttempts}
+                  onChange={(e) => update('maxRetryAttempts', Number(e.target.value))}
+                  min={1}
+                  max={100}
+                  className="border-border/50"
+                />
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => toast({ title: 'Connection OK', description: 'WebSocket connection test passed.' })}
+            >
+              Test Connection
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-red-500/30 hover:border-red-500/50 transition-colors duration-300">
+          <CardHeader className="pb-4 pt-5 px-5">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-4 text-red-500" />
+              <CardTitle className="text-sm font-semibold text-red-500">Danger Zone</CardTitle>
+            </div>
+            <CardDescription className="text-xs">Irreversible and destructive actions</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-2"
+                onClick={() => console.log('Reset all settings to default')}
+              >
+                <Trash2 className="size-4" />
+                Reset All Settings to Default
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => console.log('Export all data')}
+              >
+                Export All Data
+              </Button>
+            </div>
+            <p className="text-xs text-red-400">These actions are irreversible. Please proceed with caution.</p>
           </CardContent>
         </Card>
       </div>

@@ -91,6 +91,30 @@ export function CommandPalette() {
   const alarms = useIIoTStore((s) => s.alarms)
   const activeAlarms = alarms.filter((a) => a.status === 'active').slice(0, 10)
 
+  // Mock data for command palette search groups
+  const mockProductionOrders = [
+    { id: 'PO-2401', product: 'Widget A', status: 'in_progress', quantity: 5000, completed: 3200 },
+    { id: 'PO-2402', product: 'Widget B', status: 'completed', quantity: 3000, completed: 3000 },
+    { id: 'PO-2403', product: 'Part C-7', status: 'in_progress', quantity: 8000, completed: 1500 },
+    { id: 'PO-2404', product: 'Assembly D', status: 'paused', quantity: 2000, completed: 800 },
+    { id: 'PO-2405', product: 'Module E-2', status: 'in_progress', quantity: 12000, completed: 9500 },
+  ]
+
+  const mockSites = [
+    { id: 'SITE-001', name: 'Main Factory - Shanghai', devices: 124, machines: 32 },
+    { id: 'SITE-002', name: 'Assembly Plant - Suzhou', devices: 86, machines: 18 },
+    { id: 'SITE-003', name: 'Warehouse - Hangzhou', devices: 42, machines: 8 },
+    { id: 'SITE-004', name: 'R&D Center - Beijing', devices: 28, machines: 5 },
+  ]
+
+  const mockUsers = [
+    { id: 'USR-001', name: 'Ahmad Darmawan', role: 'Administrator', status: 'active' },
+    { id: 'USR-002', name: 'Budi Santoso', role: 'Engineer', status: 'active' },
+    { id: 'USR-003', name: 'Chen Wei', role: 'Operator', status: 'active' },
+    { id: 'USR-004', name: 'Diana Putri', role: 'Supervisor', status: 'inactive' },
+    { id: 'USR-005', name: 'Eko Prasetyo', role: 'Manager', status: 'active' },
+  ]
+
   const toggle = useCallback(() => {
     setOpen((prev) => !prev)
   }, [])
@@ -130,9 +154,35 @@ export function CommandPalette() {
     setCurrentPage('active-alarms')
   }
 
+  const handleProductionSelect = () => {
+    setOpen(false)
+    setCurrentPage('production')
+  }
+
+  const handleSiteSelect = () => {
+    setOpen(false)
+    setCurrentPage('sites')
+  }
+
+  const handleUserSelect = () => {
+    setOpen(false)
+    setCurrentPage('users')
+  }
+
   const hasMachines = machines.length > 0
   const hasDevices = devices.length > 0
   const hasAlarms = activeAlarms.length > 0
+
+  const ORDER_STATUS_COLORS: Record<string, string> = {
+    in_progress: 'text-emerald-400',
+    completed: 'text-cyan-400',
+    paused: 'text-amber-400',
+  }
+
+  const USER_STATUS_COLORS: Record<string, string> = {
+    active: 'text-emerald-400',
+    inactive: 'text-muted-foreground',
+  }
 
   return (
     <>
@@ -143,7 +193,7 @@ export function CommandPalette() {
             <div className="flex items-center border-b border-border/40 px-4">
               <Search className="size-4 text-muted-foreground shrink-0" />
               <CommandInput
-                placeholder="Search pages, machines, devices, alarms..."
+                placeholder="Search anything..."
                 className="flex-1 h-12 border-0 bg-transparent px-3 text-sm focus:ring-0"
               />
               <kbd className="pointer-events-none hidden sm:flex select-none items-center gap-1 rounded border border-border/50 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/60">
@@ -226,6 +276,75 @@ export function CommandPalette() {
                 </>
               )}
 
+              {/* Production Orders Group */}
+              <>
+                <CommandSeparator className="my-1" />
+                <CommandGroup heading="Production Orders" className="[&_[cmdk-group-items]]:space-y-0.5">
+                  {mockProductionOrders.map((order) => (
+                    <CommandItem
+                      key={order.id}
+                      value={`order ${order.id} ${order.product}`}
+                      onSelect={handleProductionSelect}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary"
+                    >
+                      <Package className="size-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm line-clamp-1 block">{order.product}</span>
+                        <span className="text-[11px] text-muted-foreground">{order.id}</span>
+                      </div>
+                      <span className={`text-[11px] font-medium ${ORDER_STATUS_COLORS[order.status] || 'text-muted-foreground'}`}>
+                        {order.status.replace('_', ' ')}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+
+              {/* Sites Group */}
+              <>
+                <CommandSeparator className="my-1" />
+                <CommandGroup heading="Sites" className="[&_[cmdk-group-items]]:space-y-0.5">
+                  {mockSites.map((site) => (
+                    <CommandItem
+                      key={site.id}
+                      value={`site ${site.name} ${site.id}`}
+                      onSelect={handleSiteSelect}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary"
+                    >
+                      <Building2 className="size-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm line-clamp-1 block">{site.name}</span>
+                        <span className="text-[11px] text-muted-foreground">{site.devices} devices · {site.machines} machines</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+
+              {/* Users Group */}
+              <>
+                <CommandSeparator className="my-1" />
+                <CommandGroup heading="Users" className="[&_[cmdk-group-items]]:space-y-0.5">
+                  {mockUsers.map((user) => (
+                    <CommandItem
+                      key={user.id}
+                      value={`user ${user.name} ${user.role} ${user.id}`}
+                      onSelect={handleUserSelect}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary"
+                    >
+                      <Users className="size-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm line-clamp-1 block">{user.name}</span>
+                        <span className="text-[11px] text-muted-foreground">{user.role}</span>
+                      </div>
+                      <span className={`text-[11px] font-medium ${USER_STATUS_COLORS[user.status] || 'text-muted-foreground'}`}>
+                        {user.status}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+
               {/* Recent Alarms Group */}
               {hasAlarms && (
                 <>
@@ -259,7 +378,7 @@ export function CommandPalette() {
 
             {/* Footer hint */}
             <div className="flex items-center justify-between border-t border-border/30 px-4 py-2 text-[11px] text-muted-foreground/50">
-              <span>Search pages, machines, devices & alarms</span>
+              <span>Search pages, machines, devices, alarms, orders & more</span>
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
                   <kbd className="rounded border border-border/30 bg-muted/30 px-1 font-mono text-[10px]">↑↓</kbd>

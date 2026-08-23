@@ -357,7 +357,7 @@ export function EnergyMonitoringPage() {
           description="Power draw over the last hour"
           icon={Zap}
           iconColor="text-emerald-400"
-          className="lg:col-span-2 animate-slide-up stagger-1"
+          className="chart-container-glass lg:col-span-2 animate-slide-up stagger-1"
         >
           <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -484,7 +484,7 @@ export function EnergyMonitoringPage() {
                 <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} width={45} domain={[100, 200]} />
                 <Tooltip content={<ChartTooltip />} />
                 <Legend wrapperStyle={LEGEND_STYLE} />
-                <Line yAxisId="left" type="monotone" dataKey="Voltage" stroke={C_CYAN} strokeWidth={2} dot={false} name="Voltage (V)" />
+                <Line yAxisId="left" type="monotone" dataKey="Voltage" stroke="#22d3ee" strokeWidth={2.5} dot={false} animationDuration={0} name="Voltage (V)" />
                 <Line yAxisId="right" type="monotone" dataKey="Current" stroke={C_ORANGE} strokeWidth={2} dot={false} name="Current (A)" />
               </LineChart>
             </ResponsiveContainer>

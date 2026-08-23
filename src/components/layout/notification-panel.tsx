@@ -59,10 +59,10 @@ export function NotificationPanel() {
           <Bell className="size-4 text-muted-foreground" />
           {totalActive > 0 && (
             <Badge
-              className={`absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center ${
+              className={`absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center font-semibold ${
                 criticalCount > 0
-                  ? 'bg-red-500 text-white shadow-[0_0_8px_rgba(239,68,68,0.5)]'
-                  : 'bg-amber-500 text-white'
+                  ? 'notification-badge-critical'
+                  : 'notification-badge-count'
               }`}
             >
               {totalActive > 99 ? '99+' : totalActive}
