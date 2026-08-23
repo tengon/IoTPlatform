@@ -21,6 +21,7 @@ import { GatewaysPage } from '@/features/devices/pages/gateways-page'
 import { FirmwareOTAPage } from '@/features/devices/pages/firmware-ota-page'
 import { UsersPage } from '@/features/administration/pages/users-page'
 import { SitesPage, RolesPermissionsPage, SettingsPage } from '@/features/administration/pages/admin-pages'
+import { CommandPalette } from '@/components/layout/command-palette'
 
 const pageComponents: Record<PageId, React.ComponentType> = {
   dashboard: DashboardPage,
@@ -48,37 +49,40 @@ export default function Home() {
   const PageComponent = pageComponents[currentPage]
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <AppTopbar />
-        <WSInit />
-        <main key={currentPage} className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
-          {PageComponent ? <PageComponent key={currentPage} /> : null}
-        </main>
-        <footer className="border-t border-border/30 bg-card/50 backdrop-blur-sm px-6 py-3.5 mt-auto">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 text-[11px] text-muted-foreground/60">
-            <div className="flex items-center gap-3">
-              <span className="font-semibold text-muted-foreground/80">IIoT Platform</span>
-              <span className="text-muted-foreground/30">|</span>
-              <span>v2.2.0</span>
+    <div className="flex h-screen overflow-hidden">
+      <CommandPalette />
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <AppTopbar />
+          <WSInit />
+          <main key={currentPage} className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
+            {PageComponent ? <PageComponent key={currentPage} /> : null}
+          </main>
+          <footer className="border-t border-border/30 bg-card/50 backdrop-blur-sm px-6 py-3.5 mt-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 text-[11px] text-muted-foreground/60">
+              <div className="flex items-center gap-3">
+                <span className="font-semibold text-muted-foreground/80">IIoT Platform</span>
+                <span className="text-muted-foreground/30">|</span>
+                <span>v2.2.0</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+                  All Systems Operational
+                </span>
+                <span className="text-muted-foreground/30">|</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1 w-1 rounded-full bg-cyan-500" />
+                  WebSocket Connected
+                </span>
+                <span className="text-muted-foreground/30">|</span>
+                <span>Next.js 16 · Tailwind CSS 4</span>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
-                All Systems Operational
-              </span>
-              <span className="text-muted-foreground/30">|</span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-1 w-1 rounded-full bg-cyan-500" />
-                WebSocket Connected
-              </span>
-              <span className="text-muted-foreground/30">|</span>
-              <span>Next.js 16 · Tailwind CSS 4</span>
-            </div>
-          </div>
-        </footer>
-      </SidebarInset>
-    </SidebarProvider>
+          </footer>
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
   )
 }

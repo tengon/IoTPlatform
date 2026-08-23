@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { RefreshCw, Upload, Download, CheckCircle2, XCircle, Clock, Loader2, FileText, Tag } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { RefreshCw, Upload, Download, CheckCircle2, XCircle, Clock, Loader2, FileText, Tag, Inbox } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { useIIoTStore } from '@/store/iiot'
 import { PageHeader } from '@/shared/components/page-header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Table,
@@ -25,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
 
 interface FirmwareVersion {
@@ -80,22 +82,36 @@ const otaHistory: OTAHistoryEntry[] = [
   { id: 'OTA-008', device: 'Warehouse Gateway', fromVersion: 'v3.1.4', toVersion: 'v3.2.1', status: 'pending', date: '2024-01-15 11:00' },
 ]
 
-const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; bg: string; border: string; label: string }> = {
-  success: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', label: 'Success' },
-  failed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', label: 'Failed' },
-  pending: { icon: Clock, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', label: 'Pending' },
-  'in-progress': { icon: Loader2, color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/30', label: 'In Progress' },
+const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; bg: string; border: string; ring: string; label: string }> = {
+  success: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', ring: 'ring-emerald-400/20', label: 'Success' },
+  failed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', ring: 'ring-red-400/20', label: 'Failed' },
+  pending: { icon: Clock, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', ring: 'ring-amber-400/20', label: 'Pending' },
+  'in-progress': { icon: Loader2, color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/30', ring: 'ring-cyan-400/20', label: 'In Progress' },
 }
 
 const fwStatusColors: Record<string, string> = {
-  stable: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30',
-  beta: 'bg-amber-400/10 text-amber-400 border-amber-400/30',
-  deprecated: 'bg-red-400/10 text-red-400 border-red-400/30',
+  stable: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30 ring-emerald-400/20',
+  beta: 'bg-amber-400/10 text-amber-400 border-amber-400/30 ring-amber-400/20',
+  deprecated: 'bg-red-400/10 text-red-400 border-red-400/30 ring-red-400/20',
 }
 
 export function FirmwareOTAPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [updatingDevice, setUpdatingDevice] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('devices')
+  const { lastUpdate } = useIIoTStore()
+  const [lastUpdatedText, setLastUpdatedText] = useState('—')
+
+  useEffect(() => {
+    function update() {
+      if (lastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      }
+    }
+    update()
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   const handleUpdate = (deviceId: string) => {
     setUpdatingDevice(deviceId)
@@ -103,11 +119,12 @@ export function FirmwareOTAPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       <PageHeader
         icon={RefreshCw}
         title="Firmware / OTA"
         description="Manage device firmware updates"
+        lastUpdated={lastUpdatedText}
         actions={
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -119,11 +136,12 @@ export function FirmwareOTAPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Upload Firmware</DialogTitle>
+                <DialogDescription>Upload a firmware binary to make it available for OTA deployment.</DialogDescription>
               </DialogHeader>
-              <div className="py-8 text-center text-sm text-muted-foreground border-2 border-dashed border-border/50 rounded-lg">
-                <Upload className="size-8 mx-auto mb-2 opacity-50" />
+              <div className="py-8 text-center text-sm text-muted-foreground border-2 border-dashed border-border/50 rounded-lg hover:border-primary/30 transition-colors duration-300">
+                <Upload className="size-8 mx-auto mb-2 text-muted-foreground/30" />
                 <p>Drag & drop firmware file or click to browse</p>
-                <p className="text-xs mt-1">Supported: .bin, .hex, .fw</p>
+                <p className="text-xs mt-1 text-muted-foreground/50">Supported: .bin, .hex, .fw</p>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -134,56 +152,56 @@ export function FirmwareOTAPage() {
         }
       />
 
-      <Tabs defaultValue="devices">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-slide-up stagger-1">
         <TabsList>
-          <TabsTrigger value="devices" className="text-xs">Device Firmware</TabsTrigger>
-          <TabsTrigger value="versions" className="text-xs">Available Versions</TabsTrigger>
-          <TabsTrigger value="history" className="text-xs">Update History</TabsTrigger>
+          <TabsTrigger value="devices" className={`text-xs ${activeTab === 'devices' ? 'bg-primary/15 text-primary' : ''}`}>Device Firmware</TabsTrigger>
+          <TabsTrigger value="versions" className={`text-xs ${activeTab === 'versions' ? 'bg-primary/15 text-primary' : ''}`}>Available Versions</TabsTrigger>
+          <TabsTrigger value="history" className={`text-xs ${activeTab === 'history' ? 'bg-primary/15 text-primary' : ''}`}>Update History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="devices" className="space-y-4 mt-4">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Device Firmware Status</CardTitle>
-              <CardDescription className="text-xs">Current firmware versions and available updates</CardDescription>
+          <Card className="border-border/50 hover:border-border/60 transition-colors duration-300">
+            <CardHeader className="pb-3 pt-5">
+              <CardTitle className="text-sm font-semibold">Device Firmware Status</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">Current firmware versions and available updates</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="max-h-[calc(100vh-360px)] overflow-y-auto rounded-md border">
+            <CardContent className="pb-5">
+              <div className="max-h-[calc(100vh-360px)] overflow-y-auto rounded-lg border border-border/40 overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs">Device</TableHead>
-                      <TableHead className="text-xs">Current Version</TableHead>
-                      <TableHead className="text-xs">Available</TableHead>
-                      <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-xs text-right">Actions</TableHead>
+                    <TableRow className="hover:bg-transparent border-border/30">
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Device</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Current Version</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Available</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {deviceFirmware.map((df) => {
                       const isUpdating = updatingDevice === df.id
                       return (
-                        <TableRow key={df.id}>
-                          <TableCell className="font-medium text-sm">{df.name}</TableCell>
-                          <TableCell className="font-mono text-xs">{df.currentVersion}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs font-mono border-amber-400/30 bg-amber-400/10 text-amber-400">
+                        <TableRow key={df.id} className="hover:bg-muted/20 transition-colors duration-150">
+                          <TableCell className="font-medium text-sm py-3">{df.name}</TableCell>
+                          <TableCell className="font-mono text-xs py-3 metric-value">{df.currentVersion}</TableCell>
+                          <TableCell className="py-3">
+                            <Badge variant="outline" className="text-xs font-mono border-amber-400/30 bg-amber-400/10 text-amber-400 ring-2 ring-amber-400/20" style={{ boxShadow: 'none' }}>
                               {df.availableVersion}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3">
                             {isUpdating ? (
                               <div className="flex items-center gap-2">
                                 <Loader2 className="size-3.5 animate-spin text-cyan-400" />
                                 <span className="text-xs text-cyan-400">Updating...</span>
                               </div>
                             ) : df.updateAvailable ? (
-                              <Badge variant="outline" className="text-xs border-amber-400/30 bg-amber-400/10 text-amber-400">Update Available</Badge>
+                              <Badge variant="outline" className="text-xs border-amber-400/30 bg-amber-400/10 text-amber-400 ring-2 ring-amber-400/20" style={{ boxShadow: 'none' }}>Update Available</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-xs border-emerald-400/30 bg-emerald-400/10 text-emerald-400">Up to Date</Badge>
+                              <Badge variant="outline" className="text-xs border-emerald-400/30 bg-emerald-400/10 text-emerald-400 ring-2 ring-emerald-400/20" style={{ boxShadow: 'none' }}>Up to Date</Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right py-3">
                             <Button
                               size="sm"
                               variant="outline"
@@ -208,15 +226,15 @@ export function FirmwareOTAPage() {
         <TabsContent value="versions" className="space-y-4 mt-4">
           <ScrollArea className="max-h-[calc(100vh-340px)]">
             <div className="space-y-4">
-              {firmwareVersions.map((fw) => (
-                <Card key={fw.version} className={`border-border/50 ${fw.status === 'deprecated' ? 'opacity-60' : ''}`}>
-                  <CardContent className="p-4">
+              {firmwareVersions.map((fw, i) => (
+                <Card key={fw.version} className={`border-border/50 hover:border-border/60 transition-colors duration-300 ${fw.status === 'deprecated' ? 'opacity-60' : ''}`} style={{ animationDelay: `${i * 50}ms` }}>
+                  <CardContent className="pt-5 px-5 pb-5">
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-3">
                           <Tag className="size-4 text-muted-foreground" />
-                          <span className="font-mono font-semibold text-sm">{fw.version}</span>
-                          <Badge variant="outline" className={`text-xs ${fwStatusColors[fw.status]}`}>{fw.status}</Badge>
+                          <span className="font-mono font-semibold text-sm metric-value">{fw.version}</span>
+                          <Badge variant="outline" className={`text-xs ring-2 ${fwStatusColors[fw.status]}`} style={{ boxShadow: 'none' }}>{fw.status}</Badge>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <FileText className="size-3" />
@@ -239,18 +257,18 @@ export function FirmwareOTAPage() {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4 mt-4">
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <div className="max-h-[calc(100vh-360px)] overflow-y-auto rounded-md border">
+          <Card className="border-border/50 hover:border-border/60 transition-colors duration-300">
+            <CardContent className="pt-5 px-5 pb-5">
+              <div className="max-h-[calc(100vh-360px)] overflow-y-auto rounded-lg border border-border/40 overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs">Device</TableHead>
-                      <TableHead className="text-xs">From</TableHead>
-                      <TableHead className="text-xs">To</TableHead>
-                      <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-xs min-w-[120px]">Progress</TableHead>
-                      <TableHead className="text-xs">Date</TableHead>
+                    <TableRow className="hover:bg-transparent border-border/30">
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Device</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">From</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">To</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 min-w-[120px]">Progress</TableHead>
+                      <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -258,21 +276,23 @@ export function FirmwareOTAPage() {
                       const sc = statusConfig[entry.status]
                       const StatusIcon = sc.icon
                       return (
-                        <TableRow key={entry.id} className={entry.status === 'failed' ? 'bg-red-500/5' : ''}>
-                          <TableCell className="font-medium text-sm">{entry.device}</TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">{entry.fromVersion}</TableCell>
-                          <TableCell className="font-mono text-xs">{entry.toVersion}</TableCell>
-                          <TableCell>
+                        <TableRow key={entry.id} className={`hover:bg-muted/20 transition-colors duration-150 ${entry.status === 'failed' ? 'bg-red-500/5' : ''}`}>
+                          <TableCell className="font-medium text-sm py-3">{entry.device}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground py-3">{entry.fromVersion}</TableCell>
+                          <TableCell className="font-mono text-xs py-3 metric-value">{entry.toVersion}</TableCell>
+                          <TableCell className="py-3">
                             <div className="flex items-center gap-1.5">
                               <StatusIcon className={`size-3.5 ${sc.color} ${entry.status === 'in-progress' ? 'animate-spin' : ''}`} />
-                              <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} text-xs`}>{sc.label}</Badge>
+                              <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} ring-2 ${sc.ring} text-xs`} style={{ boxShadow: 'none' }}>{sc.label}</Badge>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3">
                             {entry.status === 'in-progress' && entry.progress !== undefined ? (
                               <div className="flex items-center gap-2">
-                                <Progress value={entry.progress} className="h-2 flex-1 [&>div]:bg-cyan-500" />
-                                <span className="text-xs font-mono text-cyan-400 w-10 text-right">{entry.progress}%</span>
+                                <div className="relative flex-1">
+                                  <Progress value={entry.progress} className="h-2 rounded-full [&>div]:rounded-full [&>div]:bg-cyan-500" />
+                                </div>
+                                <span className="text-xs font-mono text-cyan-400 w-10 text-right metric-value">{entry.progress}%</span>
                               </div>
                             ) : entry.status === 'pending' ? (
                               <span className="text-xs text-muted-foreground">Queued</span>
@@ -280,7 +300,7 @@ export function FirmwareOTAPage() {
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{entry.date}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap py-3">{entry.date}</TableCell>
                         </TableRow>
                       )
                     })}

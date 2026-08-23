@@ -1,11 +1,15 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   Gauge,
   ArrowUpRight,
   ArrowDownRight,
   Target,
+  BarChart3,
+  TrendingUp,
+  Layers,
+  Crosshair,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -20,8 +24,22 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+import { formatDistanceToNow } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
 import { PageHeader } from '@/shared/components/page-header'
+import {
+  ChartTooltip,
+  AXIS_TICK_SM,
+  AXIS_LINE,
+  GRID_STROKE,
+  LEGEND_STYLE,
+  C_GREEN,
+  C_CYAN,
+  C_ORANGE,
+  C_RED,
+  C_YELLOW,
+  oeeColor,
+} from '@/shared/components/chart-utils'
 import {
   Card,
   CardContent,
@@ -40,13 +58,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-// ─── Solid colors for recharts ──────────────────────────────────────────────
-const C_GREEN = '#10b981'
-const C_YELLOW = '#eab308'
-const C_CYAN = '#06b6d4'
-const C_ORANGE = '#f97316'
-const C_RED = '#ef4444'
-
 // ─── Default mock machines ─────────────────────────────────────────────────
 const DEFAULT_MACHINES = [
   { name: 'CNC Mill #1', oee: 87.2, availability: 92.1, performance: 95.3, quality: 99.3 },
@@ -62,34 +73,43 @@ const DEFAULT_MACHINES = [
 // ─── OEE Target ────────────────────────────────────────────────────────────
 const OEE_TARGET = 85
 
-// ─── Dark tooltip ───────────────────────────────────────────────────────────
-function DarkTooltip({
-  active,
-  payload,
-  label,
+// ─── Chart Card Wrapper ─────────────────────────────────────────────────────
+function ChartCard({
+  title,
+  description,
+  icon: Icon,
+  iconColor = 'text-emerald-400',
+  children,
+  className,
 }: {
-  active?: boolean
-  payload?: Array<{ name: string; value: number; color: string }>
-  label?: string
+  title: string
+  description?: string
+  icon: React.ElementType
+  iconColor?: string
+  children: React.ReactNode
+  className?: string
 }) {
-  if (!active || !payload?.length) return null
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-xl">
-      <p className="mb-1 font-medium text-foreground">{label}</p>
-      {payload.map((p, i) => (
-        <p key={i} className="text-muted-foreground">
-          <span
-            className="inline-block mr-1.5 size-2 rounded-full"
-            style={{ backgroundColor: p.color }}
-          />
-          {p.name}: <span className="font-semibold text-foreground">{p.value}%</span>
-        </p>
-      ))}
-    </div>
+    <Card className={`hover:border-border/60 transition-colors duration-300 ${className || ''}`}>
+      <CardHeader className="pb-2 pt-5 px-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Icon className={`size-4 ${iconColor}`} />
+              {title}
+            </CardTitle>
+            {description && (
+              <CardDescription className="mt-0.5 text-xs">{description}</CardDescription>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pb-5">{children}</CardContent>
+    </Card>
   )
 }
 
-// ─── SVG Semi-circle Gauge ──────────────────────────────────────────────────
+// ─── SVG Semi-circle Gauge (enhanced with gradient + glow) ──────────────────
 function OEEGauge({ value }: { value: number }) {
   const clamped = Math.max(0, Math.min(100, value))
   const color = clamped >= 85 ? C_GREEN : clamped >= 70 ? C_YELLOW : C_RED
@@ -99,6 +119,9 @@ function OEEGauge({ value }: { value: number }) {
   // Semi-circle: from 180° to 0° (left to right)
   const circumference = Math.PI * radius // half circle
   const filled = (clamped / 100) * circumference
+
+  const gradId = `oee-gauge-grad-${color.replace('#', '')}`
+  const glowId = `oee-gauge-glow-${color.replace('#', '')}`
 
   // Build SVG arc path
   const describeArc = (
@@ -127,24 +150,38 @@ function OEEGauge({ value }: { value: number }) {
   return (
     <div className="flex flex-col items-center">
       <svg width="200" height="120" viewBox="0 0 200 120">
+        <defs>
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={color} stopOpacity="0.6" />
+            <stop offset="50%" stopColor={color} stopOpacity="1" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.7" />
+          </linearGradient>
+          <filter id={glowId}>
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feFlood floodColor={color} floodOpacity="0.4" result="color" />
+            <feComposite in="color" in2="blur" operator="in" result="glow" />
+            <feMerge>
+              <feMergeNode in="glow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         {/* Background arc */}
         <path
           d={bgPath}
           fill="none"
-          stroke="rgba(255,255,255,0.08)"
+          stroke="rgba(255,255,255,0.06)"
           strokeWidth="14"
           strokeLinecap="round"
         />
-        {/* Value arc */}
+        {/* Value arc with gradient + glow */}
         <path
           d={valuePath}
           fill="none"
-          stroke={color}
+          stroke={`url(#${gradId})`}
           strokeWidth="14"
           strokeLinecap="round"
-          style={{
-            filter: `drop-shadow(0 0 6px ${color}60)`,
-          }}
+          filter={`url(#${glowId})`}
         />
         {/* Tick marks */}
         {[0, 25, 50, 75, 100].map((tick) => {
@@ -175,7 +212,7 @@ function OEEGauge({ value }: { value: number }) {
               x={cx + labelR * Math.cos(rad)}
               y={cy + labelR * Math.sin(rad) + 3}
               textAnchor="middle"
-              fill="#a1a1aa"
+              fill="rgba(255,255,255,0.35)"
               fontSize="9"
             >
               {tick}%
@@ -186,7 +223,7 @@ function OEEGauge({ value }: { value: number }) {
         <text x={cx} y={cy - 15} textAnchor="middle" fill={color} fontSize="32" fontWeight="bold">
           {clamped.toFixed(1)}%
         </text>
-        <text x={cx} y={cy + 5} textAnchor="middle" fill="#a1a1aa" fontSize="11">
+        <text x={cx} y={cy + 5} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="11">
           Overall OEE
         </text>
       </svg>
@@ -194,7 +231,7 @@ function OEEGauge({ value }: { value: number }) {
   )
 }
 
-// ─── OEE Component Card ─────────────────────────────────────────────────────
+// ─── OEE Component Card (enhanced) ──────────────────────────────────────────
 function OEEComponentCard({
   label,
   value,
@@ -208,27 +245,50 @@ function OEEComponentCard({
 }) {
   const barWidth = Math.max(0, Math.min(100, value))
   return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className="h-4 w-4" style={{ color }} />
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      </div>
-      <p className="text-2xl font-bold" style={{ color }}>
-        {value.toFixed(1)}%
-      </p>
-      <div className="mt-2 h-1.5 w-full rounded-full bg-muted/50 overflow-hidden">
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${barWidth}%`, backgroundColor: color }}
-        />
-      </div>
+    <Card className="relative overflow-hidden transition-all duration-300 hover:border-border/60 group">
+      <div
+        className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"
+        style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }}
+      />
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-lg ring-1"
+            style={{ backgroundColor: `${color}18`, ['--tw-ring-color' as string]: `${color}25` }}
+          >
+            <Icon className="h-4 w-4" style={{ color }} />
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">{label}</span>
+        </div>
+        <p className="text-2xl font-extrabold metric-value" style={{ color }}>
+          {value.toFixed(1)}%
+        </p>
+        <div className="mt-3 h-2 w-full rounded-full bg-muted/50 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${barWidth}%`, backgroundColor: color }}
+          />
+        </div>
+      </CardContent>
     </Card>
   )
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
 export function OEEPage() {
-  const { machines } = useIIoTStore()
+  const { machines, lastUpdate } = useIIoTStore()
+  const [lastUpdatedText, setLastUpdatedText] = useState('—')
+
+  useEffect(() => {
+    function update() {
+      if (lastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      }
+    }
+    update()
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   const machineData = useMemo(
     () => (machines.length > 0 ? machines : DEFAULT_MACHINES),
@@ -304,11 +364,12 @@ export function OEEPage() {
         icon={Gauge}
         title="OEE Analysis"
         description="Overall Equipment Effectiveness breakdown"
+        lastUpdated={lastUpdatedText}
       />
 
       {/* OEE Gauge */}
-      <Card>
-        <CardContent className="pt-6 flex flex-col items-center">
+      <Card className="hover:border-border/60 transition-colors duration-300 animate-slide-up">
+        <CardContent className="pt-6 flex flex-col items-center px-5 pb-5">
           <OEEGauge value={overallOEE} />
           <div className="flex items-center gap-2 mt-2">
             <Target className="h-3.5 w-3.5 text-muted-foreground" />
@@ -329,7 +390,7 @@ export function OEEPage() {
       </Card>
 
       {/* A × P × Q = OEE Breakdown */}
-      <div>
+      <div className="animate-slide-up stagger-2">
         <p className="text-xs text-muted-foreground mb-3 text-center">
           OEE = Availability × Performance × Quality
         </p>
@@ -337,7 +398,7 @@ export function OEEPage() {
           <OEEComponentCard
             label="Availability"
             value={overallA}
-          icon={() => <span className="text-lg font-mono" style={{ color: C_GREEN }}>A</span>}
+            icon={() => <span className="text-lg font-mono" style={{ color: C_GREEN }}>A</span>}
             color={C_GREEN}
           />
           <div className="flex items-center justify-center">
@@ -388,297 +449,196 @@ export function OEEPage() {
         </TabsList>
 
         {/* Per-Machine OEE Table with inline bars */}
-        <TabsContent value="per-machine" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Per-Machine OEE Breakdown</CardTitle>
-              <CardDescription className="text-xs">
-                Each factor shown with inline bar visualization
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="max-h-[400px] overflow-y-auto rounded-md border border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Machine</TableHead>
-                      <TableHead className="text-xs">Availability</TableHead>
-                      <TableHead className="text-xs">Performance</TableHead>
-                      <TableHead className="text-xs">Quality</TableHead>
-                      <TableHead className="text-xs">OEE</TableHead>
-                      <TableHead className="text-xs text-center">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {machineData.map((m) => {
-                      const oeeColor =
-                        m.oee >= 85
-                          ? C_GREEN
-                          : m.oee >= 70
-                            ? C_YELLOW
-                            : C_RED
-                      return (
-                        <TableRow key={m.name}>
-                          <TableCell className="text-xs font-medium">
-                            {m.name}
-                          </TableCell>
-                          <TableCell className="text-xs py-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono w-10 text-right">
-                                {m.availability}%
-                              </span>
-                              <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${m.availability}%`,
-                                    backgroundColor: C_GREEN,
-                                  }}
-                                />
-                              </div>
+        <TabsContent value="per-machine" className="mt-4 animate-slide-up">
+          <ChartCard
+            title="Per-Machine OEE Breakdown"
+            description="Each factor shown with inline bar visualization"
+            icon={BarChart3}
+          >
+            <div className="max-h-[400px] overflow-y-auto rounded-md border border-border/30">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/30 hover:bg-transparent">
+                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Machine</TableHead>
+                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Availability</TableHead>
+                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Performance</TableHead>
+                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Quality</TableHead>
+                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">OEE</TableHead>
+                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60 text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {machineData.map((m) => {
+                    const mOeeColor = oeeColor(m.oee)
+                    return (
+                      <TableRow key={m.name} className="transition-colors hover:bg-muted/20">
+                        <TableCell className="text-xs font-medium">
+                          {m.name}
+                        </TableCell>
+                        <TableCell className="text-xs py-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono w-10 text-right">
+                              {m.availability}%
+                            </span>
+                            <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{ width: `${m.availability}%`, backgroundColor: C_GREEN }}
+                              />
                             </div>
-                          </TableCell>
-                          <TableCell className="text-xs py-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono w-10 text-right">
-                                {m.performance}%
-                              </span>
-                              <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${m.performance}%`,
-                                    backgroundColor: C_CYAN,
-                                  }}
-                                />
-                              </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs py-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono w-10 text-right">
+                              {m.performance}%
+                            </span>
+                            <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{ width: `${m.performance}%`, backgroundColor: C_CYAN }}
+                              />
                             </div>
-                          </TableCell>
-                          <TableCell className="text-xs py-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono w-10 text-right">
-                                {m.quality}%
-                              </span>
-                              <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${m.quality}%`,
-                                    backgroundColor: C_ORANGE,
-                                  }}
-                                />
-                              </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs py-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono w-10 text-right">
+                              {m.quality}%
+                            </span>
+                            <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{ width: `${m.quality}%`, backgroundColor: C_ORANGE }}
+                              />
                             </div>
-                          </TableCell>
-                          <TableCell className="text-xs font-bold font-mono" style={{ color: oeeColor }}>
-                            {m.oee}%
-                          </TableCell>
-                          <TableCell className="text-xs text-center">
-                            <Badge
-                              className={`text-[10px] border-0 ${
-                                m.oee >= 85
-                                  ? 'bg-emerald-500/15 text-emerald-400'
-                                  : m.oee >= 70
-                                    ? 'bg-amber-500/15 text-amber-400'
-                                    : 'bg-red-500/15 text-red-400'
-                              }`}
-                            >
-                              {m.oee >= 85
-                                ? 'Excellent'
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-bold font-mono" style={{ color: mOeeColor }}>
+                          {m.oee}%
+                        </TableCell>
+                        <TableCell className="text-xs text-center">
+                          <Badge
+                            className={`text-[10px] border-0 ${
+                              m.oee >= 85
+                                ? 'bg-emerald-500/15 text-emerald-400'
                                 : m.oee >= 70
-                                  ? 'Acceptable'
-                                  : 'Needs Attention'}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                                  ? 'bg-amber-500/15 text-amber-400'
+                                  : 'bg-red-500/15 text-red-400'
+                            }`}
+                          >
+                            {m.oee >= 85
+                              ? 'Excellent'
+                              : m.oee >= 70
+                                ? 'Acceptable'
+                                : 'Needs Attention'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </ChartCard>
         </TabsContent>
 
         {/* OEE Trend — AreaChart with A, P, Q */}
-        <TabsContent value="trends" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">OEE Component Trends — 30 Days</CardTitle>
-              <CardDescription className="text-xs">
-                Availability, Performance, and Quality over time
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData}>
-                    <defs>
-                      <linearGradient id="availGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.3} />
-                        <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C_CYAN} stopOpacity={0.3} />
-                        <stop offset="100%" stopColor={C_CYAN} stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="qualGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C_ORANGE} stopOpacity={0.3} />
-                        <stop offset="100%" stopColor={C_ORANGE} stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fill: '#a1a1aa', fontSize: 10 }}
-                      tickLine={false}
-                      interval={4}
-                    />
-                    <YAxis
-                      tick={{ fill: '#a1a1aa', fontSize: 10 }}
-                      tickLine={false}
-                      domain={[70, 100]}
-                      width={35}
-                    />
-                    <Tooltip content={<DarkTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-                    <Area
-                      type="monotone"
-                      dataKey="Availability"
-                      stroke={C_GREEN}
-                      fill="url(#availGrad)"
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="Performance"
-                      stroke={C_CYAN}
-                      fill="url(#perfGrad)"
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="Quality"
-                      stroke={C_ORANGE}
-                      fill="url(#qualGrad)"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="trends" className="mt-4 animate-slide-up">
+          <ChartCard
+            title="OEE Component Trends — 30 Days"
+            description="Availability, Performance, and Quality over time"
+            icon={TrendingUp}
+          >
+            <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData}>
+                  <defs>
+                    <linearGradient id="availGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={C_CYAN} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={C_CYAN} stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="qualGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={C_ORANGE} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={C_ORANGE} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                  <XAxis dataKey="day" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} interval={4} />
+                  <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[70, 100]} width={35} />
+                  <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+                  <Legend wrapperStyle={LEGEND_STYLE} />
+                  <Area type="monotone" dataKey="Availability" stroke={C_GREEN} fill="url(#availGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="Performance" stroke={C_CYAN} fill="url(#perfGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="Quality" stroke={C_ORANGE} fill="url(#qualGrad)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
         </TabsContent>
 
         {/* Loss Analysis — Stacked BarChart */}
-        <TabsContent value="loss" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Loss Analysis by Machine</CardTitle>
-              <CardDescription className="text-xs">
-                Breakdown of Availability, Performance, and Quality losses
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={lossData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fill: '#a1a1aa', fontSize: 10 }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: '#a1a1aa', fontSize: 10 }}
-                      tickLine={false}
-                      width={40}
-                    />
-                    <Tooltip content={<DarkTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-                    <Bar
-                      dataKey="Avail. Loss"
-                      stackId="loss"
-                      fill={C_RED}
-                      radius={[0, 0, 0, 0]}
-                      barSize={20}
-                    />
-                    <Bar
-                      dataKey="Perf. Loss"
-                      stackId="loss"
-                      fill={C_ORANGE}
-                      barSize={20}
-                    />
-                    <Bar
-                      dataKey="Quality Loss"
-                      stackId="loss"
-                      fill={C_YELLOW}
-                      radius={[3, 3, 0, 0]}
-                      barSize={20}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="loss" className="mt-4 animate-slide-up">
+          <ChartCard
+            title="Loss Analysis by Machine"
+            description="Breakdown of Availability, Performance, and Quality losses"
+            icon={Layers}
+          >
+            <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={lossData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                  <XAxis dataKey="name" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
+                  <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} width={40} />
+                  <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+                  <Legend wrapperStyle={LEGEND_STYLE} />
+                  <Bar dataKey="Avail. Loss" stackId="loss" fill={C_RED} radius={[0, 0, 0, 0]} barSize={20} />
+                  <Bar dataKey="Perf. Loss" stackId="loss" fill={C_ORANGE} barSize={20} />
+                  <Bar dataKey="Quality Loss" stackId="loss" fill={C_YELLOW} radius={[3, 3, 0, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
         </TabsContent>
 
         {/* Target vs Actual */}
-        <TabsContent value="target" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Target vs Actual OEE</CardTitle>
-              <CardDescription className="text-xs">
-                Comparing each machine against the {OEE_TARGET}% OEE target
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={targetVsActual} barGap={2} barCategoryGap="20%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fill: '#a1a1aa', fontSize: 10 }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: '#a1a1aa', fontSize: 10 }}
-                      tickLine={false}
-                      domain={[0, 100]}
-                      width={35}
-                    />
-                    <Tooltip content={<DarkTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-                    <Bar
-                      dataKey="Target"
-                      fill="rgba(255,255,255,0.12)"
-                      radius={[2, 2, 0, 0]}
-                      barSize={16}
-                    />
-                    <Bar
-                      dataKey="Actual"
-                      radius={[2, 2, 0, 0]}
-                      barSize={16}
-                    >
-                      {targetVsActual.map((entry, idx) => (
-                        <Cell
-                          key={idx}
-                          fill={
-                            entry.Actual >= OEE_TARGET
-                              ? C_GREEN
-                              : entry.Actual >= 70
-                                ? C_YELLOW
-                                : C_RED
-                          }
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="target" className="mt-4 animate-slide-up">
+          <ChartCard
+            title="Target vs Actual OEE"
+            description={`Comparing each machine against the ${OEE_TARGET}% OEE target`}
+            icon={Crosshair}
+          >
+            <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={targetVsActual} barGap={2} barCategoryGap="20%">
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                  <XAxis dataKey="name" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
+                  <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[0, 100]} width={35} />
+                  <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+                  <Legend wrapperStyle={LEGEND_STYLE} />
+                  <Bar dataKey="Target" fill="rgba(255,255,255,0.12)" radius={[2, 2, 0, 0]} barSize={16} />
+                  <Bar dataKey="Actual" radius={[2, 2, 0, 0]} barSize={16}>
+                    {targetVsActual.map((entry, idx) => (
+                      <Cell
+                        key={idx}
+                        fill={
+                          entry.Actual >= OEE_TARGET
+                            ? C_GREEN
+                            : entry.Actual >= 70
+                              ? C_YELLOW
+                              : C_RED
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
         </TabsContent>
       </Tabs>
     </div>

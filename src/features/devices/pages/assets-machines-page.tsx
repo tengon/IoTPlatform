@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Factory, Search, Eye, Pencil, Cog } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Factory, Search, Eye, Pencil, Cog, Inbox } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { useIIoTStore } from '@/store/iiot'
+import { oeeColor, STATUS_COLORS } from '@/shared/components/chart-utils'
 import { PageHeader } from '@/shared/components/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -45,20 +48,30 @@ const mockMachines: MachineAsset[] = [
   { id: 'MCH-013', name: 'Packaging Line 2', type: 'Packaging', model: 'Multivac R 245', status: 'idle', oee: 0, availability: 95.3, location: 'Line D' },
 ]
 
-const statusConfig: Record<string, { color: string; bg: string; border: string; label: string }> = {
-  running: { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', label: 'Running' },
-  idle: { color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', label: 'Idle' },
-  maintenance: { color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/30', label: 'Maintenance' },
-  error: { color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', label: 'Error' },
+const statusConfig: Record<string, { color: string; bg: string; border: string; ring: string; label: string; borderColor: string }> = {
+  running: { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', ring: 'ring-emerald-400/20', label: 'Running', borderColor: 'border-l-emerald-500' },
+  idle: { color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', ring: 'ring-amber-400/20', label: 'Idle', borderColor: 'border-l-amber-500' },
+  maintenance: { color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/30', ring: 'ring-cyan-400/20', label: 'Maintenance', borderColor: 'border-l-cyan-500' },
+  error: { color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', ring: 'ring-red-400/20', label: 'Error', borderColor: 'border-l-red-500' },
+}
+
+const tabActiveClass: Record<string, string> = {
+  all: '',
+  running: 'bg-emerald-500/15 text-emerald-400 border-l-emerald-500',
+  idle: 'bg-amber-500/15 text-amber-400 border-l-amber-500',
+  maintenance: 'bg-cyan-500/15 text-cyan-400 border-l-cyan-500',
+  error: 'bg-red-500/15 text-red-400 border-l-red-500',
 }
 
 function OEEBar({ value }: { value: number }) {
   if (value === 0) return <span className="text-muted-foreground text-xs">N/A</span>
-  const color = value >= 85 ? 'bg-emerald-500' : value >= 70 ? 'bg-amber-500' : 'bg-red-500'
+  const color = oeeColor(value)
   return (
     <div className="flex items-center gap-2 min-w-[140px]">
-      <Progress value={value} className="h-2 flex-1 [&>div]:bg-[var(--bar-color)]" style={{ '--bar-color': value >= 85 ? '#10b981' : value >= 70 ? '#f59e0b' : '#ef4444' } as React.CSSProperties} />
-      <span className={`text-xs font-mono font-medium w-12 text-right ${value >= 85 ? 'text-emerald-400' : value >= 70 ? 'text-amber-400' : 'text-red-400'}`}>{value}%</span>
+      <div className="relative flex-1">
+        <Progress value={value} className="h-2 rounded-full [&>div]:rounded-full" style={{ '--bar-color': color } as React.CSSProperties} />
+      </div>
+      <span className="text-xs font-mono font-medium w-12 text-right metric-value" style={{ color }}>{value}%</span>
     </div>
   )
 }
@@ -66,6 +79,19 @@ function OEEBar({ value }: { value: number }) {
 export function AssetsMachinesPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const { lastUpdate } = useIIoTStore()
+  const [lastUpdatedText, setLastUpdatedText] = useState('—')
+
+  useEffect(() => {
+    function update() {
+      if (lastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      }
+    }
+    update()
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   const filtered = useMemo(() => {
     return mockMachines.filter((m) => {
@@ -84,12 +110,12 @@ export function AssetsMachinesPage() {
   }, [])
 
   return (
-    <div className="space-y-6">
-      <PageHeader icon={Factory} title="Assets & Machines" description="Manage industrial assets and equipment" />
+    <div className="space-y-6 animate-slide-up">
+      <PageHeader icon={Factory} title="Assets & Machines" description="Manage industrial assets and equipment" lastUpdated={lastUpdatedText} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up stagger-1">
+        <Card className="border-border/50 hover:border-border/60 transition-colors duration-300">
+          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
               <Cog className="size-5" />
             </div>
@@ -99,43 +125,43 @@ export function AssetsMachinesPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-emerald-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-emerald-500/20 hover:border-border/60 transition-colors duration-300">
+          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
               <Factory className="size-5 text-emerald-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Running</p>
-              <Badge variant="outline" className="border-emerald-400/30 bg-emerald-400/10 text-emerald-400">{stats.running}</Badge>
+              <Badge variant="outline" className="border-emerald-400/30 bg-emerald-400/10 text-emerald-400 ring-2 ring-emerald-400/20">{stats.running}</Badge>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-amber-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-amber-500/20 hover:border-border/60 transition-colors duration-300">
+          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
               <Factory className="size-5 text-amber-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Idle</p>
-              <Badge variant="outline" className="border-amber-400/30 bg-amber-400/10 text-amber-400">{stats.idle}</Badge>
+              <Badge variant="outline" className="border-amber-400/30 bg-amber-400/10 text-amber-400 ring-2 ring-amber-400/20">{stats.idle}</Badge>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-cyan-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-cyan-500/20 hover:border-border/60 transition-colors duration-300">
+          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10">
               <Factory className="size-5 text-cyan-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">In Maintenance</p>
-              <Badge variant="outline" className="border-cyan-400/30 bg-cyan-400/10 text-cyan-400">{stats.maintenance}</Badge>
+              <Badge variant="outline" className="border-cyan-400/30 bg-cyan-400/10 text-cyan-400 ring-2 ring-cyan-400/20">{stats.maintenance}</Badge>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
+      <Card className="border-border/50 hover:border-border/60 transition-colors duration-300 animate-slide-up stagger-2">
+        <CardContent className="pt-5 px-5 pb-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -143,62 +169,67 @@ export function AssetsMachinesPage() {
             </div>
             <Tabs value={statusFilter} onValueChange={setStatusFilter}>
               <TabsList className="h-8">
-                <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
-                <TabsTrigger value="running" className="text-xs px-3 h-7">Running</TabsTrigger>
-                <TabsTrigger value="idle" className="text-xs px-3 h-7">Idle</TabsTrigger>
-                <TabsTrigger value="maintenance" className="text-xs px-3 h-7">Maintenance</TabsTrigger>
-                <TabsTrigger value="error" className="text-xs px-3 h-7">Error</TabsTrigger>
+                <TabsTrigger value="all" className={`text-xs px-3 h-7 ${statusFilter === 'all' ? 'bg-primary/15 text-primary' : ''}`}>All</TabsTrigger>
+                <TabsTrigger value="running" className={`text-xs px-3 h-7 ${statusFilter === 'running' ? tabActiveClass.running : ''}`}>Running</TabsTrigger>
+                <TabsTrigger value="idle" className={`text-xs px-3 h-7 ${statusFilter === 'idle' ? tabActiveClass.idle : ''}`}>Idle</TabsTrigger>
+                <TabsTrigger value="maintenance" className={`text-xs px-3 h-7 ${statusFilter === 'maintenance' ? tabActiveClass.maintenance : ''}`}>Maintenance</TabsTrigger>
+                <TabsTrigger value="error" className={`text-xs px-3 h-7 ${statusFilter === 'error' ? tabActiveClass.error : ''}`}>Error</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
 
-          <div className="max-h-[calc(100vh-380px)] overflow-y-auto rounded-md border">
+          <div className="max-h-[calc(100vh-380px)] overflow-y-auto rounded-lg border border-border/40 overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-xs">Machine Name</TableHead>
-                  <TableHead className="text-xs">Type</TableHead>
-                  <TableHead className="text-xs hidden md:table-cell">Model</TableHead>
-                  <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs min-w-[180px]">OEE %</TableHead>
-                  <TableHead className="text-xs min-w-[140px] hidden lg:table-cell">Availability %</TableHead>
-                  <TableHead className="text-xs text-right">Actions</TableHead>
+                <TableRow className="hover:bg-transparent border-border/30">
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Machine Name</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Type</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden md:table-cell">Model</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 min-w-[180px]">OEE %</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 min-w-[140px] hidden lg:table-cell">Availability %</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                      No machines found matching your criteria.
+                    <TableCell colSpan={7} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Inbox className="size-8 text-muted-foreground/30" />
+                        <p className="text-sm font-medium text-muted-foreground">No machines found</p>
+                        <p className="text-xs text-muted-foreground/50">Try adjusting your search or filter criteria.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((machine) => {
                     const sc = statusConfig[machine.status]
                     return (
-                      <TableRow key={machine.id} className={machine.status === 'error' ? 'bg-red-500/5' : ''}>
-                        <TableCell>
+                      <TableRow key={machine.id} className={`hover:bg-muted/20 transition-colors duration-150 border-l-2 ${sc.borderColor} ${machine.status === 'error' ? 'bg-red-500/5' : ''}`}>
+                        <TableCell className="py-3">
                           <div className="font-medium">{machine.name}</div>
                           <div className="text-xs text-muted-foreground font-mono">{machine.id}</div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-3">
                           <Badge variant="secondary" className="text-xs font-normal">{machine.type}</Badge>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{machine.model}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} text-xs`}>
-                            <span className={`inline-block size-1.5 rounded-full mr-1.5 ${sc.bg.replace('/10', '')}`} style={{ backgroundColor: machine.status === 'running' ? '#10b981' : machine.status === 'idle' ? '#f59e0b' : machine.status === 'maintenance' ? '#22d3ee' : '#ef4444' }} />
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground py-3">{machine.model}</TableCell>
+                        <TableCell className="py-3">
+                          <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} ${sc.ring} ring-2 text-xs`}
+                            style={{ boxShadow: 'none' }}>
+                            <span className={`inline-block size-1.5 rounded-full mr-1.5`} style={{ backgroundColor: STATUS_COLORS[machine.status] || '#71717a' }} />
                             {sc.label}
                           </Badge>
                         </TableCell>
-                        <TableCell><OEEBar value={machine.oee} /></TableCell>
-                        <TableCell className="hidden lg:table-cell">
+                        <TableCell className="py-3"><OEEBar value={machine.oee} /></TableCell>
+                        <TableCell className="hidden lg:table-cell py-3">
                           <div className="flex items-center gap-2 min-w-[120px]">
-                            <Progress value={machine.availability} className="h-1.5 flex-1 [&>div]:bg-emerald-500" />
-                            <span className="text-xs font-mono w-10 text-right text-muted-foreground">{machine.availability}%</span>
+                            <Progress value={machine.availability} className="h-2 rounded-full flex-1 [&>div]:rounded-full [&>div]:bg-emerald-500" />
+                            <span className="text-xs font-mono w-10 text-right text-muted-foreground metric-value">{machine.availability}%</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right py-3">
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
                               <Eye className="size-4" />

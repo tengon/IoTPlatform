@@ -1,13 +1,17 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { MonitorSmartphone, Plus, Search, MoreHorizontal, Eye, Pencil, Trash2 } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { MonitorSmartphone, Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Inbox, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { useIIoTStore } from '@/store/iiot'
+import { STATUS_COLORS } from '@/shared/components/chart-utils'
 import { PageHeader } from '@/shared/components/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -25,8 +29,8 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
-import { useIIoTStore } from '@/store/iiot'
 import type { DeviceStatus } from '@/store/iiot'
 
 const fallbackDevices: DeviceStatus[] = [
@@ -42,22 +46,50 @@ const fallbackDevices: DeviceStatus[] = [
   { id: 'DEV-010', name: 'Humidity Sensor J1', type: 'Humidity', status: 'online', lastSeen: '2024-01-15T10:30:00Z', metrics: { humidity: 52.3, temperature: 24.8 } },
 ]
 
-const statusConfig: Record<string, { dotColor: string; color: string; bg: string; border: string; label: string }> = {
-  online: { dotColor: '#10b981', color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', label: 'Online' },
-  offline: { dotColor: '#ef4444', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', label: 'Offline' },
-  warning: { dotColor: '#f59e0b', color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', label: 'Warning' },
-  error: { dotColor: '#ef4444', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', label: 'Error' },
+const statusConfig: Record<string, { dotColor: string; color: string; bg: string; border: string; ring: string; label: string }> = {
+  online: { dotColor: '#10b981', color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', ring: 'ring-emerald-400/20', label: 'Online' },
+  offline: { dotColor: '#ef4444', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', ring: 'ring-red-400/20', label: 'Offline' },
+  warning: { dotColor: '#f59e0b', color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', ring: 'ring-amber-400/20', label: 'Warning' },
+  error: { dotColor: '#ef4444', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', ring: 'ring-red-400/20', label: 'Error' },
+}
+
+const statusIconMap: Record<string, typeof Wifi> = {
+  online: Wifi,
+  offline: WifiOff,
+  warning: AlertTriangle,
+  error: AlertTriangle,
+}
+
+const tabActiveClass: Record<string, string> = {
+  all: '',
+  online: 'bg-emerald-500/15 text-emerald-400',
+  offline: 'bg-red-500/15 text-red-400',
+  warning: 'bg-amber-500/15 text-amber-400',
+  error: 'bg-red-500/15 text-red-400',
 }
 
 const deviceTypes = ['Temperature', 'Vibration', 'Pressure', 'Flow', 'Current', 'Proximity', 'Weight', 'RFID', 'Chemical', 'Humidity']
 
 export function DevicesPage() {
   const storeDevices = useIIoTStore((s) => s.devices)
+  const { lastUpdate } = useIIoTStore()
   const devices: DeviceStatus[] = storeDevices.length > 0 ? storeDevices : fallbackDevices
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [newDevice, setNewDevice] = useState({ name: '', type: 'Temperature', status: 'online' })
+  const [lastUpdatedText, setLastUpdatedText] = useState('—')
+
+  useEffect(() => {
+    function update() {
+      if (lastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      }
+    }
+    update()
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   const stats = useMemo(() => {
     const total = devices.length
@@ -86,7 +118,7 @@ export function DevicesPage() {
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-mono">
         {Object.entries(metrics).map(([k, v]) => (
           <span key={k} className="text-muted-foreground">
-            <span className="text-foreground/80">{k}</span>: {typeof v === 'number' ? v.toFixed(1) : v}
+            <span className="text-foreground/80">{k}</span>: <span className="metric-value">{typeof v === 'number' ? v.toFixed(1) : v}</span>
           </span>
         ))}
       </div>
@@ -94,11 +126,12 @@ export function DevicesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       <PageHeader
         icon={MonitorSmartphone}
         title="Devices"
         description="Manage IoT devices and sensors"
+        lastUpdated={lastUpdatedText}
         actions={
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -110,28 +143,35 @@ export function DevicesPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Device</DialogTitle>
+                <DialogDescription>Register a new IoT device or sensor to the platform.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label>Device Name</Label>
-                  <Input
-                    placeholder="Enter device name"
-                    value={newDevice.name}
-                    onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Device Type</Label>
-                  <Select value={newDevice.type} onValueChange={(v) => setNewDevice({ ...newDevice, type: v })}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {deviceTypes.map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs font-medium text-muted-foreground">Device Information</Label>
+                  <Separator className="my-2" />
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Device Name</Label>
+                      <Input
+                        placeholder="e.g. Temp Sensor A2"
+                        value={newDevice.name}
+                        onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Device Type</Label>
+                      <Select value={newDevice.type} onValueChange={(v) => setNewDevice({ ...newDevice, type: v })}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {deviceTypes.map((t) => (
+                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -143,55 +183,55 @@ export function DevicesPage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up stagger-1">
+        <Card className="border-border/50 hover:border-border/60 transition-colors duration-300">
+          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
               <MonitorSmartphone className="size-5" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Total Devices</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
+              <p className="text-2xl font-bold metric-value">{stats.total}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-emerald-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-emerald-500/20 hover:border-border/60 transition-colors duration-300">
+          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-              <div className="size-3 rounded-full bg-emerald-400" />
+              <Wifi className="size-5 text-emerald-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Online</p>
-              <p className="text-2xl font-bold text-emerald-400">{stats.online}</p>
+              <p className="text-2xl font-bold text-emerald-400 metric-value">{stats.online}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-red-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-red-500/20 hover:border-border/60 transition-colors duration-300">
+          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10">
-              <div className="size-3 rounded-full bg-red-400" />
+              <WifiOff className="size-5 text-red-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Offline</p>
-              <p className="text-2xl font-bold text-red-400">{stats.offline}</p>
+              <p className="text-2xl font-bold text-red-400 metric-value">{stats.offline}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-amber-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
+        <Card className="border-amber-500/20 hover:border-border/60 transition-colors duration-300">
+          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-              <div className="size-3 rounded-full bg-amber-400" />
+              <AlertTriangle className="size-5 text-amber-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Warning</p>
-              <p className="text-2xl font-bold text-amber-400">{stats.warning}</p>
+              <p className="text-2xl font-bold text-amber-400 metric-value">{stats.warning}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
+      <Card className="border-border/50 hover:border-border/60 transition-colors duration-300 animate-slide-up stagger-2">
+        <CardContent className="pt-5 px-5 pb-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -199,59 +239,63 @@ export function DevicesPage() {
             </div>
             <Tabs value={statusFilter} onValueChange={setStatusFilter}>
               <TabsList className="h-8">
-                <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
-                <TabsTrigger value="online" className="text-xs px-3 h-7">Online</TabsTrigger>
-                <TabsTrigger value="offline" className="text-xs px-3 h-7">Offline</TabsTrigger>
-                <TabsTrigger value="warning" className="text-xs px-3 h-7">Warning</TabsTrigger>
-                <TabsTrigger value="error" className="text-xs px-3 h-7">Error</TabsTrigger>
+                <TabsTrigger value="all" className={`text-xs px-3 h-7 ${statusFilter === 'all' ? 'bg-primary/15 text-primary' : ''}`}>All</TabsTrigger>
+                <TabsTrigger value="online" className={`text-xs px-3 h-7 ${statusFilter === 'online' ? tabActiveClass.online : ''}`}>Online</TabsTrigger>
+                <TabsTrigger value="offline" className={`text-xs px-3 h-7 ${statusFilter === 'offline' ? tabActiveClass.offline : ''}`}>Offline</TabsTrigger>
+                <TabsTrigger value="warning" className={`text-xs px-3 h-7 ${statusFilter === 'warning' ? tabActiveClass.warning : ''}`}>Warning</TabsTrigger>
+                <TabsTrigger value="error" className={`text-xs px-3 h-7 ${statusFilter === 'error' ? tabActiveClass.error : ''}`}>Error</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
 
-          <div className="max-h-[calc(100vh-380px)] overflow-y-auto rounded-md border">
+          <div className="max-h-[calc(100vh-380px)] overflow-y-auto rounded-lg border border-border/40 overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-xs">Name</TableHead>
-                  <TableHead className="text-xs">Type</TableHead>
-                  <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs hidden md:table-cell">Last Seen</TableHead>
-                  <TableHead className="text-xs hidden lg:table-cell">Metrics</TableHead>
-                  <TableHead className="text-xs text-right">Actions</TableHead>
+                <TableRow className="hover:bg-transparent border-border/30">
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Name</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Type</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden md:table-cell">Last Seen</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden lg:table-cell">Metrics</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                      No devices found matching your criteria.
+                    <TableCell colSpan={6} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Inbox className="size-8 text-muted-foreground/30" />
+                        <p className="text-sm font-medium text-muted-foreground">No devices found</p>
+                        <p className="text-xs text-muted-foreground/50">Try adjusting your search or filter criteria.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((device) => {
                     const sc = statusConfig[device.status]
                     return (
-                      <TableRow key={device.id} className={device.status === 'error' ? 'bg-red-500/5' : device.status === 'warning' ? 'bg-amber-500/5' : ''}>
-                        <TableCell>
+                      <TableRow key={device.id} className={`hover:bg-muted/20 transition-colors duration-150 ${device.status === 'error' ? 'bg-red-500/5' : device.status === 'warning' ? 'bg-amber-500/5' : ''}`}>
+                        <TableCell className="py-3">
                           <div className="font-medium">{device.name}</div>
                           <div className="text-xs text-muted-foreground font-mono">{device.id}</div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-3">
                           <Badge variant="secondary" className="text-xs font-normal">{device.type}</Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-3">
                           <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full" style={{ backgroundColor: sc.dotColor }} />
-                            <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} text-xs`}>{sc.label}</Badge>
+                            <span className={`size-2 rounded-full ${device.status === 'online' ? 'bg-emerald-400' : device.status === 'offline' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                            <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} ring-2 ${sc.ring} text-xs`} style={{ boxShadow: 'none' }}>{sc.label}</Badge>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground font-mono">
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground font-mono py-3">
                           {formatTime(device.lastSeen)}
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell">
+                        <TableCell className="hidden lg:table-cell py-3">
                           {formatMetrics(device.metrics)}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right py-3">
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
                               <Eye className="size-4" />

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Building2, Shield, Cog, Plus, MapPin, Clock, Monitor, Cpu,
-  LayoutGrid, List, Pencil, Eye,
+  LayoutGrid, List, Pencil, Eye, Bell, Globe, Database, Lock, Webhook,
 } from 'lucide-react'
 import { PageHeader } from '@/shared/components/page-header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -21,8 +21,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog'
+import { useIIoTStore } from '@/store/iiot'
+import { formatDistanceToNow } from 'date-fns'
 
 // ============================================================
 // SITES PAGE
@@ -47,28 +49,52 @@ const mockSites: Site[] = [
 ]
 
 const siteStatusConfig: Record<string, { color: string; bg: string; border: string; label: string }> = {
-  active: { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', label: 'Active' },
-  inactive: { color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', label: 'Inactive' },
-  commissioning: { color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', label: 'Commissioning' },
+  active: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'Active' },
+  inactive: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', label: 'Inactive' },
+  commissioning: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', label: 'Commissioning' },
 }
 
 export function SitesPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
+  const [lastUpdatedText, setLastUpdatedText] = useState('')
+
+  useEffect(() => {
+    function update() {
+      if (lastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      }
+    }
+    update()
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       <PageHeader
         icon={Building2}
         title="Sites"
         description="Manage factory sites and locations"
+        lastUpdated={lastUpdatedText}
         actions={
           <div className="flex items-center gap-2">
-            <div className="flex items-center border rounded-md">
-              <Button variant="ghost" size="sm" className={`h-8 w-8 p-0 rounded-r-none ${viewMode === 'cards' ? 'bg-muted' : ''}`} onClick={() => setViewMode('cards')}>
+            <div className="flex items-center rounded-lg border border-border/40 overflow-hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-8 w-9 p-0 rounded-none border-0 ${viewMode === 'cards' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                onClick={() => setViewMode('cards')}
+              >
                 <LayoutGrid className="size-4" />
               </Button>
-              <Button variant="ghost" size="sm" className={`h-8 w-8 p-0 rounded-l-none ${viewMode === 'table' ? 'bg-muted' : ''}`} onClick={() => setViewMode('table')}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-8 w-9 p-0 rounded-none border-0 ${viewMode === 'table' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                onClick={() => setViewMode('table')}
+              >
                 <List className="size-4" />
               </Button>
             </div>
@@ -79,27 +105,29 @@ export function SitesPage() {
                   Add Site
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[480px]">
                 <DialogHeader>
                   <DialogTitle>Add New Site</DialogTitle>
+                  <DialogDescription>Create a new factory site location</DialogDescription>
                 </DialogHeader>
+                <Separator />
                 <div className="space-y-4 py-2">
                   <div className="space-y-2">
                     <Label>Site Name</Label>
-                    <Input placeholder="e.g., Main Factory - Location" />
+                    <Input placeholder="e.g., Main Factory - Location" className="border-border/50" />
                   </div>
                   <div className="space-y-2">
                     <Label>Site Code</Label>
-                    <Input placeholder="e.g., SH-02" />
+                    <Input placeholder="e.g., SH-02" className="border-border/50" />
                   </div>
                   <div className="space-y-2">
                     <Label>Address</Label>
-                    <Textarea placeholder="Full address" />
+                    <Textarea placeholder="Full address" className="border-border/50" />
                   </div>
                   <div className="space-y-2">
                     <Label>Timezone</Label>
                     <Select defaultValue="Asia/Shanghai">
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full border-border/50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -111,6 +139,7 @@ export function SitesPage() {
                     </Select>
                   </div>
                 </div>
+                <Separator />
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                   <Button onClick={() => setDialogOpen(false)}>Create Site</Button>
@@ -123,12 +152,12 @@ export function SitesPage() {
 
       {viewMode === 'cards' ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {mockSites.map((site) => {
+          {mockSites.map((site, idx) => {
             const sc = siteStatusConfig[site.status]
             return (
-              <Card key={site.id} className={`border-border/50 relative overflow-hidden ${site.status === 'inactive' ? 'opacity-60' : ''}`}>
-                <div className={`absolute top-0 left-0 right-0 h-0.5 ${site.status === 'active' ? 'bg-emerald-500' : site.status === 'commissioning' ? 'bg-amber-500' : 'bg-red-500'}`} />
-                <CardHeader className="pb-3 pt-5">
+              <Card key={site.id} className={`border-border/40 hover:border-border/60 transition-colors duration-300 relative overflow-hidden ${site.status === 'inactive' ? 'opacity-60' : ''}`} style={{ animationDelay: `${idx * 50}ms` }}>
+                <div className={`absolute top-0 left-0 right-0 h-[2px] ${site.status === 'active' ? 'bg-emerald-500' : site.status === 'commissioning' ? 'bg-amber-500' : 'bg-red-500'}`} />
+                <CardHeader className="pb-3 pt-5 px-5">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="text-base font-semibold">{site.name}</CardTitle>
@@ -139,7 +168,7 @@ export function SitesPage() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="px-5 pb-5 space-y-3">
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <MapPin className="size-3.5 mt-0.5 shrink-0" />
                     <span className="text-xs leading-relaxed">{site.address}</span>
@@ -148,20 +177,20 @@ export function SitesPage() {
                     <Clock className="size-3.5 shrink-0" />
                     <span className="text-xs">{site.timezone}</span>
                   </div>
-                  <Separator />
+                  <Separator className="my-2" />
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex items-center gap-2">
                       <Monitor className="size-3.5 text-emerald-400" />
                       <div>
                         <p className="text-xs text-muted-foreground">Devices</p>
-                        <p className="text-sm font-semibold">{site.deviceCount}</p>
+                        <p className="text-sm font-semibold metric-value">{site.deviceCount}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Cpu className="size-3.5 text-cyan-400" />
                       <div>
                         <p className="text-xs text-muted-foreground">Machines</p>
-                        <p className="text-sm font-semibold">{site.machineCount}</p>
+                        <p className="text-sm font-semibold metric-value">{site.machineCount}</p>
                       </div>
                     </div>
                   </div>
@@ -171,43 +200,43 @@ export function SitesPage() {
           })}
         </div>
       ) : (
-        <Card className="border-border/50">
-          <CardContent className="p-4">
-            <div className="max-h-[calc(100vh-300px)] overflow-y-auto rounded-md border">
+        <Card className="border-border/40">
+          <CardContent className="pt-5 px-5 pb-5">
+            <div className="max-h-[calc(100vh-300px)] overflow-y-auto rounded-lg border border-border/40">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs">Site</TableHead>
-                    <TableHead className="text-xs">Code</TableHead>
-                    <TableHead className="text-xs hidden md:table-cell">Address</TableHead>
-                    <TableHead className="text-xs hidden lg:table-cell">Timezone</TableHead>
-                    <TableHead className="text-xs">Devices</TableHead>
-                    <TableHead className="text-xs">Machines</TableHead>
-                    <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs text-right">Actions</TableHead>
+                  <TableRow className="hover:bg-transparent border-border/30">
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Site</TableHead>
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Code</TableHead>
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden md:table-cell">Address</TableHead>
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden lg:table-cell">Timezone</TableHead>
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Devices</TableHead>
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Machines</TableHead>
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Status</TableHead>
+                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {mockSites.map((site) => {
                     const sc = siteStatusConfig[site.status]
                     return (
-                      <TableRow key={site.id} className={site.status === 'inactive' ? 'opacity-60' : ''}>
-                        <TableCell className="font-medium text-sm">{site.name}</TableCell>
-                        <TableCell className="font-mono text-xs">{site.code}</TableCell>
-                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground max-w-[200px] truncate">{site.address}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">{site.timezone}</TableCell>
-                        <TableCell className="font-mono text-sm">{site.deviceCount}</TableCell>
-                        <TableCell className="font-mono text-sm">{site.machineCount}</TableCell>
-                        <TableCell>
+                      <TableRow key={site.id} className={`hover:bg-muted/20 transition-colors duration-150 ${site.status === 'inactive' ? 'opacity-60' : ''}`}>
+                        <TableCell className="font-medium text-sm py-3">{site.name}</TableCell>
+                        <TableCell className="font-mono text-xs py-3">{site.code}</TableCell>
+                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground max-w-[200px] truncate py-3">{site.address}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs text-muted-foreground py-3">{site.timezone}</TableCell>
+                        <TableCell className="font-mono text-sm py-3 metric-value">{site.deviceCount}</TableCell>
+                        <TableCell className="font-mono text-sm py-3 metric-value">{site.machineCount}</TableCell>
+                        <TableCell className="py-3">
                           <Badge variant="outline" className={`${sc.bg} ${sc.color} ${sc.border} text-xs`}>{sc.label}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
-                              <Eye className="size-4" />
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50">
+                              <Eye className="size-3.5" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
-                              <Pencil className="size-4" />
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50">
+                              <Pencil className="size-3.5" />
                             </Button>
                           </div>
                         </TableCell>
@@ -249,17 +278,30 @@ interface RolePermission {
 const permissionKeys = ['Dashboard', 'Monitoring', 'Analytics', 'Alerts', 'Devices', 'Admin'] as const
 
 const initialRoles: RolePermission[] = [
-  { id: 'role-admin', name: 'Admin', description: 'Full system access with all administrative privileges', userCount: 2, color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: true } },
-  { id: 'role-manager', name: 'Manager', description: 'Supervisory access with production and analytics capabilities', userCount: 3, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: false } },
-  { id: 'role-supervisor', name: 'Supervisor', description: 'Shift oversight with monitoring and alert management', userCount: 5, color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: false, Admin: false } },
-  { id: 'role-engineer', name: 'Engineer', description: 'Technical access for device management and analytics', userCount: 8, color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: false } },
-  { id: 'role-operator', name: 'Operator', description: 'Basic access for monitoring and dashboard viewing', userCount: 15, color: 'text-muted-foreground', bg: 'bg-muted', border: 'border-border', permissions: { Dashboard: true, Monitoring: true, Analytics: false, Alerts: true, Devices: false, Admin: false } },
+  { id: 'role-admin', name: 'Admin', description: 'Full system access with all administrative privileges', userCount: 2, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: true } },
+  { id: 'role-manager', name: 'Manager', description: 'Supervisory access with production and analytics capabilities', userCount: 3, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: false } },
+  { id: 'role-supervisor', name: 'Supervisor', description: 'Shift oversight with monitoring and alert management', userCount: 5, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: false, Admin: false } },
+  { id: 'role-engineer', name: 'Engineer', description: 'Technical access for device management and analytics', userCount: 8, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', permissions: { Dashboard: true, Monitoring: true, Analytics: true, Alerts: true, Devices: true, Admin: false } },
+  { id: 'role-operator', name: 'Operator', description: 'Basic access for monitoring and dashboard viewing', userCount: 15, color: 'text-muted-foreground', bg: 'bg-primary/10', border: 'border-primary/30', permissions: { Dashboard: true, Monitoring: true, Analytics: false, Alerts: true, Devices: false, Admin: false } },
 ]
 
 export function RolesPermissionsPage() {
   const [roles, setRoles] = useState<RolePermission[]>(initialRoles)
   const [editingRole, setEditingRole] = useState<RolePermission | null>(null)
   const [tempPerms, setTempPerms] = useState<RolePermission['permissions'] | null>(null)
+  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
+  const [lastUpdatedText, setLastUpdatedText] = useState('')
+
+  useEffect(() => {
+    function update() {
+      if (lastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      }
+    }
+    update()
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   const openEditDialog = (role: RolePermission) => {
     setEditingRole(role)
@@ -279,17 +321,18 @@ export function RolesPermissionsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       <PageHeader
         icon={Shield}
         title="Roles & Permissions"
         description="Configure user roles and permissions"
+        lastUpdated={lastUpdatedText}
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {roles.map((role) => (
-          <Card key={role.id} className="border-border/50">
-            <CardHeader className="pb-3">
+        {roles.map((role, idx) => (
+          <Card key={role.id} className="border-border/40 hover:border-border/60 transition-colors duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+            <CardHeader className="pb-3 pt-5 px-5">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -298,24 +341,24 @@ export function RolesPermissionsPage() {
                   </div>
                   <CardDescription className="text-xs">{role.description}</CardDescription>
                 </div>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(role)}>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50" onClick={() => openEditDialog(role)}>
                   <Pencil className="size-3.5" />
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-5 pb-5">
               <Separator className="mb-3" />
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
                 {permissionKeys.map((key) => (
                   <div key={key} className="flex items-center gap-2">
-                    <div className={`size-4 rounded flex items-center justify-center ${role.permissions[key] ? 'bg-emerald-500/20' : 'bg-muted'}`}>
+                    <div className={`size-4 rounded flex items-center justify-center shrink-0 ${role.permissions[key] ? 'bg-emerald-500/20' : 'bg-muted/50'}`}>
                       {role.permissions[key] && (
                         <svg className="size-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       )}
                     </div>
-                    <span className={`text-xs ${role.permissions[key] ? 'text-foreground' : 'text-muted-foreground'}`}>{key}</span>
+                    <span className={`text-xs ${role.permissions[key] ? 'text-foreground' : 'text-muted-foreground/60'}`}>{key}</span>
                   </div>
                 ))}
               </div>
@@ -325,13 +368,15 @@ export function RolesPermissionsPage() {
       </div>
 
       <Dialog open={!!editingRole} onOpenChange={(open) => { if (!open) { setEditingRole(null); setTempPerms(null) } }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle>Edit Permissions - {editingRole?.name}</DialogTitle>
+            <DialogDescription>Toggle permissions for the {editingRole?.name} role</DialogDescription>
           </DialogHeader>
+          <Separator />
           <div className="py-2 space-y-3">
             {permissionKeys.map((key) => (
-              <div key={key} className="flex items-center justify-between">
+              <div key={key} className="flex items-center justify-between py-1">
                 <Label className="text-sm">{key}</Label>
                 <Switch
                   checked={tempPerms?.[key] ?? false}
@@ -340,6 +385,7 @@ export function RolesPermissionsPage() {
               </div>
             ))}
           </div>
+          <Separator />
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditingRole(null); setTempPerms(null) }}>Cancel</Button>
             <Button onClick={savePermissions}>Save Permissions</Button>
@@ -368,17 +414,31 @@ export function SettingsPage() {
     rateLimit: '1000',
     webhookUrl: '',
   })
+  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
+  const [lastUpdatedText, setLastUpdatedText] = useState('')
+
+  useEffect(() => {
+    function update() {
+      if (lastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      }
+    }
+    update()
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   const update = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-slide-up">
       <PageHeader
         icon={Cog}
         title="Platform Settings"
         description="Configure platform-wide settings"
+        lastUpdated={lastUpdatedText}
         actions={
           <Button size="sm" className="gap-2">
             <Cog className="size-4" />
@@ -387,23 +447,26 @@ export function SettingsPage() {
         }
       />
 
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-8 max-w-3xl">
         {/* General */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">General</CardTitle>
+        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+          <CardHeader className="pb-4 pt-5 px-5">
+            <div className="flex items-center gap-2">
+              <Globe className="size-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">General</CardTitle>
+            </div>
             <CardDescription className="text-xs">Basic platform configuration</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-5 pb-5 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Platform Name</Label>
-                <Input value={settings.platformName} onChange={(e) => update('platformName', e.target.value)} />
+                <Input value={settings.platformName} onChange={(e) => update('platformName', e.target.value)} className="border-border/50" />
               </div>
               <div className="space-y-2">
                 <Label>Timezone</Label>
                 <Select value={settings.timezone} onValueChange={(v) => update('timezone', v)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full border-border/50">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -418,7 +481,7 @@ export function SettingsPage() {
             <div className="space-y-2">
               <Label>Language</Label>
               <Select value={settings.language} onValueChange={(v) => update('language', v)}>
-                <SelectTrigger className="w-full max-w-xs">
+                <SelectTrigger className="w-full max-w-xs border-border/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -433,12 +496,15 @@ export function SettingsPage() {
         </Card>
 
         {/* Notifications */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Notifications</CardTitle>
+        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+          <CardHeader className="pb-4 pt-5 px-5">
+            <div className="flex items-center gap-2">
+              <Bell className="size-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">Notifications</CardTitle>
+            </div>
             <CardDescription className="text-xs">Configure notification delivery channels</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-5 pb-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Email Notifications</Label>
@@ -466,12 +532,15 @@ export function SettingsPage() {
         </Card>
 
         {/* Data Retention */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Data Retention</CardTitle>
+        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+          <CardHeader className="pb-4 pt-5 px-5">
+            <div className="flex items-center gap-2">
+              <Database className="size-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">Data Retention</CardTitle>
+            </div>
             <CardDescription className="text-xs">Manage how long data is stored</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-5 pb-5 space-y-4">
             <div className="space-y-2 max-w-xs">
               <Label>Retention Period (Days)</Label>
               <Input
@@ -480,6 +549,7 @@ export function SettingsPage() {
                 onChange={(e) => update('retentionDays', Number(e.target.value))}
                 min={1}
                 max={3650}
+                className="border-border/50"
               />
               <p className="text-xs text-muted-foreground">Data older than this will be automatically purged</p>
             </div>
@@ -487,12 +557,15 @@ export function SettingsPage() {
         </Card>
 
         {/* Security */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Security</CardTitle>
+        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+          <CardHeader className="pb-4 pt-5 px-5">
+            <div className="flex items-center gap-2">
+              <Lock className="size-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">Security</CardTitle>
+            </div>
             <CardDescription className="text-xs">Platform security configuration</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-5 pb-5 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Session Timeout (Minutes)</Label>
@@ -502,6 +575,7 @@ export function SettingsPage() {
                   onChange={(e) => update('sessionTimeout', Number(e.target.value))}
                   min={5}
                   max={480}
+                  className="border-border/50"
                 />
               </div>
               <div className="flex items-center justify-between sm:pt-6">
@@ -516,18 +590,22 @@ export function SettingsPage() {
         </Card>
 
         {/* API */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">API</CardTitle>
+        <Card className="border-border/40 hover:border-border/60 transition-colors duration-300">
+          <CardHeader className="pb-4 pt-5 px-5">
+            <div className="flex items-center gap-2">
+              <Webhook className="size-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">API</CardTitle>
+            </div>
             <CardDescription className="text-xs">API access and webhook configuration</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-5 pb-5 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Rate Limit (requests/min)</Label>
                 <Input
                   value={settings.rateLimit}
                   onChange={(e) => update('rateLimit', e.target.value)}
+                  className="border-border/50"
                 />
               </div>
               <div className="space-y-2">
@@ -536,6 +614,7 @@ export function SettingsPage() {
                   placeholder="https://your-webhook.com/endpoint"
                   value={settings.webhookUrl}
                   onChange={(e) => update('webhookUrl', e.target.value)}
+                  className="border-border/50"
                 />
               </div>
             </div>
