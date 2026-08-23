@@ -20,6 +20,7 @@ export type PageId =
   | 'users'
   | 'sites'
   | 'roles-permissions'
+  | 'audit-log'
   | 'diagnostics'
   | 'settings'
 

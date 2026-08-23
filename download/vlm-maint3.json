@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "This page shows an error.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1787524809,
+  "id": "202608240640087f566753c7944b16",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202608240640087f566753c7944b16",
+  "usage": {
+    "completion_tokens": 7,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 2741,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 2748
+  }
+}

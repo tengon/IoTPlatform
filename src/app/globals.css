@@ -665,3 +665,116 @@
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
   animation: shimmer 2s infinite;
 }
+
+/* ============================================
+   ROUND 8 - ENTERPRISE POLISH & ACCESSIBILITY
+   ============================================ */
+
+/* Improve chart axis label contrast */
+.dark .recharts-cartesian-axis-tick-value {
+  fill: oklch(0.7 0.01 155) !important;
+  font-size: 11px !important;
+}
+
+/* Command palette overlay backdrop */
+.cmdk-overlay {
+  backdrop-filter: blur(4px);
+  background: oklch(0 0 0 / 50%);
+}
+
+/* Enhanced KPI card internal padding */
+.kpi-card-compact > [class*="CardContent"] {
+  padding: 16px 20px;
+}
+
+/* Focus visible for keyboard accessibility */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid oklch(0.65 0.17 155 / 60%);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Toast slide-in from bottom for mobile */
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Improved mobile spacing for page header */
+@media (max-width: 639px) {
+  .page-header-mobile-safe {
+    padding-top: 4px;
+    margin-bottom: 12px;
+  }
+}
+
+/* Subtle breathing animation for live status indicators */
+@keyframes breathe {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.animate-breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* Table header sticky shadow */
+.table-header-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.table-header-sticky::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: linear-gradient(to bottom, oklch(0.22 0.008 155 / 80%), transparent);
+  pointer-events: none;
+}
+
+/* Tooltip hover for icon-only action buttons */
+[title] {
+  position: relative;
+}
+
+/* Subtle card border glow on focus-within */
+.card-focus-glow:focus-within {
+  border-color: oklch(0.65 0.17 155 / 30%);
+  box-shadow: 0 0 0 3px oklch(0.65 0.17 155 / 8%);
+}
+
+/* Improved scroll shadow for overflow containers */
+.scroll-shadow-top {
+  position: relative;
+}
+.scroll-shadow-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to bottom, oklch(0.17 0.006 155 / 100%), transparent);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Improved badge text rendering */
+.badge-sharp {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+/* Threshold alert pulsing border for KPI cards */
+@keyframes thresholdPulseBorder {
+  0%, 100% { border-color: oklch(0.65 0.22 25 / 50%); box-shadow: 0 0 4px oklch(0.65 0.22 25 / 20%); }
+  50% { border-color: oklch(0.65 0.22 25 / 100%); box-shadow: 0 0 16px oklch(0.65 0.22 25 / 40%); }
+}
+.threshold-alert-border {
+  animation: thresholdPulseBorder 1.8s ease-in-out infinite;
+}

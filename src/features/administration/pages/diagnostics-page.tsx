@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   HeartPulse,
   Activity,
@@ -30,6 +31,12 @@ import {
   RotateCcw,
   Upload,
   Download,
+  ChevronDown,
+  ChevronRight,
+  ShieldAlert,
+  Settings2,
+  X,
+  Trash2,
 } from 'lucide-react'
 import {
   LineChart,
@@ -66,6 +73,8 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import {
   Table,
@@ -93,6 +102,23 @@ interface SystemEvent {
   type: 'deployment' | 'restart' | 'error' | 'warning' | 'info'
   service: string
   message: string
+  severity?: 'info' | 'warning' | 'error'
+  isNew?: boolean
+}
+
+interface ThresholdConfig {
+  apiResponseTime: number
+  memoryUsage: number
+  wsLatency: number
+}
+
+interface ThresholdViolation {
+  id: string
+  metric: string
+  currentValue: number
+  threshold: number
+  unit: string
+  exceeded: number
 }
 
 interface ResourceMetric {
@@ -248,13 +274,47 @@ function eventTypeConfig(type: SystemEvent['type']) {
   }
 }
 
+function severityConfig(severity?: 'info' | 'warning' | 'error') {
+  switch (severity) {
+    case 'error': return { color: 'text-red-400', bg: 'bg-red-500/10', label: 'Error' }
+    case 'warning': return { color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'Warning' }
+    default: return { color: 'text-cyan-400', bg: 'bg-cyan-500/10', label: 'Info' }
+  }
+}
+
+function responseTimeColor(rt?: number): string {
+  if (!rt) return 'text-emerald-400'
+  if (rt > 200) return 'text-red-400'
+  if (rt > 100) return 'text-amber-400'
+  return 'text-emerald-400'
+}
+
+const AUTO_EVENT_MESSAGES = [
+  { type: 'info' as const, service: 'Health Monitor', message: 'Health check passed — all services nominal' },
+  { type: 'info' as const, service: 'Cache Service', message: 'Cache cleared — freed 128 MB' },
+  { type: 'info' as const, service: 'Connection Pool', message: 'Connection pool optimized — 6 idle connections recycled' },
+  { type: 'info' as const, service: 'Data Pipeline', message: 'Pipeline batch committed — 2,340 records' },
+  { type: 'warning' as const, service: 'Gateway', message: 'MQTT QoS downgrade detected on 2 topics' },
+  { type: 'info' as const, service: 'Auth Service', message: 'Token rotation completed for 12 sessions' },
+  { type: 'warning' as const, service: 'Database', message: 'Query latency spike: avg 45ms → 120ms' },
+  { type: 'info' as const, service: 'Notification Service', message: 'Alert queue drained — 0 pending' },
+  { type: 'error' as const, service: 'WebSocket Server', message: 'Client handshake timeout — 1 connection dropped' },
+  { type: 'info' as const, service: 'Scheduler', message: 'Cron job completed: telemetry aggregation in 340ms' },
+  { type: 'info' as const, service: 'Gateway', message: 'TLS certificate check — valid for 287 days' },
+]
+
 // ─── Component ──────────────────────────────────────────────────────────
 export function DiagnosticsPage() {
   const { isConnected } = useIIoTStore()
   const [apiData, setApiData] = useState(generateApiData)
   const [memoryData, setMemoryData] = useState(generateMemoryData)
   const [services, setServices] = useState(generateServices)
-  const [events] = useState(generateEvents)
+  const [events, setEvents] = useState<SystemEvent[]>(() =>
+    generateEvents().map(e => ({
+      ...e,
+      severity: e.type === 'error' ? 'error' : e.type === 'warning' ? 'warning' : 'info',
+    }))
+  )
   const [resources, setResources] = useState<ResourceMetric[]>([
     { label: 'CPU', value: 34, unit: '%', max: 100, trend: 'stable', color: C_GREEN },
     { label: 'Memory', value: 68, unit: '%', max: 100, trend: 'up', color: C_CYAN },
@@ -263,6 +323,18 @@ export function DiagnosticsPage() {
   ])
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [lastRefreshText, setLastRefreshText] = useState('—')
+
+  // ── Threshold State ──────────────────────────────────────────────
+  const [thresholdOpen, setThresholdOpen] = useState(false)
+  const [thresholds, setThresholds] = useState<ThresholdConfig>({
+    apiResponseTime: 200,
+    memoryUsage: 85,
+    wsLatency: 50,
+  })
+  const [pendingThresholds, setPendingThresholds] = useState<ThresholdConfig>({ ...thresholds })
+  const [violations, setViolations] = useState<ThresholdViolation[]>([])
+  const [serviceLastChecked, setServiceLastChecked] = useState(new Date())
+  const eventIdRef = useRef(100)
 
   // Auto-refresh simulated data every 3-5 seconds
   const refreshData = useCallback(() => {
@@ -290,9 +362,10 @@ export function DiagnosticsPage() {
       prev.map((s) => ({
         ...s,
         lastChecked: new Date(),
-        responseTime: Math.max(1, (s.responseTime ?? 10) + Math.round((Math.random() - 0.5) * 6)),
+        responseTime: Math.round(5 + Math.random() * 40),
       }))
     )
+    setServiceLastChecked(new Date())
     setResources((prev) =>
       prev.map((r) => {
         const delta = (Math.random() - 0.45) * 4
@@ -305,7 +378,7 @@ export function DiagnosticsPage() {
       })
     )
     setLastRefresh(new Date())
-  }, [])
+  }, [thresholds])
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -341,6 +414,88 @@ export function DiagnosticsPage() {
       currentMemory: latestMem?.usage.toFixed(1) ?? '68.0',
     }
   }, [apiData, memoryData])
+
+  // ── Threshold violation checking ────────────────────────────────────
+  useEffect(() => {
+    const newViolations: ThresholdViolation[] = []
+    if (kpis.apiResponseTime > thresholds.apiResponseTime) {
+      newViolations.push({
+        id: 'v-api',
+        metric: 'API Response Time',
+        currentValue: kpis.apiResponseTime,
+        threshold: thresholds.apiResponseTime,
+        unit: 'ms',
+        exceeded: kpis.apiResponseTime - thresholds.apiResponseTime,
+      })
+    }
+    if (Number(kpis.currentMemory) > thresholds.memoryUsage) {
+      newViolations.push({
+        id: 'v-mem',
+        metric: 'Memory Usage',
+        currentValue: Number(kpis.currentMemory),
+        threshold: thresholds.memoryUsage,
+        unit: '%',
+        exceeded: Math.round((Number(kpis.currentMemory) - thresholds.memoryUsage) * 10) / 10,
+      })
+    }
+    if (kpis.wsLatency > thresholds.wsLatency) {
+      newViolations.push({
+        id: 'v-ws',
+        metric: 'WebSocket Latency',
+        currentValue: kpis.wsLatency,
+        threshold: thresholds.wsLatency,
+        unit: 'ms',
+        exceeded: kpis.wsLatency - thresholds.wsLatency,
+      })
+    }
+    setViolations(newViolations)
+  }, [kpis, thresholds])
+
+  // ── Apply thresholds ──────────────────────────────────────────────
+  const applyThresholds = useCallback(() => {
+    setThresholds({ ...pendingThresholds })
+  }, [pendingThresholds])
+
+  const clearViolation = useCallback((id: string) => {
+    setViolations((prev) => prev.filter(v => v.id !== id))
+  }, [])
+
+  const clearAllViolations = useCallback(() => {
+    setViolations([])
+  }, [])
+
+  // ── Auto-generate system events every 8-15 seconds ────────────────
+  useEffect(() => {
+    let msgIdx = 0
+    function addEvent() {
+      const template = AUTO_EVENT_MESSAGES[msgIdx % AUTO_EVENT_MESSAGES.length]
+      msgIdx++
+      const sev: 'info' | 'warning' | 'error' = template.type
+      setEvents((prev) => {
+        const newEvent: SystemEvent = {
+          id: `auto-${eventIdRef.current++}`,
+          timestamp: new Date(),
+          type: template.type === 'error' ? 'error' : template.type === 'warning' ? 'warning' : 'info',
+          service: template.service,
+          message: template.message,
+          severity: sev,
+          isNew: true,
+        }
+        const updated = [newEvent, ...prev].slice(0, 20)
+        // Remove isNew flag after animation
+        setTimeout(() => {
+          setEvents((curr) => curr.map(e => e.id === newEvent.id ? { ...e, isNew: false } : e))
+        }, 400)
+        return updated
+      })
+      const nextDelay = 8000 + Math.random() * 7000
+      const timer = setTimeout(addEvent, nextDelay)
+      return () => clearTimeout(timer)
+    }
+    const initialDelay = 8000 + Math.random() * 7000
+    const timer = setTimeout(addEvent, initialDelay)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -384,6 +539,7 @@ export function DiagnosticsPage() {
           trendValue={kpis.peakResponse > 150 ? `Peak ${kpis.peakResponse}ms` : `Peak ${kpis.peakResponse}ms`}
           color={C_CYAN}
           index={1}
+          isAlerting={kpis.apiResponseTime > thresholds.apiResponseTime}
         />
         <KPICard
           icon={Wifi}
@@ -394,6 +550,7 @@ export function DiagnosticsPage() {
           trendValue="Normal"
           color={C_GREEN}
           index={2}
+          isAlerting={kpis.wsLatency > thresholds.wsLatency}
         />
         <KPICard
           icon={Network}
@@ -406,6 +563,116 @@ export function DiagnosticsPage() {
           index={3}
         />
       </div>
+
+      {/* ── Threshold Configuration Panel ────────────────────────────── */}
+      <Collapsible open={thresholdOpen} onOpenChange={setThresholdOpen}>
+        <Card className="glass-card animate-slide-up stagger-1">
+          <CollapsibleTrigger className="w-full">
+            <CardHeader className="pb-3 pt-5 px-5 cursor-pointer hover:bg-muted/20 transition-colors rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="size-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-semibold">Threshold Configuration</CardTitle>
+                  {violations.length > 0 && (
+                    <Badge className="text-[10px] border-0 bg-red-500/15 text-red-400 badge-sharp">
+                      {violations.length} Active Alert{violations.length > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground/60">
+                  <span className="text-[11px]">API: {thresholds.apiResponseTime}ms · Mem: {thresholds.memoryUsage}% · WS: {thresholds.wsLatency}ms</span>
+                  {thresholdOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="px-5 pb-5 pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground/80">API Response Time (ms)</Label>
+                  <Input
+                    type="number"
+                    className="h-9 text-sm"
+                    value={pendingThresholds.apiResponseTime}
+                    onChange={(e) => setPendingThresholds(prev => ({ ...prev, apiResponseTime: Number(e.target.value) || 0 }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground/80">Memory Usage (%)</Label>
+                  <Input
+                    type="number"
+                    className="h-9 text-sm"
+                    value={pendingThresholds.memoryUsage}
+                    onChange={(e) => setPendingThresholds(prev => ({ ...prev, memoryUsage: Number(e.target.value) || 0 }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground/80">WebSocket Latency (ms)</Label>
+                  <Input
+                    type="number"
+                    className="h-9 text-sm"
+                    value={pendingThresholds.wsLatency}
+                    onChange={(e) => setPendingThresholds(prev => ({ ...prev, wsLatency: Number(e.target.value) || 0 }))}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button size="sm" className="h-8 text-xs gap-1.5" onClick={applyThresholds}>
+                  <CheckCircle2 className="size-3.5" />
+                  Apply
+                </Button>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* ── Threshold Alerts ──────────────────────────────────────────── */}
+      {violations.length > 0 && (
+        <Card className="animate-slide-up threshold-alert-border">
+          <CardHeader className="pb-3 pt-5 px-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="size-4 text-red-400" />
+                <CardTitle className="text-sm font-semibold text-red-400">Threshold Alerts</CardTitle>
+                <Badge className="text-[10px] border-0 bg-red-500/15 text-red-400 badge-sharp">
+                  {violations.length}
+                </Badge>
+              </div>
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground/60 hover:text-red-400 gap-1" onClick={clearAllViolations}>
+                <Trash2 className="size-3" />
+                Clear All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {violations.map((v) => (
+                <div key={v.id} className="flex items-center justify-between rounded-lg bg-red-500/5 border border-red-500/10 px-3 py-2">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="size-4 text-red-400 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-foreground/90">{v.metric}</p>
+                      <p className="text-[11px] text-muted-foreground/60">
+                        Current: <span className="text-red-400 font-medium badge-sharp">{v.currentValue}{v.unit}</span> · Threshold: <span className="font-medium badge-sharp">{v.threshold}{v.unit}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className="text-[10px] border-0 bg-red-500/15 text-red-400 badge-sharp">
+                      +{v.exceeded}{v.unit}
+                    </Badge>
+                    <button onClick={() => clearViolation(v.id)} className="text-muted-foreground/40 hover:text-red-400 transition-colors">
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Real-time Performance Charts (2 side-by-side) ────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -582,10 +849,16 @@ export function DiagnosticsPage() {
 
       {/* ── Service Status Grid ──────────────────────────────────────── */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-          <Server className="size-4 text-muted-foreground" />
-          Service Status
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+            <Server className="size-4 text-muted-foreground" />
+            Service Status
+          </h2>
+          <span className="text-[11px] text-muted-foreground/50 flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+            Last checked: {formatDistanceToNow(serviceLastChecked, { addSuffix: true })}
+          </span>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.map((service, idx) => {
             const Icon = service.icon
@@ -631,10 +904,11 @@ export function DiagnosticsPage() {
                     </div>
                     <Badge
                       variant="outline"
-                      className={`text-[10px] border-0 ${
-                        healthy
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : 'bg-red-500/10 text-red-400'
+                      className={`text-[10px] border-0 ${responseTimeColor(service.responseTime) === 'text-red-400'
+                        ? 'bg-red-500/10 text-red-400'
+                        : responseTimeColor(service.responseTime) === 'text-amber-400'
+                          ? 'bg-amber-500/10 text-amber-400'
+                          : 'bg-emerald-500/10 text-emerald-400'
                       }`}
                     >
                       {service.responseTime}ms
@@ -693,15 +967,15 @@ export function DiagnosticsPage() {
             <div>
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <CircleDot className="size-4 text-muted-foreground" />
-                Recent Events
+                System Events
               </CardTitle>
               <CardDescription className="mt-0.5 text-xs">
-                Last 15 system events — deployments, restarts, errors, warnings
+                Last {events.length} events — auto-updating with severity badges
               </CardDescription>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
-              <span className="text-[11px] text-muted-foreground/60">Monitoring</span>
+              <span className="text-[11px] text-muted-foreground/60">Live Feed</span>
             </div>
           </div>
         </CardHeader>
@@ -712,6 +986,9 @@ export function DiagnosticsPage() {
                 <TableRow className="border-border/30 hover:bg-transparent">
                   <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
                     Type
+                  </TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+                    Severity
                   </TableHead>
                   <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
                     Service
@@ -728,10 +1005,11 @@ export function DiagnosticsPage() {
                 {events.map((event) => {
                   const config = eventTypeConfig(event.type)
                   const EventIcon = config.icon
+                  const sev = severityConfig(event.severity)
                   return (
                     <TableRow
                       key={event.id}
-                      className="border-border/20 hover:bg-muted/30 transition-colors"
+                      className={`border-border/20 hover:bg-muted/30 transition-colors ${event.isNew ? 'feed-item-enter' : ''}`}
                     >
                       <TableCell className="py-2.5">
                         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md w-fit ${config.bg}`}>
@@ -740,6 +1018,11 @@ export function DiagnosticsPage() {
                             {config.label}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell className="py-2.5">
+                        <Badge className={`text-[9px] border-0 font-semibold ${sev.bg} ${sev.color}`}>
+                          {sev.label}
+                        </Badge>
                       </TableCell>
                       <TableCell className="py-2.5">
                         <span className="text-xs font-medium text-foreground/80">
@@ -778,6 +1061,7 @@ function KPICard({
   trendValue,
   color = C_GREEN,
   index = 0,
+  isAlerting = false,
 }: {
   icon: React.ElementType
   label: string
@@ -787,10 +1071,11 @@ function KPICard({
   trendValue: string
   color?: string
   index?: number
+  isAlerting?: boolean
 }) {
   return (
     <Card
-      className={`relative overflow-hidden transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 group kpi-card-hover animate-slide-up stagger-${Math.min(index + 1, 6)}`}
+      className={`relative overflow-hidden transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 group kpi-card-hover animate-slide-up stagger-${Math.min(index + 1, 6)} ${isAlerting ? 'threshold-alert-border' : ''}`}
     >
       <div
         className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"

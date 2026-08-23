@@ -1,0 +1,915 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+     4→     4→import {
+     5→     5→  HeartPulse,
+     6→     6→  Activity,
+     7→     7→  Cpu,
+     8→     8→  HardDrive,
+     9→     9→  Wifi,
+    10→    10→  Server,
+    11→    11→  Clock,
+    12→    12→  ArrowUpRight,
+    13→    13→  ArrowDownRight,
+    14→    14→  Minus,
+    15→    15→  Radio,
+    16→    16→  Database,
+    17→    17→  ShieldCheck,
+    18→    18→  BellRing,
+    19→    19→  GitBranch,
+    20→    20→  TrendingUp,
+    21→    21→  TrendingDown,
+    22→    22→  RefreshCw,
+    23→    23→  CheckCircle2,
+    24→    24→  XCircle,
+    25→    25→  AlertTriangle,
+    26→    26→  Info,
+    27→    27→  Zap,
+    28→    28→  Network,
+    29→    29→  CircleDot,
+    30→    30→  RotateCcw,
+    31→    31→  Upload,
+    32→    32→  Download,
+    33→    33→} from 'lucide-react'
+    34→    34→import {
+    35→    35→  LineChart,
+    36→    36→  Line,
+    37→    37→  AreaChart,
+    38→    38→  Area,
+    39→    39→  XAxis,
+    40→    40→  YAxis,
+    41→    41→  CartesianGrid,
+    42→    42→  Tooltip,
+    43→    43→  ResponsiveContainer,
+    44→    44→  ReferenceLine,
+    45→    45→} from 'recharts'
+    46→    46→import { formatDistanceToNow } from 'date-fns'
+    47→    47→import { useIIoTStore } from '@/store/iiot'
+    48→    48→import { PageHeader } from '@/shared/components/page-header'
+    49→    49→import {
+    50→    50→  ChartTooltip,
+    51→    51→  AXIS_TICK_SM,
+    52→    52→  AXIS_LINE,
+    53→    53→  GRID_STROKE,
+    54→    54→  C_GREEN,
+    55→    55→  C_CYAN,
+    56→    56→  C_ORANGE,
+    57→    57→  C_RED,
+    58→    58→  C_YELLOW,
+    59→    59→} from '@/shared/components/chart-utils'
+    60→    60→import {
+    61→    61→  Card,
+    62→    62→  CardContent,
+    63→    63→  CardDescription,
+    64→    64→  CardHeader,
+    65→    65→  CardTitle,
+    66→    66→} from '@/components/ui/card'
+    67→    67→import { Badge } from '@/components/ui/badge'
+    68→    68→import { Button } from '@/components/ui/button'
+    69→    69→import { Progress } from '@/components/ui/progress'
+    70→    70→import {
+    71→    71→  Table,
+    72→    72→  TableBody,
+    73→    73→  TableCell,
+    74→    74→  TableHead,
+    75→    75→  TableHeader,
+    76→    76→  TableRow,
+    77→    77→} from '@/components/ui/table'
+    78→    78→
+    79→    79→// ─── Types ──────────────────────────────────────────────────────────────
+    80→    80→interface ServiceStatus {
+    81→    81→  name: string
+    82→    82→  icon: React.ElementType
+    83→    83→  status: 'healthy' | 'running' | 'connected' | 'active' | 'degraded' | 'down'
+    84→    84→  uptime: string
+    85→    85→  lastChecked: Date
+    86→    86→  responseTime?: number
+    87→    87→  details?: string
+    88→    88→}
+    89→    89→
+    90→    90→interface SystemEvent {
+    91→    91→  id: string
+    92→    92→  timestamp: Date
+    93→    93→  type: 'deployment' | 'restart' | 'error' | 'warning' | 'info'
+    94→    94→  service: string
+    95→    95→  message: string
+    96→    96→}
+    97→    97→
+    98→    98→interface ResourceMetric {
+    99→    99→  label: string
+   100→   100→  value: number
+   101→   101→  unit: string
+   102→   102→  max: number
+   103→   103→  trend: 'up' | 'down' | 'stable'
+   104→   104→ color: string
+   105→   105→}
+   106→   106→
+   107→   107→// ─── Mock Service Data ──────────────────────────────────────────────────
+   108→   108→function generateServices(): ServiceStatus[] {
+   109→   109→  return [
+   110→   110→    {
+   111→   111→      name: 'IIoT Gateway',
+   112→   112→      icon: Radio,
+   113→   113→      status: 'connected',
+   114→   114→      uptime: '14d 6h 32m',
+   115→   115→      lastChecked: new Date(Date.now() - 8000),
+   116→   116→      responseTime: 12,
+   117→   117→      details: 'MQTT broker connected, 24 active sessions',
+   118→   118→    },
+   119→   119→    {
+   120→   120→      name: 'WebSocket Server',
+   121→   121→      icon: Wifi,
+   122→   122→      status: 'running',
+   123→   123→      uptime: '14d 6h 32m',
+   124→   124→      lastChecked: new Date(Date.now() - 5000),
+   125→   125→      responseTime: 8,
+   126→   126→      details: 'Socket.io v4, 18 subscriptions active',
+   127→   127→    },
+   128→   128→    {
+   129→   129→      name: 'Database',
+   130→   130→      icon: Database,
+   131→   131→      status: 'healthy',
+   132→   132→      uptime: '30d 2h 15m',
+   133→   133→      lastChecked: new Date(Date.now() - 3000),
+   134→   134→      responseTime: 3,
+   135→   135→      details: 'SQLite, 12.4 MB, 0 locked tables',
+   136→   136→    },
+   137→   137→    {
+   138→   138→      name: 'Auth Service',
+   139→   139→      icon: ShieldCheck,
+   140→   140→      status: 'active',
+   141→   141→      uptime: '14d 6h 32m',
+   142→   142→      lastChecked: new Date(Date.now() - 10000),
+   143→   143→      responseTime: 18,
+   144→   144→      details: 'NextAuth v4, JWT sessions',
+   145→   145→    },
+   146→   146→    {
+   147→   147→      name: 'Notification Service',
+   148→   148→      icon: BellRing,
+   149→   149→      status: 'active',
+   150→   150→      uptime: '7d 18h 45m',
+   151→   151→      lastChecked: new Date(Date.now() - 12000),
+   152→   152→      responseTime: 22,
+   153→   153→      details: '3 pending alerts, 142 sent today',
+   154→   154→    },
+   155→   155→    {
+   156→   156→      name: 'Data Pipeline',
+   157→   157→      icon: GitBranch,
+   158→   158→      status: 'running',
+   159→   159→      uptime: '14d 6h 32m',
+   160→   160→      lastChecked: new Date(Date.now() - 6000),
+   161→   161→      responseTime: 15,
+   162→   162→      details: 'Processing 847 pts/min, 0 lag',
+   163→   163→    },
+   164→   164→  ]
+   165→   165→}
+   166→   166→
+   167→   167→function generateEvents(): SystemEvent[] {
+   168→   168→  const now = Date.now()
+   169→   169→  return [
+   170→   170→    { id: 'e1', timestamp: new Date(now - 120000), type: 'info', service: 'Data Pipeline', message: 'Pipeline throughput normalized after brief spike' },
+   171→   171→    { id: 'e2', timestamp: new Date(now - 300000), type: 'deployment', service: 'WebSocket Server', message: 'Config updated: max connections raised to 100' },
+   172→   172→    { id: 'e3', timestamp: new Date(now - 600000), type: 'warning', service: 'Database', message: 'Slow query detected: alarm_history scan took 847ms' },
+   173→   173→    { id: 'e4', timestamp: new Date(now - 900000), type: 'info', service: 'Auth Service', message: 'Session cleanup completed: removed 23 expired tokens' },
+   174→   174→    { id: 'e5', timestamp: new Date(now - 1500000), type: 'restart', service: 'Notification Service', message: 'Graceful restart completed in 2.3s' },
+   175→   175→    { id: 'e6', timestamp: new Date(now - 2100000), type: 'deployment', service: 'IIoT Gateway', message: 'MQTT broker firmware updated to v3.8.2' },
+   176→   176→    { id: 'e7', timestamp: new Date(now - 2700000), type: 'error', service: 'Data Pipeline', message: 'Transient write failure to telemetry buffer (auto-recovered)' },
+   177→   177→    { id: 'e8', timestamp: new Date(now - 3600000), type: 'info', service: 'WebSocket Server', message: 'Client connection pool optimized: 8 idle connections closed' },
+   178→   178→    { id: 'e9', timestamp: new Date(now - 4500000), type: 'warning', service: 'IIoT Gateway', message: 'MQTT message queue depth briefly exceeded 5000' },
+   179→   179→    { id: 'e10', timestamp: new Date(now - 5400000), type: 'deployment', service: 'Platform', message: 'System update v2.2.0 deployed successfully' },
+   180→   180→    { id: 'e11', timestamp: new Date(now - 7200000), type: 'restart', service: 'Database', message: 'Scheduled maintenance restart completed' },
+   181→   181→    { id: 'e12', timestamp: new Date(now - 9000000), type: 'info', service: 'Auth Service', message: 'New API key provisioned for external integration' },
+   182→   182→    { id: 'e13', timestamp: new Date(now - 10800000), type: 'warning', service: 'Notification Service', message: 'Email delivery rate approaching limit (85%)' },
+   183→   183→    { id: 'e14', timestamp: new Date(now - 12600000), type: 'error', service: 'WebSocket Server', message: 'Connection storm detected — rate limiter activated' },
+   184→   184→    { id: 'e15', timestamp: new Date(now - 14400000), type: 'deployment', service: 'Data Pipeline', message: 'New aggregation rule deployed for OEE calculation' },
+   185→   185→  ]
+   186→   186→}
+   187→   187→
+   188→   188→function generateApiData(): { time: string; responseTime: number }[] {
+   189→   189→  const data: { time: string; responseTime: number }[] = []
+   190→   190→  const now = Date.now()
+   191→   191→  for (let i = 59; i >= 0; i--) {
+   192→   192→    const t = (60 - i) / 60
+   193→   193→    const base = 38 + 8 * Math.sin(t * Math.PI * 3)
+   194→   194→    const spike = i === 12 ? 180 : i === 35 ? 95 : 0
+   195→   195→    data.push({
+   196→   196→      time: new Date(now - i * 5000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+   197→   197→      responseTime: Math.max(10, base + (Math.random() - 0.5) * 20 + spike),
+   198→   198→    })
+   199→   199→  }
+   200→   200→  return data
+   201→   201→}
+   202→   202→
+   203→   203→function generateMemoryData(): { time: string; usage: number }[] {
+   204→   204→  const data: { time: string; usage: number }[] = []
+   205→   205→  const now = Date.now()
+   206→   206→  let mem = 68
+   207→   207→  for (let i = 59; i >= 0; i--) {
+   208→   208→    mem += (Math.random() - 0.48) * 3
+   209→   209→    mem = Math.max(55, Math.min(82, mem))
+   210→   210→    data.push({
+   211→   211→      time: new Date(now - i * 5000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+   212→   212→      usage: Math.round(mem * 10) / 10,
+   213→   213→    })
+   214→   214→  }
+   215→   215→  return data
+   216→   216→}
+   217→   217→
+   218→   218→// ─── Status Helpers ─────────────────────────────────────────────────────
+   219→   219→function isHealthy(status: ServiceStatus['status']): boolean {
+   220→   220→  return ['healthy', 'running', 'connected', 'active'].includes(status)
+   221→   221→}
+   222→   222→
+   223→   223→function statusColor(status: ServiceStatus['status']): string {
+   224→   224→  if (isHealthy(status)) return 'bg-emerald-500'
+   225→   225→  if (status === 'degraded') return 'bg-amber-500'
+   226→   226→  return 'bg-red-500'
+   227→   227→}
+   228→   228→
+   229→   229→function statusLabel(status: ServiceStatus['status']): string {
+   230→   230→  const map: Record<string, string> = {
+   231→   231→    healthy: 'Healthy',
+   232→   232→    running: 'Running',
+   233→   233→    connected: 'Connected',
+   234→   234→    active: 'Active',
+   235→   235→    degraded: 'Degraded',
+   236→   236→    down: 'Down',
+   237→   237→  }
+   238→   238→  return map[status] ?? status
+   239→   239→}
+   240→   240→
+   241→   241→function eventTypeConfig(type: SystemEvent['type']) {
+   242→   242→  switch (type) {
+   243→   243→    case 'deployment': return { icon: Upload, color: 'text-cyan-400', bg: 'bg-cyan-500/10', label: 'Deploy' }
+   244→   244→    case 'restart': return { icon: RotateCcw, color: 'text-blue-400', bg: 'bg-blue-500/10', label: 'Restart' }
+   245→   245→    case 'error': return { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10', label: 'Error' }
+   246→   246→    case 'warning': return { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'Warning' }
+   247→   247→    case 'info': return { icon: Info, color: 'text-muted-foreground', bg: 'bg-muted/50', label: 'Info' }
+   248→   248→  }
+   249→   249→}
+   250→   250→
+   251→   251→// ─── Component ──────────────────────────────────────────────────────────
+   252→   252→export function DiagnosticsPage() {
+   253→   253→  const { isConnected } = useIIoTStore()
+   254→   254→  const [apiData, setApiData] = useState(generateApiData)
+   255→   255→  const [memoryData, setMemoryData] = useState(generateMemoryData)
+   256→   256→  const [services, setServices] = useState(generateServices)
+   257→   257→  const [events] = useState(generateEvents)
+   258→   258→  const [resources, setResources] = useState<ResourceMetric[]>([
+   259→   259→    { label: 'CPU', value: 34, unit: '%', max: 100, trend: 'stable', color: C_GREEN },
+   260→   260→    { label: 'Memory', value: 68, unit: '%', max: 100, trend: 'up', color: C_CYAN },
+   261→   261→    { label: 'Disk', value: 52, unit: '%', max: 100, trend: 'stable', color: C_ORANGE },
+   262→   262→    { label: 'Network', value: 23, unit: 'Mbps', max: 100, trend: 'up', color: C_GREEN },
+   263→   263→  ])
+   264→   264→  const [lastRefresh, setLastRefresh] = useState(new Date())
+   265→   265→  const [lastRefreshText, setLastRefreshText] = useState('—')
+   266→   266→
+   267→   267→  // Auto-refresh simulated data every 3-5 seconds
+   268→   268→  const refreshData = useCallback(() => {
+   269→   269→    setApiData((prev) => {
+   270→   270→      const now = Date.now()
+   271→   271→      const newPoint = {
+   272→   272→        time: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+   273→   273→        responseTime: Math.max(10, 38 + (Math.random() - 0.5) * 30),
+   274→   274→      }
+   275→   275→      return [...prev.slice(1), newPoint]
+   276→   276→    })
+   277→   277→    setMemoryData((prev) => {
+   278→   278→      const now = Date.now()
+   279→   279→      const lastVal = prev[prev.length - 1].usage
+   280→   280→      const newVal = Math.max(55, Math.min(82, lastVal + (Math.random() - 0.48) * 3))
+   281→   281→      return [
+   282→   282→        ...prev.slice(1),
+   283→   283→        {
+   284→   284→          time: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+   285→   285→          usage: Math.round(newVal * 10) / 10,
+   286→   286→        },
+   287→   287→      ]
+   288→   288→    })
+   289→   289→    setServices((prev) =>
+   290→   290→      prev.map((s) => ({
+   291→   291→        ...s,
+   292→   292→        lastChecked: new Date(),
+   293→   293→        responseTime: Math.max(1, (s.responseTime ?? 10) + Math.round((Math.random() - 0.5) * 6)),
+   294→   294→      }))
+   295→   295→    )
+   296→   296→    setResources((prev) =>
+   297→   297→      prev.map((r) => {
+   298→   298→        const delta = (Math.random() - 0.45) * 4
+   299→   299→        const newVal = Math.max(5, Math.min(r.max * 0.95, r.value + delta))
+   300→   300→        return {
+   301→   301→          ...r,
+   302→   302→          value: Math.round(newVal * 10) / 10,
+   303→   303→          trend: delta > 1.5 ? 'up' : delta < -1.5 ? 'down' : 'stable',
+   304→   304→        }
+   305→   305→      })
+   306→   306→    )
+   307→   307→    setLastRefresh(new Date())
+   308→   308→  }, [])
+   309→   309→
+   310→   310→  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+   311→   311→
+   312→   312→  useEffect(() => {
+   313→   313→    refreshData()
+   314→   314→    intervalRef.current = setInterval(refreshData, 4000)
+   315→   315→    return () => {
+   316→   316→      if (intervalRef.current) clearInterval(intervalRef.current)
+   317→   317→    }
+   318→   318→  }, [refreshData])
+   319→   319→
+   320→   320→  // Update "last refreshed" text
+   321→   321→  useEffect(() => {
+   322→   322→    function update() {
+   323→   323→      setLastRefreshText(formatDistanceToNow(lastRefresh, { addSuffix: true }))
+   324→   324→    }
+   325→   325→    update()
+   326→   326→    const interval = setInterval(update, 5000)
+   327→   327→    return () => clearInterval(interval)
+   328→   328→  }, [lastRefresh])
+   329→   329→
+   330→   330→  // ── Computed KPIs ──────────────────────────────────────────────────────
+   331→   331→  const kpis = useMemo(() => {
+   332→   332→    const latest = apiData[apiData.length - 1]
+   333→   333→    const avgResponse = apiData.reduce((s, d) => s + d.responseTime, 0) / apiData.length
+   334→   334→    const latestMem = memoryData[memoryData.length - 1]
+   335→   335→    return {
+   336→   336→      uptime: '99.97%',
+   337→   337→      apiResponseTime: Math.round(avgResponse),
+   338→   338→      wsLatency: 12 + Math.round((Math.random() - 0.5) * 4),
+   339→   339→      activeConnections: 24 + Math.round((Math.random() - 0.5) * 6),
+   340→   340→      peakResponse: Math.round(Math.max(...apiData.map((d) => d.responseTime))),
+   341→   341→      currentMemory: latestMem?.usage.toFixed(1) ?? '68.0',
+   342→   342→    }
+   343→   343→  }, [apiData, memoryData])
+   344→   344→
+   345→   345→  return (
+   346→   346→    <div className="space-y-6">
+   347→   347→      <PageHeader
+   348→   348→        icon={HeartPulse}
+   349→   349→        title="System Diagnostics"
+   350→   350→        description="Platform health, service status, and resource monitoring"
+   351→   351→        lastUpdated={lastRefreshText}
+   352→   352→        badge="Live"
+   353→   353→        actions={
+   354→   354→          <Button
+   355→   355→            variant="outline"
+   356→   356→            size="sm"
+   357→   357→            className="h-8 text-xs gap-1.5"
+   358→   358→            onClick={refreshData}
+   359→   359→          >
+   360→   360→            <RefreshCw className="size-3.5" />
+   361→   361→            Refresh Now
+   362→   362→          </Button>
+   363→   363→        }
+   364→   364→      />
+   365→   365→
+   366→   366→      {/* ── System Health Overview (4 KPI cards) ──────────────────────── */}
+   367→   367→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   368→   368→        <KPICard
+   369→   369→          icon={Activity}
+   370→   370→          label="Platform Uptime"
+   371→   371→          value={kpis.uptime}
+   372→   372→          unit="(30d)"
+   373→   373→          trend="up"
+   374→   374→          trendValue="Stable"
+   375→   375→          color={C_GREEN}
+   376→   376→          index={0}
+   377→   377→        />
+   378→   378→        <KPICard
+   379→   379→          icon={Zap}
+   380→   380→          label="API Response Time"
+   381→   381→          value={`${kpis.apiResponseTime}`}
+   382→   382→          unit="ms avg"
+   383→   383→          trend={kpis.peakResponse > 150 ? 'down' : 'up'}
+   384→   384→          trendValue={kpis.peakResponse > 150 ? `Peak ${kpis.peakResponse}ms` : `Peak ${kpis.peakResponse}ms`}
+   385→   385→          color={C_CYAN}
+   386→   386→          index={1}
+   387→   387→        />
+   388→   388→        <KPICard
+   389→   389→          icon={Wifi}
+   390→   390→          label="WebSocket Latency"
+   391→   391→          value={`${kpis.wsLatency}`}
+   392→   392→          unit="ms"
+   393→   393→          trend="up"
+   394→   394→          trendValue="Normal"
+   395→   395→          color={C_GREEN}
+   396→   396→          index={2}
+   397→   397→        />
+   398→   398→        <KPICard
+   399→   399→          icon={Network}
+   400→   400→          label="Active Connections"
+   401→   401→          value={`${kpis.activeConnections}`}
+   402→   402→          unit="clients"
+   403→   403→          trend={kpis.activeConnections > 26 ? 'up' : 'stable'}
+   404→   404→          trendValue={isConnected ? 'WebSocket OK' : 'Disconnected'}
+   405→   405→          color={C_ORANGE}
+   406→   406→          index={3}
+   407→   407→        />
+   408→   408→      </div>
+   409→   409→
+   410→   410→      {/* ── Real-time Performance Charts (2 side-by-side) ────────────── */}
+   411→   411→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   412→   412→        {/* API Response Time */}
+   413→   413→        <Card className="chart-container-glass animate-slide-up stagger-1">
+   414→   414→          <CardHeader className="pb-2 pt-5 px-5">
+   415→   415→            <div className="flex items-center justify-between">
+   416→   416→              <div>
+   417→   417→                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   418→   418→                  <Activity className="size-4 text-cyan-400" />
+   419→   419→                  API Response Time
+   420→   420→                </CardTitle>
+   421→   421→                <CardDescription className="mt-0.5 text-xs">Last 60 data points · p95 threshold at 200ms</CardDescription>
+   422→   422→              </div>
+   423→   423→              <Badge
+   424→   424→                className={`text-[10px] border-0 ${
+   425→   425→                  kpis.peakResponse > 200
+   426→   426→                    ? 'bg-red-500/15 text-red-400'
+   427→   427→                    : 'bg-emerald-500/15 text-emerald-400'
+   428→   428→                }`}
+   429→   429→              >
+   430→   430→                {kpis.peakResponse > 200 ? 'Threshold Breached' : 'Within Threshold'}
+   431→   431→              </Badge>
+   432→   432→            </div>
+   433→   433→          </CardHeader>
+   434→   434→          <CardContent className="px-5 pb-5">
+   435→   435→            <div className="h-[260px] w-full">
+   436→   436→              <ResponsiveContainer width="100%" height="100%">
+   437→   437→                <LineChart data={apiData}>
+   438→   438→                  <defs>
+   439→   439→                    <linearGradient id="apiGrad" x1="0" y1="0" x2="0" y2="1">
+   440→   440→                      <stop offset="0%" stopColor={C_CYAN} stopOpacity={0.2} />
+   441→   441→                      <stop offset="100%" stopColor={C_CYAN} stopOpacity={0} />
+   442→   442→                    </linearGradient>
+   443→   443→                  </defs>
+   444→   444→                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   445→   445→                  <XAxis
+   446→   446→                    dataKey="time"
+   447→   447→                    tick={AXIS_TICK_SM}
+   448→   448→                    tickLine={false}
+   449→   449→                    axisLine={AXIS_LINE}
+   450→   450→                    interval={14}
+   451→   451→                  />
+   452→   452→                  <YAxis
+   453→   453→                    tick={AXIS_TICK_SM}
+   454→   454→                    tickLine={false}
+   455→   455→                    axisLine={AXIS_LINE}
+   456→   456→                    width={40}
+   457→   457→                    domain={[0, 250]}
+   458→   458→                  />
+   459→   459→                  <Tooltip content={<ChartTooltip valueSuffix=" ms" />} />
+   460→   460→                  <ReferenceLine
+   461→   461→                    y={200}
+   462→   462→                    stroke={C_RED}
+   463→   463→                    strokeDasharray="6 4"
+   464→   464→                    strokeWidth={1.5}
+   465→   465→                    strokeOpacity={0.7}
+   466→   466→                    label={{
+   467→   467→                      value: 'p95 (200ms)',
+   468→   468→                      position: 'insideTopRight',
+   469→   469→                      fill: C_RED,
+   470→   470→                      fontSize: 10,
+   471→   471→                      opacity: 0.8,
+   472→   472→                    }}
+   473→   473→                  />
+   474→   474→                  <Line
+   475→   475→                    type="monotone"
+   476→   476→                    dataKey="responseTime"
+   477→   477→                    stroke={C_CYAN}
+   478→   478→                    strokeWidth={2}
+   479→   479→                    dot={false}
+   480→   480→                    name="Response Time"
+   481→   481→                    animationDuration={300}
+   482→   482→                  />
+   483→   483→                </LineChart>
+   484→   484→              </ResponsiveContainer>
+   485→   485→            </div>
+   486→   486→          </CardContent>
+   487→   487→        </Card>
+   488→   488→
+   489→   489→        {/* Memory Usage */}
+   490→   490→        <Card className="chart-container-glass animate-slide-up stagger-2">
+   491→   491→          <CardHeader className="pb-2 pt-5 px-5">
+   492→   492→            <div className="flex items-center justify-between">
+   493→   493→              <div>
+   494→   494→                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   495→   495→                  <Server className="size-4 text-emerald-400" />
+   496→   496→                  Memory Usage
+   497→   497→                </CardTitle>
+   498→   498→                <CardDescription className="mt-0.5 text-xs">Percentage over time · Target 60–80%</CardDescription>
+   499→   499→              </div>
+   500→   500→              <Badge
+   501→   501→                className={`text-[10px] border-0 ${
+   502→   502→                  Number(kpis.currentMemory) > 80
+   503→   503→                    ? 'bg-amber-500/15 text-amber-400'
+   504→   504→                    : Number(kpis.currentMemory) >= 60
+   505→   505→                      ? 'bg-emerald-500/15 text-emerald-400'
+   506→   506→                      : 'bg-cyan-500/15 text-cyan-400'
+   507→   507→                }`}
+   508→   508→              >
+   509→   509→                {kpis.currentMemory}%
+   510→   510→              </Badge>
+   511→   511→            </div>
+   512→   512→          </CardHeader>
+   513→   513→          <CardContent className="px-5 pb-5">
+   514→   514→            <div className="h-[260px] w-full">
+   515→   515→              <ResponsiveContainer width="100%" height="100%">
+   516→   516→                <AreaChart data={memoryData}>
+   517→   517→                  <defs>
+   518→   518→                    <linearGradient id="memGrad" x1="0" y1="0" x2="0" y2="1">
+   519→   519→                      <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.3} />
+   520→   520→                      <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
+   521→   521→                    </linearGradient>
+   522→   522→                  </defs>
+   523→   523→                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   524→   524→                  <XAxis
+   525→   525→                    dataKey="time"
+   526→   526→                    tick={AXIS_TICK_SM}
+   527→   527→                    tickLine={false}
+   528→   528→                    axisLine={AXIS_LINE}
+   529→   529→                    interval={14}
+   530→   530→                  />
+   531→   531→                  <YAxis
+   532→   532→                    tick={AXIS_TICK_SM}
+   533→   533→                    tickLine={false}
+   534→   534→                    axisLine={AXIS_LINE}
+   535→   535→                    width={35}
+   536→   536→                    domain={[50, 90]}
+   537→   537→                  />
+   538→   538→                  <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+   539→   539→                  <ReferenceLine
+   540→   540→                    y={60}
+   541→   541→                    stroke={C_CYAN}
+   542→   542→                    strokeDasharray="4 4"
+   543→   543→                    strokeWidth={1}
+   544→   544→                    strokeOpacity={0.4}
+   545→   545→                    label={{
+   546→   546→                      value: '60%',
+   547→   547→                      position: 'insideTopRight',
+   548→   548→                      fill: C_CYAN,
+   549→   549→                      fontSize: 9,
+   550→   550→                      opacity: 0.7,
+   551→   551→                    }}
+   552→   552→                  />
+   553→   553→                  <ReferenceLine
+   554→   554→                    y={80}
+   555→   555→                    stroke={C_ORANGE}
+   556→   556→                    strokeDasharray="4 4"
+   557→   557→                    strokeWidth={1}
+   558→   558→                    strokeOpacity={0.4}
+   559→   559→                    label={{
+   560→   560→                      value: '80%',
+   561→   561→                      position: 'insideTopRight',
+   562→   562→                      fill: C_ORANGE,
+   563→   563→                      fontSize: 9,
+   564→   564→                      opacity: 0.7,
+   565→   565→                    }}
+   566→   566→                  />
+   567→   567→                  <Area
+   568→   568→                    type="monotone"
+   569→   569→                    dataKey="usage"
+   570→   570→                    stroke={C_GREEN}
+   571→   571→                    strokeWidth={2}
+   572→   572→                    fill="url(#memGrad)"
+   573→   573→                    name="Memory Usage"
+   574→   574→                    animationDuration={300}
+   575→   575→                  />
+   576→   576→                </AreaChart>
+   577→   577→              </ResponsiveContainer>
+   578→   578→            </div>
+   579→   579→          </CardContent>
+   580→   580→        </Card>
+   581→   581→      </div>
+   582→   582→
+   583→   583→      {/* ── Service Status Grid ──────────────────────────────────────── */}
+   584→   584→      <div className="space-y-3">
+   585→   585→        <h2 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+   586→   586→          <Server className="size-4 text-muted-foreground" />
+   587→   587→          Service Status
+   588→   588→        </h2>
+   589→   589→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   590→   590→          {services.map((service, idx) => {
+   591→   591→            const Icon = service.icon
+   592→   592→            const healthy = isHealthy(service.status)
+   593→   593→            return (
+   594→   594→              <Card
+   595→   595→                key={service.name}
+   596→   596→                className={`kpi-card-hover animate-slide-up stagger-${Math.min(idx + 1, 6)}`}
+   597→   597→              >
+   598→   598→                <CardContent className="p-4">
+   599→   599→                  <div className="flex items-start justify-between">
+   600→   600→                    <div className="flex items-start gap-3">
+   601→   601→                      <div
+   602→   602→                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${
+   603→   603→                          healthy
+   604→   604→                            ? 'bg-emerald-500/10 ring-emerald-500/20'
+   605→   605→                            : 'bg-red-500/10 ring-red-500/20'
+   606→   606→                        }`}
+   607→   607→                      >
+   608→   608→                        <Icon
+   609→   609→                          className={`size-5 ${healthy ? 'text-emerald-400' : 'text-red-400'}`}
+   610→   610→                        />
+   611→   611→                      </div>
+   612→   612→                      <div className="min-w-0">
+   613→   613→                        <p className="text-sm font-semibold text-foreground/90">
+   614→   614→                          {service.name}
+   615→   615→                        </p>
+   616→   616→                        <div className="flex items-center gap-1.5 mt-1">
+   617→   617→                          <span
+   618→   618→                            className={`size-2 rounded-full ${statusColor(service.status)} ${
+   619→   619→                              healthy ? 'animate-pulse-dot' : ''
+   620→   620→                            }`}
+   621→   621→                          />
+   622→   622→                          <span
+   623→   623→                            className={`text-xs font-medium ${
+   624→   624→                              healthy ? 'text-emerald-400' : 'text-red-400'
+   625→   625→                            }`}
+   626→   626→                          >
+   627→   627→                            {statusLabel(service.status)}
+   628→   628→                          </span>
+   629→   629→                        </div>
+   630→   630→                      </div>
+   631→   631→                    </div>
+   632→   632→                    <Badge
+   633→   633→                      variant="outline"
+   634→   634→                      className={`text-[10px] border-0 ${
+   635→   635→                        healthy
+   636→   636→                          ? 'bg-emerald-500/10 text-emerald-400'
+   637→   637→                          : 'bg-red-500/10 text-red-400'
+   638→   638→                      }`}
+   639→   639→                    >
+   640→   640→                      {service.responseTime}ms
+   641→   641→                    </Badge>
+   642→   642→                  </div>
+   643→   643→                  <div className="mt-3 pt-3 border-t border-border/30 space-y-1.5">
+   644→   644→                    <div className="flex items-center justify-between text-[11px]">
+   645→   645→                      <span className="text-muted-foreground/60">Uptime</span>
+   646→   646→                      <span className="font-medium text-foreground/80 metric-value">
+   647→   647→                        {service.uptime}
+   648→   648→                      </span>
+   649→   649→                    </div>
+   650→   650→                    <div className="flex items-center justify-between text-[11px]">
+   651→   651→                      <span className="text-muted-foreground/60">Last Checked</span>
+   652→   652→                      <span className="font-medium text-foreground/60">
+   653→   653→                        {formatDistanceToNow(service.lastChecked, { addSuffix: true })}
+   654→   654→                      </span>
+   655→   655→                    </div>
+   656→   656→                    {service.details && (
+   657→   657→                      <p className="text-[10px] text-muted-foreground/50 mt-1.5 leading-relaxed">
+   658→   658→                        {service.details}
+   659→   659→                      </p>
+   660→   660→                    )}
+   661→   661→                  </div>
+   662→   662→                </CardContent>
+   663→   663→              </Card>
+   664→   664→            )
+   665→   665→          })}
+   666→   666→        </div>
+   667→   667→      </div>
+   668→   668→
+   669→   669→      {/* ── System Resources ─────────────────────────────────────────── */}
+   670→   670→      <Card className="animate-slide-up stagger-5">
+   671→   671→        <CardHeader className="pb-3 pt-5 px-5">
+   672→   672→          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   673→   673→            <Cpu className="size-4 text-muted-foreground" />
+   674→   674→            System Resources
+   675→   675→          </CardTitle>
+   676→   676→          <CardDescription className="text-xs">
+   677→   677→            Real-time resource utilization with trend indicators
+   678→   678→          </CardDescription>
+   679→   679→        </CardHeader>
+   680→   680→        <CardContent className="px-5 pb-5">
+   681→   681→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+   682→   682→            {resources.map((res) => (
+   683→   683→              <ResourceBar key={res.label} metric={res} />
+   684→   684→            ))}
+   685→   685→          </div>
+   686→   686→        </CardContent>
+   687→   687→      </Card>
+   688→   688→
+   689→   689→      {/* ── Recent Events Log ───────────────────────────────────────── */}
+   690→   690→      <Card className="animate-slide-up stagger-6">
+   691→   691→        <CardHeader className="pb-3 pt-5 px-5">
+   692→   692→          <div className="flex items-center justify-between">
+   693→   693→            <div>
+   694→   694→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   695→   695→                <CircleDot className="size-4 text-muted-foreground" />
+   696→   696→                Recent Events
+   697→   697→              </CardTitle>
+   698→   698→              <CardDescription className="mt-0.5 text-xs">
+   699→   699→                Last 15 system events — deployments, restarts, errors, warnings
+   700→   700→              </CardDescription>
+   701→   701→            </div>
+   702→   702→            <div className="flex items-center gap-1.5">
+   703→   703→              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+   704→   704→              <span className="text-[11px] text-muted-foreground/60">Monitoring</span>
+   705→   705→            </div>
+   706→   706→          </div>
+   707→   707→        </CardHeader>
+   708→   708→        <CardContent className="px-5 pb-5">
+   709→   709→          <div className="rounded-lg border border-border/30 overflow-hidden">
+   710→   710→            <Table>
+   711→   711→              <TableHeader>
+   712→   712→                <TableRow className="border-border/30 hover:bg-transparent">
+   713→   713→                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+   714→   714→                    Type
+   715→   715→                  </TableHead>
+   716→   716→                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+   717→   717→                    Service
+   718→   718→                  </TableHead>
+   719→   719→                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+   720→   720→                    Event
+   721→   721→                  </TableHead>
+   722→   722→                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9 text-right">
+   723→   723→                    Time
+   724→   724→                  </TableHead>
+   725→   725→                </TableRow>
+   726→   726→              </TableHeader>
+   727→   727→              <TableBody>
+   728→   728→                {events.map((event) => {
+   729→   729→                  const config = eventTypeConfig(event.type)
+   730→   730→                  const EventIcon = config.icon
+   731→   731→                  return (
+   732→   732→                    <TableRow
+   733→   733→                      key={event.id}
+   734→   734→                      className="border-border/20 hover:bg-muted/30 transition-colors"
+   735→   735→                    >
+   736→   736→                      <TableCell className="py-2.5">
+   737→   737→                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md w-fit ${config.bg}`}>
+   738→   738→                          <EventIcon className={`size-3 ${config.color}`} />
+   739→   739→                          <span className={`text-[10px] font-semibold ${config.color}`}>
+   740→   740→                            {config.label}
+   741→   741→                          </span>
+   742→   742→                        </div>
+   743→   743→                      </TableCell>
+   744→   744→                      <TableCell className="py-2.5">
+   745→   745→                        <span className="text-xs font-medium text-foreground/80">
+   746→   746→                          {event.service}
+   747→   747→                        </span>
+   748→   748→                      </TableCell>
+   749→   749→                      <TableCell className="py-2.5">
+   750→   750→                        <span className="text-xs text-muted-foreground/70 max-w-[400px] truncate block">
+   751→   751→                          {event.message}
+   752→   752→                        </span>
+   753→   753→                      </TableCell>
+   754→   754→                      <TableCell className="py-2.5 text-right">
+   755→   755→                        <span className="text-[11px] text-muted-foreground/50">
+   756→   756→                          {formatDistanceToNow(event.timestamp, { addSuffix: true })}
+   757→   757→                        </span>
+   758→   758→                      </TableCell>
+   759→   759→                    </TableRow>
+   760→   760→                  )
+   761→   761→                })}
+   762→   762→              </TableBody>
+   763→   763→            </Table>
+   764→   764→          </div>
+   765→   765→        </CardContent>
+   766→   766→      </Card>
+   767→   767→    </div>
+   768→   768→  )
+   769→   769→}
+   770→   770→
+   771→   771→// ─── KPI Card ─────────────────────────────────────────────────────────────
+   772→   772→function KPICard({
+   773→   773→  icon: Icon,
+   774→   774→  label,
+   775→   775→  value,
+   776→   776→  unit,
+   777→   777→  trend,
+   778→   778→  trendValue,
+   779→   779→  color = C_GREEN,
+   780→   780→  index = 0,
+   781→   781→}: {
+   782→   782→  icon: React.ElementType
+   783→   783→  label: string
+   784→   784→  value: string
+   785→   785→  unit: string
+   786→   786→  trend: 'up' | 'down' | 'neutral' | 'stable'
+   787→   787→  trendValue: string
+   788→   788→  color?: string
+   789→   789→  index?: number
+   790→   790→}) {
+   791→   791→  return (
+   792→   792→    <Card
+   793→   793→      className={`relative overflow-hidden transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 group kpi-card-hover animate-slide-up stagger-${Math.min(index + 1, 6)}`}
+   794→   794→    >
+   795→   795→      <div
+   796→   796→        className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"
+   797→   797→        style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }}
+   798→   798→      />
+   799→   799→      <CardContent className="flex items-start justify-between p-5">
+   800→   800→        <div className="flex items-start gap-3.5 min-w-0">
+   801→   801→          <div
+   802→   802→            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 transition-all duration-300 group-hover:scale-105"
+   803→   803→            style={{
+   804→   804→              backgroundColor: `${color}18`,
+   805→   805→              ['--tw-ring-color' as string]: `${color}25`,
+   806→   806→            }}
+   807→   807→          >
+   808→   808→            <Icon className="size-5" style={{ color }} />
+   809→   809→          </div>
+   810→   810→          <div className="min-w-0">
+   811→   811→            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 metric-label">
+   812→   812→              {label}
+   813→   813→            </p>
+   814→   814→            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-foreground metric-value">
+   815→   815→              {value}
+   816→   816→              <span className="text-xs font-normal text-muted-foreground/60 ml-1.5">{unit}</span>
+   817→   817→            </p>
+   818→   818→            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+   819→   819→              {(trend === 'up' || trend === 'stable') && (
+   820→   820→                <span className="flex items-center gap-0.5 text-emerald-400">
+   821→   821→                  <TrendingUp className="size-3" />
+   822→   822→                </span>
+   823→   823→              )}
+   824→   824→              {trend === 'down' && (
+   825→   825→                <span className="flex items-center gap-0.5 text-red-400">
+   826→   826→                  <TrendingDown className="size-3" />
+   827→   827→                </span>
+   828→   828→              )}
+   829→   829→              {trend === 'neutral' && (
+   830→   830→                <span className="flex items-center gap-0.5 text-muted-foreground/60">
+   831→   831→                  <Minus className="size-3" />
+   832→   832→                </span>
+   833→   833→              )}
+   834→   834→              <span className="text-muted-foreground/60">{trendValue}</span>
+   835→   835→            </div>
+   836→   836→          </div>
+   837→   837→        </div>
+   838→   838→      </CardContent>
+   839→   839→    </Card>
+   840→   840→  )
+   841→   841→}
+   842→   842→
+   843→   843→// ─── Resource Bar ────────────────────────────────────────────────────────
+   844→   844→function ResourceBar({ metric }: { metric: ResourceMetric }) {
+   845→   845→  const percentage = (metric.value / metric.max) * 100
+   846→   846→  const isHigh = percentage > 80
+   847→   847→  const isMedium = percentage > 60
+   848→   848→
+   849→   849→  const barColor = isHigh
+   850→   850→    ? 'bg-red-500'
+   851→   851→    : isMedium
+   852→   852→      ? 'bg-amber-500'
+   853→   853→      : metric.color === C_GREEN
+   854→   854→        ? 'bg-emerald-500'
+   855→   855→        : metric.color === C_CYAN
+   856→   856→          ? 'bg-cyan-500'
+   857→   857→          : 'bg-orange-500'
+   858→   858→
+   859→   859→  const iconMap: Record<string, React.ElementType> = {
+   860→   860→    CPU: Cpu,
+   861→   861→    Memory: Server,
+   862→   862→    Disk: HardDrive,
+   863→   863→    Network: Network,
+   864→   864→  }
+   865→   865→  const ResIcon = iconMap[metric.label] || Activity
+   866→   866→
+   867→   867→  return (
+   868→   868→    <div className="space-y-3">
+   869→   869→      <div className="flex items-center justify-between">
+   870→   870→        <div className="flex items-center gap-2">
+   871→   871→          <ResIcon className="size-4 text-muted-foreground/70" />
+   872→   872→          <span className="text-xs font-semibold text-foreground/80">{metric.label}</span>
+   873→   873→        </div>
+   874→   874→        <div className="flex items-center gap-1.5">
+   875→   875→          {metric.trend === 'up' && <ArrowUpRight className="size-3 text-amber-400" />}
+   876→   876→          {metric.trend === 'down' && <ArrowDownRight className="size-3 text-emerald-400" />}
+   877→   877→          {metric.trend === 'stable' && <Minus className="size-3 text-muted-foreground/50" />}
+   878→   878→          <span className={`text-sm font-bold metric-value ${isHigh ? 'text-red-400' : isMedium ? 'text-amber-400' : 'text-foreground'}`}>
+   879→   879→            {Math.round(metric.value)}
+   880→   880→            <span className="text-[10px] font-normal text-muted-foreground/60 ml-0.5">
+   881→   881→              {metric.unit}
+   882→   882→            </span>
+   883→   883→          </span>
+   884→   884→        </div>
+   885→   885→      </div>
+   886→   886→      <div className="relative h-2.5 w-full rounded-full bg-muted/50 overflow-hidden">
+   887→   887→        <div
+   888→   888→          className={`h-full rounded-full transition-all duration-700 ease-out ${barColor}`}
+   889→   889→          style={{
+   890→   890→            width: `${Math.min(percentage, 100)}%`,
+   891→   891→            boxShadow: isHigh
+   892→   892→              ? '0 0 12px rgba(239,68,68,0.3)'
+   893→   893→              : isMedium
+   894→   894→                ? '0 0 8px rgba(245,158,11,0.2)'
+   895→   895→                : `0 0 8px ${metric.color}33`,
+   896→   896→          }}
+   897→   897→        />
+   898→   898→        {/* 60% and 80% markers */}
+   899→   899→        {metric.label !== 'Network' && (
+   900→   900→          <>
+   901→   901→            <div
+   902→   902→              className="absolute top-0 bottom-0 w-px bg-cyan-500/30"
+   903→   903→              style={{ left: '60%' }}
+   904→   904→            />
+   905→   905→            <div
+   906→   906→              className="absolute top-0 bottom-0 w-px bg-orange-500/30"
+   907→   907→              style={{ left: '80%' }}
+   908→   908→            />
+   909→   909→          </>
+   910→   910→        )}
+   911→   911→      </div>
+   912→   912→    </div>
+   913→   913→  )
+   914→   914→}
+   915→   915→

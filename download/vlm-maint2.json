@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "This page is showing a **Recoverable Error** indicating that hydration failed because the server-rendered HTML didn't match the client.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1787524633,
+  "id": "202608240637124a30cbe97438448a",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202608240637124a30cbe97438448a",
+  "usage": {
+    "completion_tokens": 28,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 2740,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 2768
+  }
+}

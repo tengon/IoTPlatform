@@ -61,6 +61,7 @@ const pageLabels: Record<string, string> = {
   sites: 'Sites',
   'roles-permissions': 'Roles & Permissions',
   diagnostics: 'Diagnostics',
+  'audit-log': 'Audit Log',
   settings: 'Platform Settings',
 }
 
@@ -85,6 +86,7 @@ const groupLabels: Record<string, string> = {
   sites: 'Administration',
   'roles-permissions': 'Administration',
   diagnostics: 'Administration',
+  'audit-log': 'Administration',
   settings: 'Administration',
 }
 
@@ -94,6 +96,10 @@ export function AppTopbar() {
   const { theme, setTheme } = useTheme()
   const [lastSyncText, setLastSyncText] = useState('—')
   const [searchFocused, setSearchFocused] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- standard hydration guard pattern
+  useEffect(() => { setMounted(true) }, [])
 
   // Update "last synced" text every 10 seconds
   useEffect(() => {
@@ -181,8 +187,11 @@ export function AppTopbar() {
           size="icon"
           className="h-8 w-8 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          suppressHydrationWarning
         >
-          {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          {mounted
+            ? (theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />)
+            : <Sun className="size-4" />}
         </Button>
 
         {/* User Menu */}

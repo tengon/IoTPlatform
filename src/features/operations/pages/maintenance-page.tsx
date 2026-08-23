@@ -583,13 +583,13 @@ export function MaintenancePage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filtered.map((task) => {
+                    filtered.map((task, idx) => {
                       const tc = taskTypeConfig[task.taskType]
                       const pc = priorityConfig[task.priority]
                       const chipClass = statusChipClass[task.status]
                       const dotColor = statusDotColor[task.status]
                       return (
-                        <TableRow key={task.id} className={`table-row-severity zebra-row ${index % 2 === 0 ? '' : 'bg-muted/[0.02]'}`}>
+                        <TableRow key={task.id} className={`table-row-severity zebra-row ${idx % 2 === 0 ? '' : 'bg-muted/[0.02]'}`}>
                           <TableCell className="font-mono text-xs font-medium py-3">{task.id}</TableCell>
                           <TableCell className="py-3">
                             <div className="font-medium text-sm">{task.machine}</div>

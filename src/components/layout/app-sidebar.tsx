@@ -22,6 +22,7 @@ import {
   Cog,
   HeartPulse,
   FileText,
+  ScrollText,
 } from 'lucide-react'
 import { useNavigation, type PageId } from '@/store/navigation'
 import { useIIoTStore } from '@/store/iiot'
@@ -101,6 +102,7 @@ const menuGroups: MenuGroup[] = [
       { id: 'users', label: 'Users', icon: Users },
       { id: 'sites', label: 'Sites', icon: Building2 },
       { id: 'roles-permissions', label: 'Roles & Permissions', icon: Shield },
+      { id: 'audit-log', label: 'Audit Log', icon: ScrollText },
       { id: 'diagnostics', label: 'Diagnostics', icon: HeartPulse },
       { id: 'settings', label: 'Platform Settings', icon: Cog },
     ],

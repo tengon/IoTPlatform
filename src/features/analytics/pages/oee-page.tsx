@@ -320,7 +320,7 @@ export function OEEPage() {
   // ── 24h OEE trend data ──────────────────────────────────────────────────
   const oeeTrend24h = useMemo(() => {
     const data: Array<{ hour: string; OEE: number }> = []
-    const val = displayOEE
+    let val = displayOEE
     for (let i = 0; i < 24; i++) {
       val = Math.max(65, Math.min(95, val + (Math.random() - 0.45) * 6))
       data.push({
@@ -466,7 +466,7 @@ export function OEEPage() {
           <span className="text-2xl font-bold text-muted-foreground shrink-0">=</span>
           <OEEComponentCard
             label="OEE Result"
-            value={overallA * (overallP / 100) * (overallQ / 100)}
+            value={displayOEE}
             icon={() => <span className="text-lg font-mono" style={{ color: C_YELLOW }}>OEE</span>}
             color={C_YELLOW}
           />

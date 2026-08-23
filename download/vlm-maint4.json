@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "This page is rendering correctly with data visible.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1787525014,
+  "id": "2026082406433220edf6a0948a4809",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026082406433220edf6a0948a4809",
+  "usage": {
+    "completion_tokens": 10,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 2744,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 2754
+  }
+}

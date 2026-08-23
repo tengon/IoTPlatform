@@ -1,0 +1,1189 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+     4→import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+     5→import {
+     6→  HeartPulse,
+     7→  Activity,
+     8→  Cpu,
+     9→  HardDrive,
+    10→  Wifi,
+    11→  Server,
+    12→  Clock,
+    13→  ArrowUpRight,
+    14→  ArrowDownRight,
+    15→  Minus,
+    16→  Radio,
+    17→  Database,
+    18→  ShieldCheck,
+    19→  BellRing,
+    20→  GitBranch,
+    21→  TrendingUp,
+    22→  TrendingDown,
+    23→  RefreshCw,
+    24→  CheckCircle2,
+    25→  XCircle,
+    26→  AlertTriangle,
+    27→  Info,
+    28→  Zap,
+    29→  Network,
+    30→  CircleDot,
+    31→  RotateCcw,
+    32→  Upload,
+    33→  Download,
+    34→  ChevronDown,
+    35→  ChevronRight,
+    36→  ShieldAlert,
+    37→  Settings2,
+    38→  X,
+    39→  Trash2,
+    40→} from 'lucide-react'
+    41→import {
+    42→  LineChart,
+    43→  Line,
+    44→  AreaChart,
+    45→  Area,
+    46→  XAxis,
+    47→  YAxis,
+    48→  CartesianGrid,
+    49→  Tooltip,
+    50→  ResponsiveContainer,
+    51→  ReferenceLine,
+    52→} from 'recharts'
+    53→import { formatDistanceToNow } from 'date-fns'
+    54→import { useIIoTStore } from '@/store/iiot'
+    55→import { PageHeader } from '@/shared/components/page-header'
+    56→import {
+    57→  ChartTooltip,
+    58→  AXIS_TICK_SM,
+    59→  AXIS_LINE,
+    60→  GRID_STROKE,
+    61→  C_GREEN,
+    62→  C_CYAN,
+    63→  C_ORANGE,
+    64→  C_RED,
+    65→  C_YELLOW,
+    66→} from '@/shared/components/chart-utils'
+    67→import {
+    68→  Card,
+    69→  CardContent,
+    70→  CardDescription,
+    71→  CardHeader,
+    72→  CardTitle,
+    73→} from '@/components/ui/card'
+    74→import { Badge } from '@/components/ui/badge'
+    75→import { Button } from '@/components/ui/button'
+    76→import { Input } from '@/components/ui/input'
+    77→import { Label } from '@/components/ui/label'
+    78→import { Progress } from '@/components/ui/progress'
+    79→import {
+    80→  Table,
+    81→  TableBody,
+    82→  TableCell,
+    83→  TableHead,
+    84→  TableHeader,
+    85→  TableRow,
+    86→} from '@/components/ui/table'
+    87→
+    88→// ─── Types ──────────────────────────────────────────────────────────────
+    89→interface ServiceStatus {
+    90→  name: string
+    91→  icon: React.ElementType
+    92→  status: 'healthy' | 'running' | 'connected' | 'active' | 'degraded' | 'down'
+    93→  uptime: string
+    94→  lastChecked: Date
+    95→  responseTime?: number
+    96→  details?: string
+    97→}
+    98→
+    99→interface SystemEvent {
+   100→  id: string
+   101→  timestamp: Date
+   102→  type: 'deployment' | 'restart' | 'error' | 'warning' | 'info'
+   103→  service: string
+   104→  message: string
+   105→  severity?: 'info' | 'warning' | 'error'
+   106→  isNew?: boolean
+   107→}
+   108→
+   109→interface ThresholdConfig {
+   110→  apiResponseTime: number
+   111→  memoryUsage: number
+   112→  wsLatency: number
+   113→}
+   114→
+   115→interface ThresholdViolation {
+   116→  id: string
+   117→  metric: string
+   118→  currentValue: number
+   119→  threshold: number
+   120→  unit: string
+   121→  exceeded: number
+   122→}
+   123→
+   124→interface ResourceMetric {
+   125→  label: string
+   126→  value: number
+   127→  unit: string
+   128→  max: number
+   129→  trend: 'up' | 'down' | 'stable'
+   130→ color: string
+   131→}
+   132→
+   133→// ─── Mock Service Data ──────────────────────────────────────────────────
+   134→function generateServices(): ServiceStatus[] {
+   135→  return [
+   136→    {
+   137→      name: 'IIoT Gateway',
+   138→      icon: Radio,
+   139→      status: 'connected',
+   140→      uptime: '14d 6h 32m',
+   141→      lastChecked: new Date(Date.now() - 8000),
+   142→      responseTime: 12,
+   143→      details: 'MQTT broker connected, 24 active sessions',
+   144→    },
+   145→    {
+   146→      name: 'WebSocket Server',
+   147→      icon: Wifi,
+   148→      status: 'running',
+   149→      uptime: '14d 6h 32m',
+   150→      lastChecked: new Date(Date.now() - 5000),
+   151→      responseTime: 8,
+   152→      details: 'Socket.io v4, 18 subscriptions active',
+   153→    },
+   154→    {
+   155→      name: 'Database',
+   156→      icon: Database,
+   157→      status: 'healthy',
+   158→      uptime: '30d 2h 15m',
+   159→      lastChecked: new Date(Date.now() - 3000),
+   160→      responseTime: 3,
+   161→      details: 'SQLite, 12.4 MB, 0 locked tables',
+   162→    },
+   163→    {
+   164→      name: 'Auth Service',
+   165→      icon: ShieldCheck,
+   166→      status: 'active',
+   167→      uptime: '14d 6h 32m',
+   168→      lastChecked: new Date(Date.now() - 10000),
+   169→      responseTime: 18,
+   170→      details: 'NextAuth v4, JWT sessions',
+   171→    },
+   172→    {
+   173→      name: 'Notification Service',
+   174→      icon: BellRing,
+   175→      status: 'active',
+   176→      uptime: '7d 18h 45m',
+   177→      lastChecked: new Date(Date.now() - 12000),
+   178→      responseTime: 22,
+   179→      details: '3 pending alerts, 142 sent today',
+   180→    },
+   181→    {
+   182→      name: 'Data Pipeline',
+   183→      icon: GitBranch,
+   184→      status: 'running',
+   185→      uptime: '14d 6h 32m',
+   186→      lastChecked: new Date(Date.now() - 6000),
+   187→      responseTime: 15,
+   188→      details: 'Processing 847 pts/min, 0 lag',
+   189→    },
+   190→  ]
+   191→}
+   192→
+   193→function generateEvents(): SystemEvent[] {
+   194→  const now = Date.now()
+   195→  return [
+   196→    { id: 'e1', timestamp: new Date(now - 120000), type: 'info', service: 'Data Pipeline', message: 'Pipeline throughput normalized after brief spike' },
+   197→    { id: 'e2', timestamp: new Date(now - 300000), type: 'deployment', service: 'WebSocket Server', message: 'Config updated: max connections raised to 100' },
+   198→    { id: 'e3', timestamp: new Date(now - 600000), type: 'warning', service: 'Database', message: 'Slow query detected: alarm_history scan took 847ms' },
+   199→    { id: 'e4', timestamp: new Date(now - 900000), type: 'info', service: 'Auth Service', message: 'Session cleanup completed: removed 23 expired tokens' },
+   200→    { id: 'e5', timestamp: new Date(now - 1500000), type: 'restart', service: 'Notification Service', message: 'Graceful restart completed in 2.3s' },
+   201→    { id: 'e6', timestamp: new Date(now - 2100000), type: 'deployment', service: 'IIoT Gateway', message: 'MQTT broker firmware updated to v3.8.2' },
+   202→    { id: 'e7', timestamp: new Date(now - 2700000), type: 'error', service: 'Data Pipeline', message: 'Transient write failure to telemetry buffer (auto-recovered)' },
+   203→    { id: 'e8', timestamp: new Date(now - 3600000), type: 'info', service: 'WebSocket Server', message: 'Client connection pool optimized: 8 idle connections closed' },
+   204→    { id: 'e9', timestamp: new Date(now - 4500000), type: 'warning', service: 'IIoT Gateway', message: 'MQTT message queue depth briefly exceeded 5000' },
+   205→    { id: 'e10', timestamp: new Date(now - 5400000), type: 'deployment', service: 'Platform', message: 'System update v2.2.0 deployed successfully' },
+   206→    { id: 'e11', timestamp: new Date(now - 7200000), type: 'restart', service: 'Database', message: 'Scheduled maintenance restart completed' },
+   207→    { id: 'e12', timestamp: new Date(now - 9000000), type: 'info', service: 'Auth Service', message: 'New API key provisioned for external integration' },
+   208→    { id: 'e13', timestamp: new Date(now - 10800000), type: 'warning', service: 'Notification Service', message: 'Email delivery rate approaching limit (85%)' },
+   209→    { id: 'e14', timestamp: new Date(now - 12600000), type: 'error', service: 'WebSocket Server', message: 'Connection storm detected — rate limiter activated' },
+   210→    { id: 'e15', timestamp: new Date(now - 14400000), type: 'deployment', service: 'Data Pipeline', message: 'New aggregation rule deployed for OEE calculation' },
+   211→  ]
+   212→}
+   213→
+   214→function generateApiData(): { time: string; responseTime: number }[] {
+   215→  const data: { time: string; responseTime: number }[] = []
+   216→  const now = Date.now()
+   217→  for (let i = 59; i >= 0; i--) {
+   218→    const t = (60 - i) / 60
+   219→    const base = 38 + 8 * Math.sin(t * Math.PI * 3)
+   220→    const spike = i === 12 ? 180 : i === 35 ? 95 : 0
+   221→    data.push({
+   222→      time: new Date(now - i * 5000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+   223→      responseTime: Math.max(10, base + (Math.random() - 0.5) * 20 + spike),
+   224→    })
+   225→  }
+   226→  return data
+   227→}
+   228→
+   229→function generateMemoryData(): { time: string; usage: number }[] {
+   230→  const data: { time: string; usage: number }[] = []
+   231→  const now = Date.now()
+   232→  let mem = 68
+   233→  for (let i = 59; i >= 0; i--) {
+   234→    mem += (Math.random() - 0.48) * 3
+   235→    mem = Math.max(55, Math.min(82, mem))
+   236→    data.push({
+   237→      time: new Date(now - i * 5000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+   238→      usage: Math.round(mem * 10) / 10,
+   239→    })
+   240→  }
+   241→  return data
+   242→}
+   243→
+   244→// ─── Status Helpers ─────────────────────────────────────────────────────
+   245→function isHealthy(status: ServiceStatus['status']): boolean {
+   246→  return ['healthy', 'running', 'connected', 'active'].includes(status)
+   247→}
+   248→
+   249→function statusColor(status: ServiceStatus['status']): string {
+   250→  if (isHealthy(status)) return 'bg-emerald-500'
+   251→  if (status === 'degraded') return 'bg-amber-500'
+   252→  return 'bg-red-500'
+   253→}
+   254→
+   255→function statusLabel(status: ServiceStatus['status']): string {
+   256→  const map: Record<string, string> = {
+   257→    healthy: 'Healthy',
+   258→    running: 'Running',
+   259→    connected: 'Connected',
+   260→    active: 'Active',
+   261→    degraded: 'Degraded',
+   262→    down: 'Down',
+   263→  }
+   264→  return map[status] ?? status
+   265→}
+   266→
+   267→function eventTypeConfig(type: SystemEvent['type']) {
+   268→  switch (type) {
+   269→    case 'deployment': return { icon: Upload, color: 'text-cyan-400', bg: 'bg-cyan-500/10', label: 'Deploy' }
+   270→    case 'restart': return { icon: RotateCcw, color: 'text-blue-400', bg: 'bg-blue-500/10', label: 'Restart' }
+   271→    case 'error': return { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10', label: 'Error' }
+   272→    case 'warning': return { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'Warning' }
+   273→    case 'info': return { icon: Info, color: 'text-muted-foreground', bg: 'bg-muted/50', label: 'Info' }
+   274→  }
+   275→}
+   276→
+   277→function severityConfig(severity?: 'info' | 'warning' | 'error') {
+   278→  switch (severity) {
+   279→    case 'error': return { color: 'text-red-400', bg: 'bg-red-500/10', label: 'Error' }
+   280→    case 'warning': return { color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'Warning' }
+   281→    default: return { color: 'text-cyan-400', bg: 'bg-cyan-500/10', label: 'Info' }
+   282→  }
+   283→}
+   284→
+   285→function responseTimeColor(rt?: number): string {
+   286→  if (!rt) return 'text-emerald-400'
+   287→  if (rt > 200) return 'text-red-400'
+   288→  if (rt > 100) return 'text-amber-400'
+   289→  return 'text-emerald-400'
+   290→}
+   291→
+   292→const AUTO_EVENT_MESSAGES = [
+   293→  { type: 'info' as const, service: 'Health Monitor', message: 'Health check passed — all services nominal' },
+   294→  { type: 'info' as const, service: 'Cache Service', message: 'Cache cleared — freed 128 MB' },
+   295→  { type: 'info' as const, service: 'Connection Pool', message: 'Connection pool optimized — 6 idle connections recycled' },
+   296→  { type: 'info' as const, service: 'Data Pipeline', message: 'Pipeline batch committed — 2,340 records' },
+   297→  { type: 'warning' as const, service: 'Gateway', message: 'MQTT QoS downgrade detected on 2 topics' },
+   298→  { type: 'info' as const, service: 'Auth Service', message: 'Token rotation completed for 12 sessions' },
+   299→  { type: 'warning' as const, service: 'Database', message: 'Query latency spike: avg 45ms → 120ms' },
+   300→  { type: 'info' as const, service: 'Notification Service', message: 'Alert queue drained — 0 pending' },
+   301→  { type: 'error' as const, service: 'WebSocket Server', message: 'Client handshake timeout — 1 connection dropped' },
+   302→  { type: 'info' as const, service: 'Scheduler', message: 'Cron job completed: telemetry aggregation in 340ms' },
+   303→  { type: 'info' as const, service: 'Gateway', message: 'TLS certificate check — valid for 287 days' },
+   304→]
+   305→
+   306→// ─── Component ──────────────────────────────────────────────────────────
+   307→export function DiagnosticsPage() {
+   308→  const { isConnected } = useIIoTStore()
+   309→  const [apiData, setApiData] = useState(generateApiData)
+   310→  const [memoryData, setMemoryData] = useState(generateMemoryData)
+   311→  const [services, setServices] = useState(generateServices)
+   312→  const [events, setEvents] = useState<SystemEvent[]>(() =>
+   313→    generateEvents().map(e => ({
+   314→      ...e,
+   315→      severity: e.type === 'error' ? 'error' : e.type === 'warning' ? 'warning' : 'info',
+   316→    }))
+   317→  )
+   318→  const [resources, setResources] = useState<ResourceMetric[]>([
+   319→    { label: 'CPU', value: 34, unit: '%', max: 100, trend: 'stable', color: C_GREEN },
+   320→    { label: 'Memory', value: 68, unit: '%', max: 100, trend: 'up', color: C_CYAN },
+   321→    { label: 'Disk', value: 52, unit: '%', max: 100, trend: 'stable', color: C_ORANGE },
+   322→    { label: 'Network', value: 23, unit: 'Mbps', max: 100, trend: 'up', color: C_GREEN },
+   323→  ])
+   324→  const [lastRefresh, setLastRefresh] = useState(new Date())
+   325→  const [lastRefreshText, setLastRefreshText] = useState('—')
+   326→
+   327→  // ── Threshold State ──────────────────────────────────────────────
+   328→  const [thresholdOpen, setThresholdOpen] = useState(false)
+   329→  const [thresholds, setThresholds] = useState<ThresholdConfig>({
+   330→    apiResponseTime: 200,
+   331→    memoryUsage: 85,
+   332→    wsLatency: 50,
+   333→  })
+   334→  const [pendingThresholds, setPendingThresholds] = useState<ThresholdConfig>({ ...thresholds })
+   335→  const [violations, setViolations] = useState<ThresholdViolation[]>([])
+   336→  const [serviceLastChecked, setServiceLastChecked] = useState(new Date())
+   337→  const eventIdRef = useRef(100)
+   338→
+   339→  // Auto-refresh simulated data every 3-5 seconds
+   340→  const refreshData = useCallback(() => {
+   341→    setApiData((prev) => {
+   342→      const now = Date.now()
+   343→      const newPoint = {
+   344→        time: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+   345→        responseTime: Math.max(10, 38 + (Math.random() - 0.5) * 30),
+   346→      }
+   347→      return [...prev.slice(1), newPoint]
+   348→    })
+   349→    setMemoryData((prev) => {
+   350→      const now = Date.now()
+   351→      const lastVal = prev[prev.length - 1].usage
+   352→      const newVal = Math.max(55, Math.min(82, lastVal + (Math.random() - 0.48) * 3))
+   353→      return [
+   354→        ...prev.slice(1),
+   355→        {
+   356→          time: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+   357→          usage: Math.round(newVal * 10) / 10,
+   358→        },
+   359→      ]
+   360→    })
+   361→    setServices((prev) =>
+   362→      prev.map((s) => ({
+   363→        ...s,
+   364→        lastChecked: new Date(),
+   365→        responseTime: Math.round(5 + Math.random() * 40),
+   366→      }))
+   367→    )
+   368→    setServiceLastChecked(new Date())
+   369→    setResources((prev) =>
+   370→      prev.map((r) => {
+   371→        const delta = (Math.random() - 0.45) * 4
+   372→        const newVal = Math.max(5, Math.min(r.max * 0.95, r.value + delta))
+   373→        return {
+   374→          ...r,
+   375→          value: Math.round(newVal * 10) / 10,
+   376→          trend: delta > 1.5 ? 'up' : delta < -1.5 ? 'down' : 'stable',
+   377→        }
+   378→      })
+   379→    )
+   380→    setLastRefresh(new Date())
+   381→  }, [thresholds])
+   382→
+   383→  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+   384→
+   385→  useEffect(() => {
+   386→    refreshData()
+   387→    intervalRef.current = setInterval(refreshData, 4000)
+   388→    return () => {
+   389→      if (intervalRef.current) clearInterval(intervalRef.current)
+   390→    }
+   391→  }, [refreshData])
+   392→
+   393→  // Update "last refreshed" text
+   394→  useEffect(() => {
+   395→    function update() {
+   396→      setLastRefreshText(formatDistanceToNow(lastRefresh, { addSuffix: true }))
+   397→    }
+   398→    update()
+   399→    const interval = setInterval(update, 5000)
+   400→    return () => clearInterval(interval)
+   401→  }, [lastRefresh])
+   402→
+   403→  // ── Computed KPIs ──────────────────────────────────────────────────────
+   404→  const kpis = useMemo(() => {
+   405→    const latest = apiData[apiData.length - 1]
+   406→    const avgResponse = apiData.reduce((s, d) => s + d.responseTime, 0) / apiData.length
+   407→    const latestMem = memoryData[memoryData.length - 1]
+   408→    return {
+   409→      uptime: '99.97%',
+   410→      apiResponseTime: Math.round(avgResponse),
+   411→      wsLatency: 12 + Math.round((Math.random() - 0.5) * 4),
+   412→      activeConnections: 24 + Math.round((Math.random() - 0.5) * 6),
+   413→      peakResponse: Math.round(Math.max(...apiData.map((d) => d.responseTime))),
+   414→      currentMemory: latestMem?.usage.toFixed(1) ?? '68.0',
+   415→    }
+   416→  }, [apiData, memoryData])
+   417→
+   418→  // ── Threshold violation checking ────────────────────────────────────
+   419→  useEffect(() => {
+   420→    const newViolations: ThresholdViolation[] = []
+   421→    if (kpis.apiResponseTime > thresholds.apiResponseTime) {
+   422→      newViolations.push({
+   423→        id: 'v-api',
+   424→        metric: 'API Response Time',
+   425→        currentValue: kpis.apiResponseTime,
+   426→        threshold: thresholds.apiResponseTime,
+   427→        unit: 'ms',
+   428→        exceeded: kpis.apiResponseTime - thresholds.apiResponseTime,
+   429→      })
+   430→    }
+   431→    if (Number(kpis.currentMemory) > thresholds.memoryUsage) {
+   432→      newViolations.push({
+   433→        id: 'v-mem',
+   434→        metric: 'Memory Usage',
+   435→        currentValue: Number(kpis.currentMemory),
+   436→        threshold: thresholds.memoryUsage,
+   437→        unit: '%',
+   438→        exceeded: Math.round((Number(kpis.currentMemory) - thresholds.memoryUsage) * 10) / 10,
+   439→      })
+   440→    }
+   441→    if (kpis.wsLatency > thresholds.wsLatency) {
+   442→      newViolations.push({
+   443→        id: 'v-ws',
+   444→        metric: 'WebSocket Latency',
+   445→        currentValue: kpis.wsLatency,
+   446→        threshold: thresholds.wsLatency,
+   447→        unit: 'ms',
+   448→        exceeded: kpis.wsLatency - thresholds.wsLatency,
+   449→      })
+   450→    }
+   451→    setViolations(newViolations)
+   452→  }, [kpis, thresholds])
+   453→
+   454→  // ── Apply thresholds ──────────────────────────────────────────────
+   455→  const applyThresholds = useCallback(() => {
+   456→    setThresholds({ ...pendingThresholds })
+   457→  }, [pendingThresholds])
+   458→
+   459→  const clearViolation = useCallback((id: string) => {
+   460→    setViolations((prev) => prev.filter(v => v.id !== id))
+   461→  }, [])
+   462→
+   463→  const clearAllViolations = useCallback(() => {
+   464→    setViolations([])
+   465→  }, [])
+   466→
+   467→  // ── Auto-generate system events every 8-15 seconds ────────────────
+   468→  useEffect(() => {
+   469→    let msgIdx = 0
+   470→    function addEvent() {
+   471→      const template = AUTO_EVENT_MESSAGES[msgIdx % AUTO_EVENT_MESSAGES.length]
+   472→      msgIdx++
+   473→      const sev: 'info' | 'warning' | 'error' = template.type
+   474→      setEvents((prev) => {
+   475→        const newEvent: SystemEvent = {
+   476→          id: `auto-${eventIdRef.current++}`,
+   477→          timestamp: new Date(),
+   478→          type: template.type === 'error' ? 'error' : template.type === 'warning' ? 'warning' : 'info',
+   479→          service: template.service,
+   480→          message: template.message,
+   481→          severity: sev,
+   482→          isNew: true,
+   483→        }
+   484→        const updated = [newEvent, ...prev].slice(0, 20)
+   485→        // Remove isNew flag after animation
+   486→        setTimeout(() => {
+   487→          setEvents((curr) => curr.map(e => e.id === newEvent.id ? { ...e, isNew: false } : e))
+   488→        }, 400)
+   489→        return updated
+   490→      })
+   491→      const nextDelay = 8000 + Math.random() * 7000
+   492→      const timer = setTimeout(addEvent, nextDelay)
+   493→      return () => clearTimeout(timer)
+   494→    }
+   495→    const initialDelay = 8000 + Math.random() * 7000
+   496→    const timer = setTimeout(addEvent, initialDelay)
+   497→    return () => clearTimeout(timer)
+   498→  }, [])
+   499→
+   500→  return (
+   501→    <div className="space-y-6">
+   502→      <PageHeader
+   503→        icon={HeartPulse}
+   504→        title="System Diagnostics"
+   505→        description="Platform health, service status, and resource monitoring"
+   506→        lastUpdated={lastRefreshText}
+   507→        badge="Live"
+   508→        actions={
+   509→          <Button
+   510→            variant="outline"
+   511→            size="sm"
+   512→            className="h-8 text-xs gap-1.5"
+   513→            onClick={refreshData}
+   514→          >
+   515→            <RefreshCw className="size-3.5" />
+   516→            Refresh Now
+   517→          </Button>
+   518→        }
+   519→      />
+   520→
+   521→      {/* ── System Health Overview (4 KPI cards) ──────────────────────── */}
+   522→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   523→        <KPICard
+   524→          icon={Activity}
+   525→          label="Platform Uptime"
+   526→          value={kpis.uptime}
+   527→          unit="(30d)"
+   528→          trend="up"
+   529→          trendValue="Stable"
+   530→          color={C_GREEN}
+   531→          index={0}
+   532→        />
+   533→        <KPICard
+   534→          icon={Zap}
+   535→          label="API Response Time"
+   536→          value={`${kpis.apiResponseTime}`}
+   537→          unit="ms avg"
+   538→          trend={kpis.peakResponse > 150 ? 'down' : 'up'}
+   539→          trendValue={kpis.peakResponse > 150 ? `Peak ${kpis.peakResponse}ms` : `Peak ${kpis.peakResponse}ms`}
+   540→          color={C_CYAN}
+   541→          index={1}
+   542→          isAlerting={kpis.apiResponseTime > thresholds.apiResponseTime}
+   543→        />
+   544→        <KPICard
+   545→          icon={Wifi}
+   546→          label="WebSocket Latency"
+   547→          value={`${kpis.wsLatency}`}
+   548→          unit="ms"
+   549→          trend="up"
+   550→          trendValue="Normal"
+   551→          color={C_GREEN}
+   552→          index={2}
+   553→          isAlerting={kpis.wsLatency > thresholds.wsLatency}
+   554→        />
+   555→        <KPICard
+   556→          icon={Network}
+   557→          label="Active Connections"
+   558→          value={`${kpis.activeConnections}`}
+   559→          unit="clients"
+   560→          trend={kpis.activeConnections > 26 ? 'up' : 'stable'}
+   561→          trendValue={isConnected ? 'WebSocket OK' : 'Disconnected'}
+   562→          color={C_ORANGE}
+   563→          index={3}
+   564→        />
+   565→      </div>
+   566→
+   567→      {/* ── Threshold Configuration Panel ────────────────────────────── */}
+   568→      <Collapsible open={thresholdOpen} onOpenChange={setThresholdOpen}>
+   569→        <Card className="glass-card animate-slide-up stagger-1">
+   570→          <CollapsibleTrigger className="w-full">
+   571→            <CardHeader className="pb-3 pt-5 px-5 cursor-pointer hover:bg-muted/20 transition-colors rounded-t-xl">
+   572→              <div className="flex items-center justify-between">
+   573→                <div className="flex items-center gap-2">
+   574→                  <Settings2 className="size-4 text-muted-foreground" />
+   575→                  <CardTitle className="text-sm font-semibold">Threshold Configuration</CardTitle>
+   576→                  {violations.length > 0 && (
+   577→                    <Badge className="text-[10px] border-0 bg-red-500/15 text-red-400 badge-sharp">
+   578→                      {violations.length} Active Alert{violations.length > 1 ? 's' : ''}
+   579→                    </Badge>
+   580→                  )}
+   581→                </div>
+   582→                <div className="flex items-center gap-1.5 text-muted-foreground/60">
+   583→                  <span className="text-[11px]">API: {thresholds.apiResponseTime}ms · Mem: {thresholds.memoryUsage}% · WS: {thresholds.wsLatency}ms</span>
+   584→                  {thresholdOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+   585→                </div>
+   586→              </div>
+   587→            </CardHeader>
+   588→          </CollapsibleTrigger>
+   589→          <CollapsibleContent>
+   590→            <CardContent className="px-5 pb-5 pt-0">
+   591→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   592→                <div className="space-y-2">
+   593→                  <Label className="text-xs text-muted-foreground/80">API Response Time (ms)</Label>
+   594→                  <Input
+   595→                    type="number"
+   596→                    className="h-9 text-sm"
+   597→                    value={pendingThresholds.apiResponseTime}
+   598→                    onChange={(e) => setPendingThresholds(prev => ({ ...prev, apiResponseTime: Number(e.target.value) || 0 }))}
+   599→                  />
+   600→                </div>
+   601→                <div className="space-y-2">
+   602→                  <Label className="text-xs text-muted-foreground/80">Memory Usage (%)</Label>
+   603→                  <Input
+   604→                    type="number"
+   605→                    className="h-9 text-sm"
+   606→                    value={pendingThresholds.memoryUsage}
+   607→                    onChange={(e) => setPendingThresholds(prev => ({ ...prev, memoryUsage: Number(e.target.value) || 0 }))}
+   608→                  />
+   609→                </div>
+   610→                <div className="space-y-2">
+   611→                  <Label className="text-xs text-muted-foreground/80">WebSocket Latency (ms)</Label>
+   612→                  <Input
+   613→                    type="number"
+   614→                    className="h-9 text-sm"
+   615→                    value={pendingThresholds.wsLatency}
+   616→                    onChange={(e) => setPendingThresholds(prev => ({ ...prev, wsLatency: Number(e.target.value) || 0 }))}
+   617→                  />
+   618→                </div>
+   619→              </div>
+   620→              <div className="mt-4 flex justify-end">
+   621→                <Button size="sm" className="h-8 text-xs gap-1.5" onClick={applyThresholds}>
+   622→                  <CheckCircle2 className="size-3.5" />
+   623→                  Apply
+   624→                </Button>
+   625→              </div>
+   626→            </CardContent>
+   627→          </CollapsibleContent>
+   628→        </Card>
+   629→      </Collapsible>
+   630→
+   631→      {/* ── Threshold Alerts ──────────────────────────────────────────── */}
+   632→      {violations.length > 0 && (
+   633→        <Card className="animate-slide-up threshold-alert-border">
+   634→          <CardHeader className="pb-3 pt-5 px-5">
+   635→            <div className="flex items-center justify-between">
+   636→              <div className="flex items-center gap-2">
+   637→                <ShieldAlert className="size-4 text-red-400" />
+   638→                <CardTitle className="text-sm font-semibold text-red-400">Threshold Alerts</CardTitle>
+   639→                <Badge className="text-[10px] border-0 bg-red-500/15 text-red-400 badge-sharp">
+   640→                  {violations.length}
+   641→                </Badge>
+   642→              </div>
+   643→              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground/60 hover:text-red-400 gap-1" onClick={clearAllViolations}>
+   644→                <Trash2 className="size-3" />
+   645→                Clear All
+   646→              </Button>
+   647→            </div>
+   648→          </CardHeader>
+   649→          <CardContent className="px-5 pb-5">
+   650→            <div className="space-y-2 max-h-48 overflow-y-auto">
+   651→              {violations.map((v) => (
+   652→                <div key={v.id} className="flex items-center justify-between rounded-lg bg-red-500/5 border border-red-500/10 px-3 py-2">
+   653→                  <div className="flex items-center gap-3">
+   654→                    <AlertTriangle className="size-4 text-red-400 shrink-0" />
+   655→                    <div>
+   656→                      <p className="text-xs font-semibold text-foreground/90">{v.metric}</p>
+   657→                      <p className="text-[11px] text-muted-foreground/60">
+   658→                        Current: <span className="text-red-400 font-medium badge-sharp">{v.currentValue}{v.unit}</span> · Threshold: <span className="font-medium badge-sharp">{v.threshold}{v.unit}</span>
+   659→                      </p>
+   660→                    </div>
+   661→                  </div>
+   662→                  <div className="flex items-center gap-3">
+   663→                    <Badge className="text-[10px] border-0 bg-red-500/15 text-red-400 badge-sharp">
+   664→                      +{v.exceeded}{v.unit}
+   665→                    </Badge>
+   666→                    <button onClick={() => clearViolation(v.id)} className="text-muted-foreground/40 hover:text-red-400 transition-colors">
+   667→                      <X className="size-3.5" />
+   668→                    </button>
+   669→                  </div>
+   670→                </div>
+   671→              ))}
+   672→            </div>
+   673→          </CardContent>
+   674→        </Card>
+   675→      )}
+   676→
+   677→      {/* ── Real-time Performance Charts (2 side-by-side) ────────────── */}
+   678→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   679→        {/* API Response Time */}
+   680→        <Card className="chart-container-glass animate-slide-up stagger-1">
+   681→          <CardHeader className="pb-2 pt-5 px-5">
+   682→            <div className="flex items-center justify-between">
+   683→              <div>
+   684→                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   685→                  <Activity className="size-4 text-cyan-400" />
+   686→                  API Response Time
+   687→                </CardTitle>
+   688→                <CardDescription className="mt-0.5 text-xs">Last 60 data points · p95 threshold at 200ms</CardDescription>
+   689→              </div>
+   690→              <Badge
+   691→                className={`text-[10px] border-0 ${
+   692→                  kpis.peakResponse > 200
+   693→                    ? 'bg-red-500/15 text-red-400'
+   694→                    : 'bg-emerald-500/15 text-emerald-400'
+   695→                }`}
+   696→              >
+   697→                {kpis.peakResponse > 200 ? 'Threshold Breached' : 'Within Threshold'}
+   698→              </Badge>
+   699→            </div>
+   700→          </CardHeader>
+   701→          <CardContent className="px-5 pb-5">
+   702→            <div className="h-[260px] w-full">
+   703→              <ResponsiveContainer width="100%" height="100%">
+   704→                <LineChart data={apiData}>
+   705→                  <defs>
+   706→                    <linearGradient id="apiGrad" x1="0" y1="0" x2="0" y2="1">
+   707→                      <stop offset="0%" stopColor={C_CYAN} stopOpacity={0.2} />
+   708→                      <stop offset="100%" stopColor={C_CYAN} stopOpacity={0} />
+   709→                    </linearGradient>
+   710→                  </defs>
+   711→                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   712→                  <XAxis
+   713→                    dataKey="time"
+   714→                    tick={AXIS_TICK_SM}
+   715→                    tickLine={false}
+   716→                    axisLine={AXIS_LINE}
+   717→                    interval={14}
+   718→                  />
+   719→                  <YAxis
+   720→                    tick={AXIS_TICK_SM}
+   721→                    tickLine={false}
+   722→                    axisLine={AXIS_LINE}
+   723→                    width={40}
+   724→                    domain={[0, 250]}
+   725→                  />
+   726→                  <Tooltip content={<ChartTooltip valueSuffix=" ms" />} />
+   727→                  <ReferenceLine
+   728→                    y={200}
+   729→                    stroke={C_RED}
+   730→                    strokeDasharray="6 4"
+   731→                    strokeWidth={1.5}
+   732→                    strokeOpacity={0.7}
+   733→                    label={{
+   734→                      value: 'p95 (200ms)',
+   735→                      position: 'insideTopRight',
+   736→                      fill: C_RED,
+   737→                      fontSize: 10,
+   738→                      opacity: 0.8,
+   739→                    }}
+   740→                  />
+   741→                  <Line
+   742→                    type="monotone"
+   743→                    dataKey="responseTime"
+   744→                    stroke={C_CYAN}
+   745→                    strokeWidth={2}
+   746→                    dot={false}
+   747→                    name="Response Time"
+   748→                    animationDuration={300}
+   749→                  />
+   750→                </LineChart>
+   751→              </ResponsiveContainer>
+   752→            </div>
+   753→          </CardContent>
+   754→        </Card>
+   755→
+   756→        {/* Memory Usage */}
+   757→        <Card className="chart-container-glass animate-slide-up stagger-2">
+   758→          <CardHeader className="pb-2 pt-5 px-5">
+   759→            <div className="flex items-center justify-between">
+   760→              <div>
+   761→                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   762→                  <Server className="size-4 text-emerald-400" />
+   763→                  Memory Usage
+   764→                </CardTitle>
+   765→                <CardDescription className="mt-0.5 text-xs">Percentage over time · Target 60–80%</CardDescription>
+   766→              </div>
+   767→              <Badge
+   768→                className={`text-[10px] border-0 ${
+   769→                  Number(kpis.currentMemory) > 80
+   770→                    ? 'bg-amber-500/15 text-amber-400'
+   771→                    : Number(kpis.currentMemory) >= 60
+   772→                      ? 'bg-emerald-500/15 text-emerald-400'
+   773→                      : 'bg-cyan-500/15 text-cyan-400'
+   774→                }`}
+   775→              >
+   776→                {kpis.currentMemory}%
+   777→              </Badge>
+   778→            </div>
+   779→          </CardHeader>
+   780→          <CardContent className="px-5 pb-5">
+   781→            <div className="h-[260px] w-full">
+   782→              <ResponsiveContainer width="100%" height="100%">
+   783→                <AreaChart data={memoryData}>
+   784→                  <defs>
+   785→                    <linearGradient id="memGrad" x1="0" y1="0" x2="0" y2="1">
+   786→                      <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.3} />
+   787→                      <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
+   788→                    </linearGradient>
+   789→                  </defs>
+   790→                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   791→                  <XAxis
+   792→                    dataKey="time"
+   793→                    tick={AXIS_TICK_SM}
+   794→                    tickLine={false}
+   795→                    axisLine={AXIS_LINE}
+   796→                    interval={14}
+   797→                  />
+   798→                  <YAxis
+   799→                    tick={AXIS_TICK_SM}
+   800→                    tickLine={false}
+   801→                    axisLine={AXIS_LINE}
+   802→                    width={35}
+   803→                    domain={[50, 90]}
+   804→                  />
+   805→                  <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+   806→                  <ReferenceLine
+   807→                    y={60}
+   808→                    stroke={C_CYAN}
+   809→                    strokeDasharray="4 4"
+   810→                    strokeWidth={1}
+   811→                    strokeOpacity={0.4}
+   812→                    label={{
+   813→                      value: '60%',
+   814→                      position: 'insideTopRight',
+   815→                      fill: C_CYAN,
+   816→                      fontSize: 9,
+   817→                      opacity: 0.7,
+   818→                    }}
+   819→                  />
+   820→                  <ReferenceLine
+   821→                    y={80}
+   822→                    stroke={C_ORANGE}
+   823→                    strokeDasharray="4 4"
+   824→                    strokeWidth={1}
+   825→                    strokeOpacity={0.4}
+   826→                    label={{
+   827→                      value: '80%',
+   828→                      position: 'insideTopRight',
+   829→                      fill: C_ORANGE,
+   830→                      fontSize: 9,
+   831→                      opacity: 0.7,
+   832→                    }}
+   833→                  />
+   834→                  <Area
+   835→                    type="monotone"
+   836→                    dataKey="usage"
+   837→                    stroke={C_GREEN}
+   838→                    strokeWidth={2}
+   839→                    fill="url(#memGrad)"
+   840→                    name="Memory Usage"
+   841→                    animationDuration={300}
+   842→                  />
+   843→                </AreaChart>
+   844→              </ResponsiveContainer>
+   845→            </div>
+   846→          </CardContent>
+   847→        </Card>
+   848→      </div>
+   849→
+   850→      {/* ── Service Status Grid ──────────────────────────────────────── */}
+   851→      <div className="space-y-3">
+   852→        <div className="flex items-center justify-between">
+   853→          <h2 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+   854→            <Server className="size-4 text-muted-foreground" />
+   855→            Service Status
+   856→          </h2>
+   857→          <span className="text-[11px] text-muted-foreground/50 flex items-center gap-1.5">
+   858→            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+   859→            Last checked: {formatDistanceToNow(serviceLastChecked, { addSuffix: true })}
+   860→          </span>
+   861→        </div>
+   862→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   863→          {services.map((service, idx) => {
+   864→            const Icon = service.icon
+   865→            const healthy = isHealthy(service.status)
+   866→            return (
+   867→              <Card
+   868→                key={service.name}
+   869→                className={`kpi-card-hover animate-slide-up stagger-${Math.min(idx + 1, 6)}`}
+   870→              >
+   871→                <CardContent className="p-4">
+   872→                  <div className="flex items-start justify-between">
+   873→                    <div className="flex items-start gap-3">
+   874→                      <div
+   875→                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${
+   876→                          healthy
+   877→                            ? 'bg-emerald-500/10 ring-emerald-500/20'
+   878→                            : 'bg-red-500/10 ring-red-500/20'
+   879→                        }`}
+   880→                      >
+   881→                        <Icon
+   882→                          className={`size-5 ${healthy ? 'text-emerald-400' : 'text-red-400'}`}
+   883→                        />
+   884→                      </div>
+   885→                      <div className="min-w-0">
+   886→                        <p className="text-sm font-semibold text-foreground/90">
+   887→                          {service.name}
+   888→                        </p>
+   889→                        <div className="flex items-center gap-1.5 mt-1">
+   890→                          <span
+   891→                            className={`size-2 rounded-full ${statusColor(service.status)} ${
+   892→                              healthy ? 'animate-pulse-dot' : ''
+   893→                            }`}
+   894→                          />
+   895→                          <span
+   896→                            className={`text-xs font-medium ${
+   897→                              healthy ? 'text-emerald-400' : 'text-red-400'
+   898→                            }`}
+   899→                          >
+   900→                            {statusLabel(service.status)}
+   901→                          </span>
+   902→                        </div>
+   903→                      </div>
+   904→                    </div>
+   905→                    <Badge
+   906→                      variant="outline"
+   907→                      className={`text-[10px] border-0 ${responseTimeColor(service.responseTime) === 'text-red-400'
+   908→                        ? 'bg-red-500/10 text-red-400'
+   909→                        : responseTimeColor(service.responseTime) === 'text-amber-400'
+   910→                          ? 'bg-amber-500/10 text-amber-400'
+   911→                          : 'bg-emerald-500/10 text-emerald-400'
+   912→                      }`}
+   913→                    >
+   914→                      {service.responseTime}ms
+   915→                    </Badge>
+   916→                  </div>
+   917→                  <div className="mt-3 pt-3 border-t border-border/30 space-y-1.5">
+   918→                    <div className="flex items-center justify-between text-[11px]">
+   919→                      <span className="text-muted-foreground/60">Uptime</span>
+   920→                      <span className="font-medium text-foreground/80 metric-value">
+   921→                        {service.uptime}
+   922→                      </span>
+   923→                    </div>
+   924→                    <div className="flex items-center justify-between text-[11px]">
+   925→                      <span className="text-muted-foreground/60">Last Checked</span>
+   926→                      <span className="font-medium text-foreground/60">
+   927→                        {formatDistanceToNow(service.lastChecked, { addSuffix: true })}
+   928→                      </span>
+   929→                    </div>
+   930→                    {service.details && (
+   931→                      <p className="text-[10px] text-muted-foreground/50 mt-1.5 leading-relaxed">
+   932→                        {service.details}
+   933→                      </p>
+   934→                    )}
+   935→                  </div>
+   936→                </CardContent>
+   937→              </Card>
+   938→            )
+   939→          })}
+   940→        </div>
+   941→      </div>
+   942→
+   943→      {/* ── System Resources ─────────────────────────────────────────── */}
+   944→      <Card className="animate-slide-up stagger-5">
+   945→        <CardHeader className="pb-3 pt-5 px-5">
+   946→          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   947→            <Cpu className="size-4 text-muted-foreground" />
+   948→            System Resources
+   949→          </CardTitle>
+   950→          <CardDescription className="text-xs">
+   951→            Real-time resource utilization with trend indicators
+   952→          </CardDescription>
+   953→        </CardHeader>
+   954→        <CardContent className="px-5 pb-5">
+   955→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+   956→            {resources.map((res) => (
+   957→              <ResourceBar key={res.label} metric={res} />
+   958→            ))}
+   959→          </div>
+   960→        </CardContent>
+   961→      </Card>
+   962→
+   963→      {/* ── Recent Events Log ───────────────────────────────────────── */}
+   964→      <Card className="animate-slide-up stagger-6">
+   965→        <CardHeader className="pb-3 pt-5 px-5">
+   966→          <div className="flex items-center justify-between">
+   967→            <div>
+   968→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   969→                <CircleDot className="size-4 text-muted-foreground" />
+   970→                Recent Events
+   971→              </CardTitle>
+   972→              <CardDescription className="mt-0.5 text-xs">
+   973→                Last 15 system events — deployments, restarts, errors, warnings
+   974→              </CardDescription>
+   975→            </div>
+   976→            <div className="flex items-center gap-1.5">
+   977→              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+   978→              <span className="text-[11px] text-muted-foreground/60">Monitoring</span>
+   979→            </div>
+   980→          </div>
+   981→        </CardHeader>
+   982→        <CardContent className="px-5 pb-5">
+   983→          <div className="rounded-lg border border-border/30 overflow-hidden">
+   984→            <Table>
+   985→              <TableHeader>
+   986→                <TableRow className="border-border/30 hover:bg-transparent">
+   987→                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+   988→                    Type
+   989→                  </TableHead>
+   990→                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+   991→                    Service
+   992→                  </TableHead>
+   993→                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9">
+   994→                    Event
+   995→                  </TableHead>
+   996→                  <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 h-9 text-right">
+   997→                    Time
+   998→                  </TableHead>
+   999→                </TableRow>
+  1000→              </TableHeader>
+  1001→              <TableBody>
+  1002→                {events.map((event) => {
+  1003→                  const config = eventTypeConfig(event.type)
+  1004→                  const EventIcon = config.icon
+  1005→                  return (
+  1006→                    <TableRow
+  1007→                      key={event.id}
+  1008→                      className="border-border/20 hover:bg-muted/30 transition-colors"
+  1009→                    >
+  1010→                      <TableCell className="py-2.5">
+  1011→                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md w-fit ${config.bg}`}>
+  1012→                          <EventIcon className={`size-3 ${config.color}`} />
+  1013→                          <span className={`text-[10px] font-semibold ${config.color}`}>
+  1014→                            {config.label}
+  1015→                          </span>
+  1016→                        </div>
+  1017→                      </TableCell>
+  1018→                      <TableCell className="py-2.5">
+  1019→                        <span className="text-xs font-medium text-foreground/80">
+  1020→                          {event.service}
+  1021→                        </span>
+  1022→                      </TableCell>
+  1023→                      <TableCell className="py-2.5">
+  1024→                        <span className="text-xs text-muted-foreground/70 max-w-[400px] truncate block">
+  1025→                          {event.message}
+  1026→                        </span>
+  1027→                      </TableCell>
+  1028→                      <TableCell className="py-2.5 text-right">
+  1029→                        <span className="text-[11px] text-muted-foreground/50">
+  1030→                          {formatDistanceToNow(event.timestamp, { addSuffix: true })}
+  1031→                        </span>
+  1032→                      </TableCell>
+  1033→                    </TableRow>
+  1034→                  )
+  1035→                })}
+  1036→              </TableBody>
+  1037→            </Table>
+  1038→          </div>
+  1039→        </CardContent>
+  1040→      </Card>
+  1041→    </div>
+  1042→  )
+  1043→}
+  1044→
+  1045→// ─── KPI Card ─────────────────────────────────────────────────────────────
+  1046→function KPICard({
+  1047→  icon: Icon,
+  1048→  label,
+  1049→  value,
+  1050→  unit,
+  1051→  trend,
+  1052→  trendValue,
+  1053→  color = C_GREEN,
+  1054→  index = 0,
+  1055→}: {
+  1056→  icon: React.ElementType
+  1057→  label: string
+  1058→  value: string
+  1059→  unit: string
+  1060→  trend: 'up' | 'down' | 'neutral' | 'stable'
+  1061→  trendValue: string
+  1062→  color?: string
+  1063→  index?: number
+  1064→}) {
+  1065→  return (
+  1066→    <Card
+  1067→      className={`relative overflow-hidden transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 group kpi-card-hover animate-slide-up stagger-${Math.min(index + 1, 6)}`}
+  1068→    >
+  1069→      <div
+  1070→        className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"
+  1071→        style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }}
+  1072→      />
+  1073→      <CardContent className="flex items-start justify-between p-5">
+  1074→        <div className="flex items-start gap-3.5 min-w-0">
+  1075→          <div
+  1076→            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 transition-all duration-300 group-hover:scale-105"
+  1077→            style={{
+  1078→              backgroundColor: `${color}18`,
+  1079→              ['--tw-ring-color' as string]: `${color}25`,
+  1080→            }}
+  1081→          >
+  1082→            <Icon className="size-5" style={{ color }} />
+  1083→          </div>
+  1084→          <div className="min-w-0">
+  1085→            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 metric-label">
+  1086→              {label}
+  1087→            </p>
+  1088→            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-foreground metric-value">
+  1089→              {value}
+  1090→              <span className="text-xs font-normal text-muted-foreground/60 ml-1.5">{unit}</span>
+  1091→            </p>
+  1092→            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+  1093→              {(trend === 'up' || trend === 'stable') && (
+  1094→                <span className="flex items-center gap-0.5 text-emerald-400">
+  1095→                  <TrendingUp className="size-3" />
+  1096→                </span>
+  1097→              )}
+  1098→              {trend === 'down' && (
+  1099→                <span className="flex items-center gap-0.5 text-red-400">
+  1100→                  <TrendingDown className="size-3" />
+  1101→                </span>
+  1102→              )}
+  1103→              {trend === 'neutral' && (
+  1104→                <span className="flex items-center gap-0.5 text-muted-foreground/60">
+  1105→                  <Minus className="size-3" />
+  1106→                </span>
+  1107→              )}
+  1108→              <span className="text-muted-foreground/60">{trendValue}</span>
+  1109→            </div>
+  1110→          </div>
+  1111→        </div>
+  1112→      </CardContent>
+  1113→    </Card>
+  1114→  )
+  1115→}
+  1116→
+  1117→// ─── Resource Bar ────────────────────────────────────────────────────────
+  1118→function ResourceBar({ metric }: { metric: ResourceMetric }) {
+  1119→  const percentage = (metric.value / metric.max) * 100
+  1120→  const isHigh = percentage > 80
+  1121→  const isMedium = percentage > 60
+  1122→
+  1123→  const barColor = isHigh
+  1124→    ? 'bg-red-500'
+  1125→    : isMedium
+  1126→      ? 'bg-amber-500'
+  1127→      : metric.color === C_GREEN
+  1128→        ? 'bg-emerald-500'
+  1129→        : metric.color === C_CYAN
+  1130→          ? 'bg-cyan-500'
+  1131→          : 'bg-orange-500'
+  1132→
+  1133→  const iconMap: Record<string, React.ElementType> = {
+  1134→    CPU: Cpu,
+  1135→    Memory: Server,
+  1136→    Disk: HardDrive,
+  1137→    Network: Network,
+  1138→  }
+  1139→  const ResIcon = iconMap[metric.label] || Activity
+  1140→
+  1141→  return (
+  1142→    <div className="space-y-3">
+  1143→      <div className="flex items-center justify-between">
+  1144→        <div className="flex items-center gap-2">
+  1145→          <ResIcon className="size-4 text-muted-foreground/70" />
+  1146→          <span className="text-xs font-semibold text-foreground/80">{metric.label}</span>
+  1147→        </div>
+  1148→        <div className="flex items-center gap-1.5">
+  1149→          {metric.trend === 'up' && <ArrowUpRight className="size-3 text-amber-400" />}
+  1150→          {metric.trend === 'down' && <ArrowDownRight className="size-3 text-emerald-400" />}
+  1151→          {metric.trend === 'stable' && <Minus className="size-3 text-muted-foreground/50" />}
+  1152→          <span className={`text-sm font-bold metric-value ${isHigh ? 'text-red-400' : isMedium ? 'text-amber-400' : 'text-foreground'}`}>
+  1153→            {Math.round(metric.value)}
+  1154→            <span className="text-[10px] font-normal text-muted-foreground/60 ml-0.5">
+  1155→              {metric.unit}
+  1156→            </span>
+  1157→          </span>
+  1158→        </div>
+  1159→      </div>
+  1160→      <div className="relative h-2.5 w-full rounded-full bg-muted/50 overflow-hidden">
+  1161→        <div
+  1162→          className={`h-full rounded-full transition-all duration-700 ease-out ${barColor}`}
+  1163→          style={{
+  1164→            width: `${Math.min(percentage, 100)}%`,
+  1165→            boxShadow: isHigh
+  1166→              ? '0 0 12px rgba(239,68,68,0.3)'
+  1167→              : isMedium
+  1168→                ? '0 0 8px rgba(245,158,11,0.2)'
+  1169→                : `0 0 8px ${metric.color}33`,
+  1170→          }}
+  1171→        />
+  1172→        {/* 60% and 80% markers */}
+  1173→        {metric.label !== 'Network' && (
+  1174→          <>
+  1175→            <div
+  1176→              className="absolute top-0 bottom-0 w-px bg-cyan-500/30"
+  1177→              style={{ left: '60%' }}
+  1178→            />
+  1179→            <div
+  1180→              className="absolute top-0 bottom-0 w-px bg-orange-500/30"
+  1181→              style={{ left: '80%' }}
+  1182→            />
+  1183→          </>
+  1184→        )}
+  1185→      </div>
+  1186→    </div>
+  1187→  )
+  1188→}
+  1189→

@@ -24,6 +24,7 @@ import { FirmwareOTAPage } from '@/features/devices/pages/firmware-ota-page'
 import { UsersPage } from '@/features/administration/pages/users-page'
 import { SitesPage, RolesPermissionsPage, SettingsPage } from '@/features/administration/pages/admin-pages'
 import { DiagnosticsPage } from '@/features/administration/pages/diagnostics-page'
+import { AuditLogPage } from '@/features/administration/pages/audit-log-page'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { AlarmToast } from '@/components/layout/alarm-toast'
 
@@ -48,6 +49,7 @@ const pageComponents: Record<PageId, React.ComponentType> = {
   sites: SitesPage,
   'roles-permissions': RolesPermissionsPage,
   diagnostics: DiagnosticsPage,
+  'audit-log': AuditLogPage,
   settings: SettingsPage,
 }
 
@@ -68,11 +70,11 @@ export default function Home() {
             {PageComponent ? <PageComponent key={currentPage} /> : null}
           </main>
           <footer className="platform-footer border-t border-border/30 bg-card/50 backdrop-blur-sm px-6 py-3.5 mt-auto">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 text-[11px] text-muted-foreground/60">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 text-[11px] text-muted-foreground/80">
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-muted-foreground/80">IIoT Platform</span>
+                <span className="font-semibold text-muted-foreground">IIoT Platform</span>
                 <span className="text-muted-foreground/30">|</span>
-                <span>v2.2.0</span>
+                <span>v2.3.0</span>
               </div>
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5">
@@ -85,7 +87,7 @@ export default function Home() {
                   WebSocket Connected
                 </span>
                 <span className="text-muted-foreground/30 hidden sm:inline">|</span>
-                <span className="hidden sm:inline">v2.2.0</span>
+                <span className="hidden sm:inline">v2.3.0</span>
               </div>
             </div>
           </footer>

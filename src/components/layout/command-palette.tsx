@@ -24,6 +24,9 @@ import {
   Command as CommandIcon,
   Monitor,
   AlertTriangle,
+  Wrench,
+  FileText,
+  History,
 } from 'lucide-react'
 import {
   Command,
@@ -43,16 +46,18 @@ import { useNavigation, type PageId } from '@/store/navigation'
 import { useIIoTStore, type MachineStatus } from '@/store/iiot'
 import { MachineDetailDialog } from '@/shared/components/machine-detail-dialog'
 
-// All 18 pages with their icons
+// All 21 pages with their icons
 const PAGE_ITEMS: { id: PageId; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'live-monitoring', label: 'Live Monitoring', icon: Activity },
   { id: 'assets-machines', label: 'Assets & Machines', icon: Factory },
   { id: 'production', label: 'Production', icon: Package },
+  { id: 'maintenance', label: 'Maintenance', icon: Wrench },
   { id: 'historical-data', label: 'Historical Data', icon: Clock },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'energy-monitoring', label: 'Energy Monitoring', icon: Zap },
   { id: 'oee', label: 'OEE', icon: Gauge },
+  { id: 'reports', label: 'Reports', icon: FileText },
   { id: 'active-alarms', label: 'Active Alarms', icon: Bell },
   { id: 'alarm-history', label: 'Alarm History', icon: CheckCircle },
   { id: 'alert-rules', label: 'Alert Rules', icon: Settings },
@@ -62,6 +67,7 @@ const PAGE_ITEMS: { id: PageId; label: string; icon: React.ElementType }[] = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'sites', label: 'Sites', icon: Building2 },
   { id: 'roles-permissions', label: 'Roles & Permissions', icon: Shield },
+  { id: 'diagnostics', label: 'Diagnostics', icon: Activity },
   { id: 'settings', label: 'Platform Settings', icon: Cog },
 ]
 
@@ -81,11 +87,32 @@ const SEVERITY_DOT: Record<string, string> = {
   info: 'bg-cyan-500',
 }
 
+const MAX_RECENT = 5
+
+function getRecentPages(): PageId[] {
+  if (typeof window === 'undefined') return []
+  try {
+    return JSON.parse(localStorage.getItem('iiot-recent-pages') || '[]')
+  } catch { return [] }
+}
+
+function addRecentPage(pageId: PageId) {
+  try {
+    const recent = getRecentPages().filter(p => p !== pageId)
+    recent.unshift(pageId)
+    localStorage.setItem('iiot-recent-pages', JSON.stringify(recent.slice(0, MAX_RECENT)))
+  } catch { /* ignore */ }
+}
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [selectedMachine, setSelectedMachine] = useState<MachineStatus | null>(null)
   const [machineDetailOpen, setMachineDetailOpen] = useState(false)
-  const { setCurrentPage } = useNavigation()
+  const [recentPages, setRecentPages] = useState<PageId[]>(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem('iiot-recent-pages') || '[]') } catch { return [] }
+  })
+  const { currentPage, setCurrentPage } = useNavigation()
   const machines = useIIoTStore((s) => s.machines)
   const devices = useIIoTStore((s) => s.devices)
   const alarms = useIIoTStore((s) => s.alarms)
@@ -133,6 +160,7 @@ export function CommandPalette() {
   const handlePageSelect = (pageId: PageId) => {
     setOpen(false)
     setCurrentPage(pageId)
+    addRecentPage(pageId)
   }
 
   const handleMachineSelect = (machineId: string) => {
@@ -208,6 +236,31 @@ export function CommandPalette() {
                   <p className="text-xs text-muted-foreground/60">Try a different search term</p>
                 </div>
               </CommandEmpty>
+
+              {/* Recent Pages Group */}
+              {recentPages.length > 0 && (
+                <CommandGroup heading="Recent" className="[&_[cmdk-group-items]]:space-y-0.5">
+                  {recentPages.map((pageId) => {
+                    const page = PAGE_ITEMS.find(p => p.id === pageId)
+                    if (!page) return null
+                    const Icon = page.icon
+                    return (
+                      <CommandItem
+                        key={`recent-${page.id}`}
+                        value={`recent ${page.label}`}
+                        onSelect={() => handlePageSelect(page.id)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary"
+                      >
+                        <History className="size-3.5 text-muted-foreground/50 shrink-0" />
+                        <Icon className="size-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm flex-1">{page.label}</span>
+                      </CommandItem>
+                    )
+                  })}
+                </CommandGroup>
+              )}
+
+              <CommandSeparator className="my-1" />
 
               {/* Pages Group */}
               <CommandGroup heading="Pages" className="[&_[cmdk-group-items]]:space-y-0.5">
