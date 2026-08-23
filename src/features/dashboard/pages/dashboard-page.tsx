@@ -185,7 +185,7 @@ function KPICard({
 }: KPICardProps) {
   return (
     <Card
-      className={`relative overflow-hidden h-full transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 group cursor-default ${onClick ? 'cursor-pointer' : ''} ${className || ''}`}
+      className={`relative overflow-hidden h-full kpi-card-hover group cursor-default ${onClick ? 'cursor-pointer' : ''} ${className || ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}

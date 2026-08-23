@@ -73,6 +73,7 @@ export function useIIoTWebSocket() {
             temperature: m.baseTemp,
             rpm: m.baseRpm,
             power: m.basePower,
+            healthScore: Math.floor(Math.random() * 29) + 70,
           })))
 
           store.setAlarms(data.alarms.map((a: any) => ({

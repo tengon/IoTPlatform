@@ -15,6 +15,7 @@ import {
   MonitorSmartphone,
   Radio,
   RefreshCw,
+  Wrench,
   Users,
   Building2,
   Shield,
@@ -63,6 +64,7 @@ const menuGroups: MenuGroup[] = [
       { id: 'live-monitoring', label: 'Live Monitoring', icon: Activity },
       { id: 'assets-machines', label: 'Assets & Machines', icon: Factory },
       { id: 'production', label: 'Production', icon: Package },
+      { id: 'maintenance', label: 'Maintenance', icon: Wrench },
     ],
   },
   {

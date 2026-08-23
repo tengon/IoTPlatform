@@ -114,15 +114,15 @@ function getSuggestedAction(severity: string): { icon: React.ElementType; text: 
   }
 }
 
-function StatsCard({ label, value, color, icon: Icon }: { label: string; value: number; color: string; icon: React.ElementType }) {
+function StatsCard({ label, value, color, icon: Icon, severityClass }: { label: string; value: number; color: string; icon: React.ElementType; severityClass?: string }) {
   return (
-    <Card className={`border-border/40 hover:border-border/60 transition-colors duration-300 ${color}`}>
+    <Card className={`kpi-card-hover border-border/40 transition-all duration-300 ${color} ${severityClass || ''}`}>
       <CardContent className="flex items-center gap-3 pt-5 px-5 pb-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background/50 border border-border/50">
           <Icon className="size-4 text-foreground/80" />
         </div>
         <div>
-          <p className="text-2xl font-bold tabular-nums metric-value leading-none">{value}</p>
+          <p className="text-2xl font-bold metric-value leading-none number-transition">{value}</p>
           <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-1">{label}</p>
         </div>
       </CardContent>
@@ -281,10 +281,10 @@ export function ActiveAlarmsPage() {
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatsCard label="Total Active" value={stats.total} color="border-slate-500/30" icon={Bell} />
-        <StatsCard label="Critical" value={stats.critical} color="border-red-500/40" icon={ShieldAlert} />
-        <StatsCard label="Warning" value={stats.warning} color="border-amber-500/40" icon={AlertTriangle} />
-        <StatsCard label="Info" value={stats.info} color="border-cyan-500/30" icon={Info} />
+        <StatsCard label="Total Active" value={stats.total} color="" icon={Bell} />
+        <StatsCard label="Critical" value={stats.critical} color="" icon={ShieldAlert} severityClass="severity-card-critical" />
+        <StatsCard label="Warning" value={stats.warning} color="" icon={AlertTriangle} severityClass="severity-card-warning" />
+        <StatsCard label="Info" value={stats.info} color="" icon={Info} severityClass="severity-card-info" />
       </div>
 
       {/* Filter bar */}
@@ -407,8 +407,9 @@ export function ActiveAlarmsPage() {
                       <Fragment key={alarm.id}>
                         <TableRow
                           className={`
-                            border-border/30 hover:bg-muted/20 transition-colors duration-150 py-3
+                            border-border/30 hover:bg-muted/20 transition-all duration-150 py-3
                             border-l-2 ${severityBorder} ${severityBg}
+                            table-row-severity
                             ${selectedIds.has(alarm.id) ? 'bg-primary/5' : ''}
                           `}
                         >

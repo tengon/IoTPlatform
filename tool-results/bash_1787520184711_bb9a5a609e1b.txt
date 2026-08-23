@@ -1,0 +1,467 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial IoT Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM & Babel -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18.0.0/umd/react.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.0.0/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    
+    <style>
+        /* Custom Scrollbar for Sidebar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151; 
+            border-radius: 4px;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        /* Sparkline Animation */
+        .sparkline-path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: dash 2s ease-out forwards;
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* KPI Card Hover Lift Effect */
+        .kpi-card {
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+        }
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.15); /* Greenish glow on lift */
+        }
+
+        /* Chart Grid Lines */
+        .chart-grid line {
+            stroke: #374151;
+            stroke-opacity: 0.3;
+        }
+    </style>
+</head>
+<body class="bg-[#0a0e14] text-gray-200 h-screen overflow-hidden flex flex-col selection:bg-emerald-500/30">
+    <div id="root" class="flex h-full w-full"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Mock Data ---
+        const kpiData = [
+            { id: 1, title: "TOTAL DEVICES", value: "8", subtext: "7 online • 1 offline", icon: "fa-server", color: "text-emerald-400", sparkColor: "#10b981" },
+            { id: 2, title: "ACTIVE MACHINES", value: "6", subtext: "6 of 6 running", icon: "fa-industry", color: "text-cyan-400", sparkColor: "#06b6d4" },
+            { id: 3, title: "ACTIVE ALARMS", value: "50", subtext: "24 critical", icon: "fa-bell", color: "text-red-400", sparkColor: "#ef4444" },
+            { id: 4, title: "ENERGY CONSUMPTION", value: "45038 kWh", subtext: "Today's total consumption", icon: "fa-bolt", color: "text-orange-400", sparkColor: "#f97316" },
+        ];
+
+        const machineData = [
+            { name: "CNC Lathe #1", oee: 92, avail: 95, perf: 90, qual: 91, status: "Running" },
+            { name: "CNC Mill #1", oee: 88, avail: 89, perf: 87, qual: 88, status: "Running" },
+            { name: "Conveyor Belt...", oee: 95, avail: 98, perf: 94, qual: 93, status: "Idle" },
+            { name: "Packaging Line...", oee: 85, avail: 82, perf: 86, qual: 87, status: "Running" },
+        ];
+
+        // --- Components ---
+
+        // 1. SVG Sparkline Component
+        const Sparkline = ({ color, points = [10, 30, 50, 20, 60, 40, 70] }) => {
+            const width = 80;
+            const height = 40;
+            const max = Math.max(...points);
+            
+            // Normalize points to path
+            const pathData = points.map((p, i) => {
+                const x = (i / (points.length - 1)) * width;
+                const y = height - (p / max) * height * 0.8 - height * 0.1;
+                return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+            }).join(' ');
+
+            return (
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-20 h-10 overflow-visible">
+                    <defs>
+                        <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+                            <stop offset="100%" stopColor={color} stopOpacity="0" />
+                        </linearGradient>
+                    </defs>
+                    {/* Area Fill */}
+                    <path d={`${pathData} L ${width} ${height} L 0 ${height} Z`} fill={`url(#grad-${color})`} />
+                    {/* Line */}
+                    <path d={pathData} fill="none" stroke={color} strokeWidth="2" className="sparkline-path" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+            );
+        };
+
+        // 2. KPI Card Component
+        const KPICard = ({ data }) => (
+            <div className="kpi-card bg-[#12171f] border border-white/5 rounded-xl p-5 flex flex-col justify-between relative overflow-hidden group cursor-pointer h-32">
+                {/* Subtle gradient background on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div className="flex items-start justify-between relative z-10">
+                    <div className="flex gap-3">
+                        <div className={`w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center text-lg ${data.color}`}>
+                            <i className={`fas ${data.icon}`}></i>
+                        </div>
+                        <div>
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{data.title}</h3>
+                            <p className="text-2xl font-bold mt-1 text-white">{data.value}</p>
+                        </div>
+                    </div>
+                    <Sparkline color={data.sparkColor} />
+                </div>
+
+                <div className="mt-auto relative z-10">
+                    <p className={`text-xs font-medium ${data.color.replace('text-', 'text-').includes('red') || data.title.includes('ALARM') ? 'text-red-400' : 'text-emerald-400'}`}>
+                         <i className={`fas fa-arrow-${data.subtext.includes('critical') || data.subtext.includes('offline') ? 'down' : 'up'} mr-1`}></i> 
+                         {data.subtext}
+                    </p>
+                </div>
+                
+                {/* Top Border Accent */}
+                <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-${data.sparkColor.replace('#','')}/50 to-transparent opacity-20`}></div>
+            </div>
+        );
+
+        // 3. Main App Component
+        const App = () => {
+            return (
+                <div className="flex w-full h-full">
+                    {/* --- SIDEBAR --- */}
+                    <aside className="w-64 bg-[#0f131a] border-r border-white/5 hidden md:flex flex-col shrink-0">
+                        {/* Logo Area */}
+                        <div className="h-16 flex items-center px-6 gap-3">
+                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-black font-bold text-lg">II</div>
+                            <div>
+                                <h1 className="font-bold text-sm leading-tight tracking-wide text-white">INDUSTRIAL IOT</h1>
+                                <p className="text-[10px] text-gray-500 uppercase tracking-widest">Monitoring Platform</p>
+                            </div>
+                        </div>
+
+                        {/* Navigation */}
+                        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin">
+                            
+                            {/* Section: Overview */}
+                            <div>
+                                <h4 className="px-3 text-[10px] font-bold text-gray-600 mb-2 uppercase tracking-widest">Overview</h4>
+                                <ul className="space-y-1">
+                                    <li><a href="#" className="flex items-center px-3 py-2 text-sm font-medium bg-white/5 text-white rounded-md border-l-2 border-emerald-500"><i className="fas fa-th-large w-5 mr-2"></i> Dashboard</a></li>
+                                </ul>
+                            </div>
+
+                            {/* Section: Operations */}
+                            <div>
+                                <h4 className="px-3 text-[10px] font-bold text-gray-600 mb-2 uppercase tracking-widest">Operations</h4>
+                                <ul className="space-y-1">
+                                    {['Live Monitoring', 'Assets & Machines', 'Production', 'Maintenance'].map(item => (
+                                        <li key={item}><a href="#" className="flex items-center px-3 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><i className={`fas fa-${item === 'Live Monitoring' ? 'activity' : item === 'Assets & Machines' ? 'box-open' : item === 'Production' ? 'cube' : 'wrench'} w-5 mr-2`}></i> {item}</a></li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                             {/* Section: Analytics */}
+                             <div>
+                                <h4 className="px-3 text-[10px] font-bold text-gray-600 mb-2 uppercase tracking-widest">Analytics</h4>
+                                <ul className="space-y-1">
+                                    {['Historical Data', 'Analytics', 'Energy Monitoring', 'OEE'].map(item => (
+                                        <li key={item}><a href="#" className="flex items-center px-3 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><i className={`fas fa-${item === 'Historical Data' ? 'history-chart' : item === 'Analytics' ? 'chart-bar' : item === 'Energy Monitoring' ? 'bolt' : 'sync-alt'} w-5 mr-2`}></i> {item}</a></li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            {/* Section: Alerts */}
+                            <div>
+                                <h4 className="px-3 text-[10px] font-bold text-gray-600 mb-2 uppercase tracking-widest">Alerts</h4>
+                                <ul className="space-y-1">
+                                    <li><a href="#" className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors group"><span className="flex items-center"><i className="fas fa-bell w-5 mr-2"></i> Active Alarms</span> <span className="bg-red-500/20 text-red-400 text-[10px] px-1.5 rounded">50</span></a></li>
+                                    <li><a href="#" className="flex items-center px-3 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><i className="fas fa-history w-5 mr-2"></i> Alarm History</a></li>
+                                    <li><a href="#" className="flex items-center px-3 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><i className="fas fa-cog w-5 mr-2"></i> Alert Rules</a></li>
+                                </ul>
+                            </div>
+                             
+                             {/* Section: Management */}
+                             <div>
+                                <h4 className="px-3 text-[10px] font-bold text-gray-600 mb-2 uppercase tracking-widest">Management</h4>
+                                <ul className="space-y-1">
+                                     {['Devices', 'Gateways', 'Firmware / OTA'].map(item => (
+                                        <li key={item}><a href="#" className="flex items-center px-3 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><i className={`fas fa-${item === 'Devices' ? 'microchip' : item === 'Gateways' ? 'wifi' : 'sync'} w-5 mr-2`}></i> {item}</a></li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                        </nav>
+
+                        {/* Bottom Alert Button */}
+                        <div className="p-4">
+                            <button className="w-full bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg p-2 text-xs font-semibold flex items-center justify-between hover:bg-red-500/20 transition-colors">
+                                <span className="flex items-center gap-2"><i className="fas fa-exclamation-circle"></i> 1 Issue</span>
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* --- MAIN CONTENT AREA --- */}
+                    <main className="flex-1 flex flex-col min-w-0 bg-[#0b0d12]">
+                        
+                        {/* TOP HEADER */}
+                        <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 shrink-0 bg-[#0b0d12]/80 backdrop-blur-sm z-20">
+                            <div className="flex items-center gap-4">
+                                <button className="text-gray-500 hover:text-white lg:hidden"><i className="fas fa-bars"></i></button>
+                                
+                                {/* Breadcrumbs */}
+                                <div className="hidden sm:flex items-center text-xs text-gray-400 gap-2">
+                                    <span className="hover:text-white cursor-pointer">Overview</span>
+                                    <i className="fas fa-chevron-right text-[8px]"></i>
+                                    <span className="text-white font-medium">Dashboard</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-6">
+                                {/* Search */}
+                                <div className="relative hidden md:block">
+                                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+                                    <input type="text" placeholder="Search devices, machines..." className="bg-[#161b22] border border-white/5 pl-9 pr-8 py-1.5 rounded-md text-xs focus:outline-none focus:border-emerald-500/50 w-64 text-gray-300 placeholder-gray-600" />
+                                    <kbd className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#0f131a] border border-white/10 text-[9px] px-1 rounded text-gray-500">⌘K</kbd>
+                                </div>
+
+                                {/* Status Indicators */}
+                                <div className="hidden lg:flex items-center gap-4 text-xs text-gray-400">
+                                    <span className="flex items-center gap-1.5"><i className="far fa-clock"></i> less than a minute ago</span>
+                                    <span className="flex items-center gap-1.5 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live <i className="fas fa-caret-down"></i></span>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-3">
+                                    <div className="relative cursor-pointer">
+                                        <i className="far fa-bell text-gray-400 hover:text-white"></i>
+                                        <span className="absolute -top-1 -right-1 bg-red-500 text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-[#0b0d12]">50</span>
+                                    </div>
+                                    <div className="relative cursor-pointer">
+                                         <i className="far fa-envelope text-gray-400 hover:text-white"></i>
+                                         <span className="absolute -top-1 -right-1 bg-emerald-500 text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-[#0b0d12]">15</span>
+                                    </div>
+                                    
+                                    {/* Theme Toggle */}
+                                    <button className="text-yellow-400 hover:text-yellow-300"><i className="fas fa-sun"></i></button>
+
+                                    {/* User Profile */}
+                                    <div className="flex items-center gap-2 pl-3 border-l border-white/10 cursor-pointer">
+                                        <div className="w-7 h-7 rounded-full bg-emerald-900/50 text-emerald-400 flex items-center justify-center text-xs font-bold border border-emerald-800/50">AD</div>
+                                        <span className="text-sm font-medium text-white hidden xl:block">Admin</span>
+                                        <i className="fas fa-chevron-down text-[10px] text-gray-500"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+
+                        {/* SCROLLABLE CONTENT */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                            
+                            {/* Page Title Row */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="text-emerald-500 text-2xl"><i className="fas fa-wave-square"></i></div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+                                            <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> LIVE</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-0.5">Real-time industrial operations overview <span className="ml-2 opacity-60"><i className="far fa-clock"></i> less than a minute ago</span></p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button className="bg-[#161b22] hover:bg-[#1f2633] border border-white/5 text-gray-300 text-xs px-3 py-1.5 rounded-md flex items-center gap-2 transition-colors">
+                                        <i className="far fa-calendar"></i> Last 24h
+                                    </button>
+                                    <button className="bg-[#161b22] hover:bg-[#1f2633] border border-white/5 text-gray-300 text-xs px-3 py-1.5 rounded-md flex items-center gap-2 transition-colors">
+                                        <i className="fas fa-download"></i> Export
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* KPI CARDS GRID */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {kpiData.map(kpi => <KPICard key={kpi.id} data={kpi} />)}
+                            </div>
+
+                            {/* CHARTS ROW */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[350px]">
+                                
+                                {/* Production Overview Chart (Takes 2 cols) */}
+                                <div className="lg:col-span-2 bg-[#12171f] border border-white/5 rounded-xl p-5 flex flex-col">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div>
+                                            <h3 className="text-sm font-bold text-white flex items-center gap-2"><i className="fas fa-chart-line text-emerald-500"></i> Production Overview</h3>
+                                            <p className="text-xs text-gray-500 mt-1">24-hour production output vs target</p>
+                                        </div>
+                                        <span className="text-[10px] text-gray-500 bg-white/5 px-2 py-1 rounded border border-white/5"><i className="fas fa-sync-alt mr-1"></i> Auto-refreshing</span>
+                                    </div>
+                                    
+                                    <div className="flex-1 w-full relative min-h-[250px]">
+                                        {/* Custom SVG Chart Implementation for fidelity */}
+                                        <svg viewBox="0 0 800 300" className="w-full h-full preserve-aspect-ratio" style={{overflow:'visible'}}>
+                                            {/* Grid Lines */}
+                                            {[0, 150, 300, 450, 600].map((val, i) => (
+                                                <g key={i}>
+                                                    <line x1="40" y1={280 - (val/600)*240} x2="780" y2={280 - (val/600)*240} className="chart-grid" strokeDasharray="4 4"/>
+                                                    <text x="30" y={285 - (val/600)*240} fill="#6b7280" fontSize="11" textAnchor="end">{val}</text>
+                                                </g>
+                                            ))}
+                                            
+                                            {/* X Axis Labels */}
+                                            {['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'].map((time, i) => (
+                                                <text key={time} x={40 + i*123} y="295" fill="#6b7280" fontSize="11" textAnchor="middle">{time}</text>
+                                            ))}
+
+                                            {/* Target Dashed Line (Simulated) */}
+                                            <path d="M 40 200 Q 200 190 280 120 T 550 100 T 780 220" fill="none" stroke="#06b6d4" strokeWidth="2" strokeDasharray="5 5" opacity="0.6"/>
+
+                                            {/* Actual Area Fill */}
+                                            <path d="M 40 230 C 100 210, 150 240, 200 235 C 260 225, 300 140, 380 130 C 450 120, 520 160, 580 155 C 650 145, 720 180, 780 240 V 280 H 40 Z" fill="url(#areaGrad)" />
+
+                                            {/* Actual Line */}
+                                            <path d="M 40 230 C 100 210, 150 240, 200 235 C 260 225, 300 140, 380 130 C 450 120, 520 160, 580 155 C 650 145, 720 180, 780 240" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" />
+                                            
+                                            <defs>
+                                                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                                                    <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                                                </linearGradient>
+                                            </defs>
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                {/* Machine OEE Bar Chart */}
+                                <div className="bg-[#12171f] border border-white/5 rounded-xl p-5 flex flex-col">
+                                    <div className="mb-4">
+                                        <h3 className="text-sm font-bold text-white flex items-center gap-2"><i className="fas fa-tachometer-alt text-emerald-500"></i> Machine OEE Overview</h3>
+                                        <p className="text-xs text-gray-500 mt-1">OEE, Availability, Performance, Quality (%)</p>
+                                    </div>
+                                    
+                                    <div className="flex-1 flex items-end justify-around gap-2 pb-6 pt-4 h-full">
+                                        {machineData.map((m, idx) => (
+                                            <div key={idx} className="flex flex-col items-center gap-1 flex-1 group">
+                                                <div className="w-full flex gap-0.5 items-end h-48 justify-center">
+                                                    {/* OEE Bar */}
+                                                    <div className="w-2 bg-emerald-500 rounded-t-sm transition-all duration-500 group-hover:brightness-125" style={{height: `${m.oee}%`}}></div>
+                                                    {/* Availability Bar */}
+                                                    <div className="w-2 bg-cyan-400 rounded-t-sm transition-all duration-500 group-hover:brightness-125" style={{height: `${m.avail}%`}}></div>
+                                                    {/* Performance Bar */}
+                                                    <div className="w-2 bg-orange-400 rounded-t-sm transition-all duration-500 group-hover:brightness-125" style={{height: `${m.perf}%`}}></div>
+                                                    {/* Quality Bar */}
+                                                    <div className="w-2 bg-yellow-400 rounded-t-sm transition-all duration-500 group-hover:brightness-125" style={{height: `${m.qual}%`}}></div>
+                                                </div>
+                                                <span className="text-[10px] text-gray-400 truncate w-full text-center mt-2">{m.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    {/* Legend */}
+                                    <div className="flex justify-center gap-4 text-[10px] text-gray-400 border-t border-white/5 pt-3">
+                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> OEE</span>
+                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-400"></span> Availability</span>
+                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Performance</span>
+                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400"></span> Quality</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* BOTTOM ROW */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                
+                                {/* Alarm Summary (Gauge) */}
+                                <div className="bg-[#12171f] border border-white/5 rounded-xl p-5 flex flex-col">
+                                    <div className="mb-6">
+                                        <h3 className="text-sm font-bold text-white flex items-center gap-2"><i className="fas fa-exclamation-triangle text-yellow-500"></i> Alarm Summary</h3>
+                                        <p className="text-xs text-gray-500 mt-1">Active alarm distribution</p>
+                                    </div>
+                                    
+                                    <div className="flex-1 flex items-center justify-center relative py-4">
+                                        {/* Simple CSS/SVG Gauge Representation */}
+                                        <svg width="200" height="120" viewBox="0 0 200 120">
+                                            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1f2937" strokeWidth="12" strokeLinecap="round" />
+                                            <path d="M 20 100 A 80 80 0 0 1 140 35" fill="none" stroke="#ef4444" strokeWidth="12" strokeLinecap="round" /> {/* Red part ~70% */}
+                                            
+                                            {/* Needle */}
+                                            <line x1="100" y1="100" x2="135" y2="45" stroke="white" strokeWidth="3" strokeLinecap="round" />
+                                            <circle cx="100" cy="100" r="6" fill="#ef4444" />
+                                            
+                                            {/* Text inside gauge area */}
+                                            <text x="160" y="110" fill="#ef4444" fontSize="14" fontWeight="bold">Critical</text>
+                                            <text x="165" y="95" fill="#ef4444" fontSize="16" fontWeight="bold">24</text>
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                {/* Machine Status List */}
+                                <div className="bg-[#12171f] border border-white/5 rounded-xl p-5 flex flex-col">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className="text-sm font-bold text-white flex items-center gap-2"><i className="fas fa-list-alt text-emerald-500"></i> Machine Status</h3>
+                                            <p className="text-xs text-gray-500 mt-1">Real-time status of all connected machines</p>
+                                        </div>
+                                        <span className="text-[10px] bg-white/5 text-gray-400 px-2 py-1 rounded border border-white/5">6 machines</span>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {machineData.map((m, idx) => (
+                                            <div key={idx} className="group flex items-center justify-between p-3 rounded-lg bg-[#0f131a]/50 hover:bg-[#161b22] border border-transparent hover:border-white/5 transition-all cursor-pointer">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-white">{m.name}</p>
+                                                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><i className="fas fa-box"></i> CNC Machine</p>
+                                                    </div>
+                                                </div>
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded border ${m.status === 'Running' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>{m.status}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* FOOTER - CRITICAL REQUIREMENT CHECK */}
+                        <footer className="shrink-0 h-10 border-t border-white/5 bg-[#0b0d12] flex items-center px-6 text-[10px] text-gray-600 justify-between z-20">
+                            <div className="flex items-center gap-4">
+                                <span className="font-semibold text-gray-400">IIoT Platform</span>
+                                <span className="border-l border-white/10 pl-4">v2.2.0</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> All Systems Operational</span>
+                                <span className="border-l border-white/10 pl-4 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> WebSocket Connected</span>
+                                <span className="border-l border-white/10 pl-4">v2.2.0</span>
+                            </div>
+                        </footer>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+```

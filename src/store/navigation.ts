@@ -5,6 +5,7 @@ export type PageId =
   | 'live-monitoring'
   | 'assets-machines'
   | 'production'
+  | 'maintenance'
   | 'historical-data'
   | 'analytics'
   | 'energy-monitoring'

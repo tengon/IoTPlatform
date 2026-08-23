@@ -534,3 +534,134 @@
 .temp-alert-glow {
   animation: tempAlertGlow 2s ease-in-out infinite;
 }
+
+/* ============================================
+   ROUND 6 - PROFESSIONAL POLISH & NEW FEATURES
+   ============================================ */
+
+/* Card hover lift - subtle translateY for premium feel */
+.kpi-card-hover {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.25s ease;
+}
+.kpi-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px oklch(0 0 0 / 30%),
+              0 4px 10px -6px oklch(0 0 0 / 20%);
+}
+
+/* Inline micro sparkline for telemetry values */
+.micro-sparkline {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+/* Tabular numbers everywhere for data consistency */
+.tabular-nums,
+.metric-value,
+.stat-item-value,
+.recharts-text tspan {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Metric label - reduced weight for hierarchy */
+.metric-label {
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: oklch(0.65 0.01 155);
+}
+.dark .metric-label {
+  color: oklch(0.65 0.01 155);
+}
+
+/* Severity card glow accents */
+.severity-card-critical {
+  border-color: oklch(0.65 0.22 25 / 25%);
+  background: linear-gradient(135deg, oklch(0.55 0.2 25 / 5%) 0%, transparent 60%);
+}
+.severity-card-critical:hover {
+  border-color: oklch(0.65 0.22 25 / 40%);
+  box-shadow: 0 0 20px oklch(0.65 0.22 25 / 10%);
+}
+
+.severity-card-warning {
+  border-color: oklch(0.8 0.18 65 / 25%);
+  background: linear-gradient(135deg, oklch(0.8 0.18 65 / 5%) 0%, transparent 60%);
+}
+.severity-card-warning:hover {
+  border-color: oklch(0.8 0.18 65 / 40%);
+  box-shadow: 0 0 20px oklch(0.8 0.18 65 / 10%);
+}
+
+.severity-card-info {
+  border-color: oklch(0.6 0.12 200 / 25%);
+  background: linear-gradient(135deg, oklch(0.6 0.12 200 / 5%) 0%, transparent 60%);
+}
+.severity-card-info:hover {
+  border-color: oklch(0.6 0.12 200 / 40%);
+  box-shadow: 0 0 20px oklch(0.6 0.12 200 / 10%);
+}
+
+/* Health score ring animation */
+@keyframes healthRingFill {
+  from { stroke-dashoffset: 251.2; }
+}
+.health-ring-animate {
+  animation: healthRingFill 1s ease-out forwards;
+}
+
+/* Maintenance status chip styles */
+.maintenance-chip-overdue {
+  background: oklch(0.65 0.22 25 / 15%);
+  color: oklch(0.75 0.15 25);
+  border: 1px solid oklch(0.65 0.22 25 / 25%);
+}
+.maintenance-chip-upcoming {
+  background: oklch(0.8 0.18 65 / 15%);
+  color: oklch(0.85 0.16 65);
+  border: 1px solid oklch(0.8 0.18 65 / 25%);
+}
+.maintenance-chip-completed {
+  background: oklch(0.65 0.17 155 / 15%);
+  color: oklch(0.7 0.17 155);
+  border: 1px solid oklch(0.65 0.17 155 / 25%);
+}
+.maintenance-chip-scheduled {
+  background: oklch(0.6 0.12 200 / 15%);
+  color: oklch(0.65 0.14 200);
+  border: 1px solid oklch(0.6 0.12 200 / 25%);
+}
+
+/* Activity feed item slide-in */
+@keyframes feedSlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.feed-item-enter {
+  animation: feedSlideIn 0.3s ease-out forwards;
+}
+
+/* Smooth number transitions */
+.number-transition {
+  transition: all 0.4s ease-out;
+}
+
+/* Enhanced progress bar for maintenance */
+.maintenance-progress {
+  position: relative;
+  overflow: hidden;
+}
+.maintenance-progress::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  animation: shimmer 2s infinite;
+}

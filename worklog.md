@@ -795,3 +795,162 @@ Stage Summary:
 - Toast notifications on save and test connection
 - Live WebSocket connection status from Zustand store
 - Lint: 0 errors
+
+---
+Task ID: 5
+Agent: maintenance-builder
+Task: Build Maintenance Schedule page
+
+Work Log:
+- Created `/src/features/operations/pages/maintenance-page.tsx` with full MaintenancePage component
+- Registered `maintenance` as PageId in `/src/store/navigation.ts`
+- Imported and registered MaintenancePage in `/src/app/page.tsx` pageComponents map
+- Added Maintenance menu item (Wrench icon) to OPERATIONS group in `/src/components/layout/app-sidebar.tsx`
+- Added `maintenance: 'Maintenance'` to pageLabels and `maintenance: 'Operations'` to groupLabels in `/src/components/layout/app-topbar.tsx`
+- Added `Wrench` icon import to sidebar
+
+Stage Summary:
+- Full-featured Maintenance Schedule page with:
+  - KPI Summary Row (4 cards): Upcoming Tasks (cyan), Overdue Tasks (red), Completed This Month (green), Avg Completion Rate (primary with trend)
+  - Maintenance Task Table with 9 columns: Task ID, Machine, Type, Priority, Date, Status, Technician, Duration, Actions
+  - Color-coded badges for Task Type (Preventive/cyan, Corrective/amber, Predictive/violet, Emergency/red) and Priority (Critical/High/Medium/Low)
+  - Status chips using maintenance-chip-* CSS classes from globals.css (overdue, upcoming, completed, scheduled)
+  - Add Maintenance Task dialog with: Machine dropdown, Task Type, Priority, Scheduled Date, Duration, Technician, Description
+  - Calendar View toggle with month grid, navigation, colored dots for task types, legend
+  - Filter bar: Status, Priority, Type, Machine filters with Clear button
+  - 14 realistic mock tasks with varied statuses, priorities, types, and dates
+  - Uses `useIIoTStore` for machine names fallback
+  - Responsive design with mobile breakpoints
+  - Uses kpi-card-hover, glass-card, metric-value, metric-label, table-row-severity, ghost-action-btn, animate-slide-up, stagger CSS classes
+  - shadcn/ui components: Card, Table, Badge, Button, Dialog, Select, Input, Textarea, Label
+  - Lint: 0 errors
+
+---
+Task ID: 6-8
+Agent: health-activity-builder
+Task: Add Machine Health Score + Activity Feed
+
+Work Log:
+- Added `healthScore` field (number, 0-100) to `MachineStatus` interface in `/src/store/iiot.ts`
+- Updated WebSocket init handlers in both `ws-init.tsx` and `iiot-client.ts` to generate random health scores (70-98) for each machine on init
+- Created `HealthScoreRing` component at `/src/shared/components/health-score-ring.tsx`:
+  - SVG circular progress ring (48x48 default, configurable size/strokeWidth)
+  - Uses `health-ring-animate` CSS class for fill animation
+  - Color coding: green (90+), yellow (75-89), orange (60-74), red (<60)
+  - Score number centered using `metric-value` class
+  - Opacity 0.8 for subtlety
+- Added `HealthScoreRing` to machine cards in Live Monitoring page (top-right, next to status badge and expand button)
+- Created `ActivityFeed` component at `/src/components/layout/activity-feed.tsx`:
+  - Popover-based panel triggered from ScrollText icon button in topbar
+  - Shows scrollable list of platform events with timestamp, icon, description, color accent
+  - Event types: machine started/stopped/error, alarm triggered/acknowledged, ws connected/disconnected, maintenance scheduled/completed
+  - 12 initial mock events + generates new events every 5-10 seconds
+  - Badge count on button (resets when popover opens)
+  - Uses `feed-item-enter` CSS class for new items (within 30s)
+  - `max-h-96 overflow-y-auto` for scrollable list
+  - Glass card styling matching NotificationPanel pattern
+  - Clear All button in footer
+  - Tracks WebSocket connection state changes for real-time events
+- Added `ActivityFeed` to `app-topbar.tsx` between NotificationPanel and Theme Toggle
+- CSS animations (`health-ring-animate`, `feed-item-enter`) were already defined in globals.css from a previous task
+
+Stage Summary:
+- Machine Health Score: Each machine card on Live Monitoring now shows a 40x40 SVG ring indicator with color-coded score (green/yellow/orange/red)
+- Activity Feed: Topbar button with ScrollText icon opens a popover showing real-time platform events with badge count, auto-generating new events every 5-10s
+- Both features use existing CSS animations and follow the industrial dark theme
+- Lint: 0 errors
+
+---
+Task ID: 6-main
+Agent: main
+Task: Round 6 - Visual Polish, Bug Fixes, VLM QA-Driven Improvements
+
+Work Log:
+- **Footer fix**: Removed "Next.js 16 · Tailwind CSS 4" framework branding from footer. Now shows only product name, version, and system status indicators. Version now hidden on mobile.
+- **Topbar polish**: Changed "Updated X ago" text to pill-shaped container (rounded-full bg-muted/30), improved text contrast to text-muted-foreground/80, removed redundant "Updated" prefix for cleaner look, added font-medium.
+- **Dashboard KPI cards**: Replaced inline transition classes with `kpi-card-hover` CSS class for consistent hover lift effect (translateY(-2px) + enhanced shadow).
+- **Global CSS additions** (Round 6 section in globals.css):
+  - `kpi-card-hover` - Card hover lift with translateY(-2px) and enhanced shadow
+  - `micro-sparkline` - Inline sparkline alignment utility
+  - `tabular-nums` - Enforced font-variant-numeric: tabular-nums on metric-value, stat-item-value, chart text
+  - `metric-label` - Reduced weight label style for hierarchy (500 weight, uppercase, tracking-wider)
+  - `severity-card-critical/warning/info` - Colored border + gradient background + hover glow for alarm stats cards
+  - `health-ring-animate` - SVG stroke-dashoffset animation for health score rings
+  - `maintenance-chip-overdue/upcoming/completed/scheduled` - Status chip styles for maintenance page
+  - `feed-item-enter` - Slide-in animation for activity feed items
+  - `number-transition` - Smooth number transitions
+  - `maintenance-progress` - Enhanced progress bar with shimmer overlay
+- **Active Alarms page**: Applied `severity-card-*` classes to Critical/Warning/Info stats cards, added `kpi-card-hover` for lift effect, added `table-row-severity` to table rows, added `number-transition` to stat values.
+
+Stage Summary:
+- Footer: Professional, no framework branding
+- Topbar: Pill-shaped sync indicator with improved contrast
+- KPI cards: Consistent hover lift animation across all pages
+- Alarms page: Severity cards with colored accents and glow, enhanced table rows
+- All new CSS classes documented and organized under Round 6 section
+- Lint: 0 errors, no runtime errors
+
+---
+Task ID: 10
+Agent: main
+Task: Round 6 - Final VLM QA Assessment
+
+Work Log:
+- Screenshot all pages via agent-browser (dashboard, live monitoring, maintenance, alarms, mobile)
+- VLM analysis of each page with detailed scoring:
+  - Dashboard: 9/10 (up from 7.5/10) - Footer clean, Activity Feed button visible, sparklines present
+  - Live Monitoring: 8.5/10 - Health score rings working, sparklines visible, suggested OEE bar improvement
+  - Maintenance Schedule: 8.5/10 - Production-ready, excellent layout, KPI cards, table, calendar view
+  - Active Alarms: 8.5/10 - Severity card accents present, table rows with left-border severity, bulk actions
+  - Mobile View: 8/10 - Footer hidden, readable content, adequate touch targets
+- Console: No runtime errors (only React DevTools info + HMR log)
+- Lint: 0 errors, 0 warnings
+
+## Current Project Status (Post Round 6)
+
+### Platform Overview
+- **19 pages** across 6 menu groups (added Maintenance Schedule in Round 6)
+- Real-time WebSocket data simulation (port 3002)
+- Dark industrial theme with emerald green primary
+- Machine Health Score rings on Live Monitoring
+- Activity Feed panel in topbar with auto-generating events
+- Maintenance Schedule with table + calendar view
+
+### VLM Quality Scores (Round 6)
+| Page | Round 5 | Round 6 | Change |
+|------|---------|---------|--------|
+| Dashboard | 9/10 | 9/10 | Stable |
+| Live Monitoring | 9/10 | 8.5/10 | -0.5 (more critical review) |
+| Active Alarms | 8/10 | 8.5/10 | +0.5 |
+| Maintenance | N/A (new) | 8.5/10 | NEW |
+| Energy | 9/10 | ~9/10 | Stable |
+| Mobile | 8/10 | 8/10 | Stable |
+
+### New Features This Round
+1. **Maintenance Schedule Page** - Full task management with table/calendar views, add task dialog, filters, 14 mock tasks
+2. **Machine Health Score Ring** - SVG progress ring on each machine card (color-coded: green/yellow/orange/red)
+3. **Activity Feed Panel** - Topbar popover with real-time event stream, auto-generating events, badge count
+4. **Severity Card Accents** - Critical/Warning/Info alarm stats cards with colored borders, gradients, and hover glow
+5. **KPI Card Hover Lift** - Consistent translateY(-2px) animation on all KPI cards
+
+### Visual Improvements This Round
+1. Footer: Removed framework branding (Next.js/Tailwind), professional product-only footer
+2. Topbar: Pill-shaped sync indicator, improved contrast
+3. Global CSS: 11 new utility classes for animations, cards, typography
+4. Tabular numbers enforced across all data displays
+5. Metric label hierarchy with reduced font weight
+
+### Unresolved Issues / Risks
+1. **MEDIUM: OEE Bar Style** - VLM suggests solid/gradient OEE bars instead of segmented dashes, and adding a target threshold marker
+2. **LOW: Sparkline Gradient Fill** - VLM notes sparklines on Live Monitoring could use gradient area fill under the line for richer appearance
+3. **LOW: Maintenance Table Priority Color Bars** - VLM suggests adding left-border color bars per priority level for peripheral scanning
+4. **LOW: Maintenance KPI Click-to-Filter** - Make KPI cards interactive to auto-filter the table (e.g., click "Overdue: 2" to filter)
+5. **LOW: Calendar View Enhancement** - Could add Gantt-style timeline or 7-day heat strip for temporal context
+6. **LOW: Action Button Tooltips** - Some action icons (eye/edit) in tables could use hover tooltips for clarity
+
+### Priority Recommendations for Next Phase
+1. **HIGH**: Enhance OEE visualization (solid bars + target markers) on Live Monitoring and OEE pages
+2. **MEDIUM**: Make Maintenance KPI cards interactive (click to filter table)
+3. **MEDIUM**: Add dashboard widget customization / layout preferences
+4. **LOW**: Add keyboard shortcuts page accessible from settings
+5. **LOW**: Add data export dialog (PDF/CSV options) for reports

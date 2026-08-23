@@ -16,6 +16,7 @@ import { EnergyMonitoringPage } from '@/features/energy/pages/energy-monitoring-
 import { OEEPage } from '@/features/analytics/pages/oee-page'
 import { AssetsMachinesPage } from '@/features/devices/pages/assets-machines-page'
 import { ProductionPage } from '@/features/devices/pages/production-page'
+import { MaintenancePage } from '@/features/operations/pages/maintenance-page'
 import { DevicesPage } from '@/features/devices/pages/devices-page'
 import { GatewaysPage } from '@/features/devices/pages/gateways-page'
 import { FirmwareOTAPage } from '@/features/devices/pages/firmware-ota-page'
@@ -29,6 +30,7 @@ const pageComponents: Record<PageId, React.ComponentType> = {
   'live-monitoring': LiveMonitoringPage,
   'assets-machines': AssetsMachinesPage,
   production: ProductionPage,
+  maintenance: MaintenancePage,
   'historical-data': HistoricalDataPage,
   analytics: AnalyticsPage,
   'energy-monitoring': EnergyMonitoringPage,
@@ -73,13 +75,13 @@ export default function Home() {
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
                   All Systems Operational
                 </span>
-                <span className="text-muted-foreground/30">|</span>
+                <span className="text-muted-foreground/30 hidden sm:inline">|</span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-1 w-1 rounded-full bg-cyan-500 animate-live-pulse" />
                   WebSocket Connected
                 </span>
-                <span className="text-muted-foreground/30">|</span>
-                <span>Next.js 16 · Tailwind CSS 4</span>
+                <span className="text-muted-foreground/30 hidden sm:inline">|</span>
+                <span className="hidden sm:inline">v2.2.0</span>
               </div>
             </div>
           </footer>

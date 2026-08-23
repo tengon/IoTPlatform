@@ -48,6 +48,7 @@ export function WSInit() {
             oee: m.oee, availability: m.availability,
             performance: m.performance, quality: m.quality,
             temperature: m.baseTemp, rpm: m.baseRpm, power: m.basePower,
+            healthScore: Math.floor(Math.random() * 29) + 70, // 70-98
           })))
           store.setAlarms(data.alarms.map((a: any) => ({
             id: a.id, alarmId: a.alarmId, severity: a.severity,

@@ -37,6 +37,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { NotificationPanel } from '@/components/layout/notification-panel'
+import { ActivityFeed } from '@/components/layout/activity-feed'
 import { formatDistanceToNow } from 'date-fns'
 
 const pageLabels: Record<string, string> = {
@@ -44,6 +45,7 @@ const pageLabels: Record<string, string> = {
   'live-monitoring': 'Live Monitoring',
   'assets-machines': 'Assets & Machines',
   production: 'Production',
+  maintenance: 'Maintenance',
   'historical-data': 'Historical Data',
   analytics: 'Analytics',
   'energy-monitoring': 'Energy Monitoring',
@@ -65,6 +67,7 @@ const groupLabels: Record<string, string> = {
   'live-monitoring': 'Operations',
   'assets-machines': 'Operations',
   production: 'Operations',
+  maintenance: 'Operations',
   'historical-data': 'Analytics',
   analytics: 'Analytics',
   'energy-monitoring': 'Analytics',
@@ -136,9 +139,9 @@ export function AppTopbar() {
         </div>
 
         {/* Last Synced */}
-        <div className={`hidden xl:flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] transition-colors ${isConnected ? 'text-muted-foreground/60' : 'text-destructive'}`}>
+        <div className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] transition-colors ${isConnected ? 'text-muted-foreground/80 bg-muted/30' : 'text-destructive bg-destructive/5'}`}>
           <RefreshCw className={`size-3 ${isConnected ? 'animate-spin' : ''} style={isConnected ? { animationDuration: '3s' } : {}}`} />
-          <span>{isConnected ? `Updated ${lastSyncText}` : 'Reconnecting...'}</span>
+          <span className="font-medium">{isConnected ? lastSyncText : 'Reconnecting...'}</span>
         </div>
 
         <Separator orientation="vertical" className="h-5 opacity-30 mx-0.5" />
@@ -164,6 +167,9 @@ export function AppTopbar() {
 
         {/* Notification Panel */}
         <NotificationPanel />
+
+        {/* Activity Feed */}
+        <ActivityFeed />
 
         {/* Theme Toggle */}
         <Button

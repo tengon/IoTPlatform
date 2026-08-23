@@ -36,6 +36,7 @@ export interface MachineStatus {
   temperature: number
   rpm: number
   power: number
+  healthScore: number
 }
 
 export interface ProductionOrder {

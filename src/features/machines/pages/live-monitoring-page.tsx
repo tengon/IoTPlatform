@@ -35,6 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { PageHeader } from '@/shared/components/page-header'
 import { useIIoTStore, type MachineStatus, type DeviceStatus } from '@/store/iiot'
 import { MachineDetailDialog } from '@/shared/components/machine-detail-dialog'
+import { HealthScoreRing } from '@/shared/components/health-score-ring'
 import { formatDistanceToNow } from 'date-fns'
 
 // ─── Status color maps ───────────────────────────────────────────────
@@ -230,7 +231,8 @@ function MachineCard({ machine, telemetry, onSelect }: {
               <p className="text-[11px] text-muted-foreground/70 mt-0.5">{machine.type}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2 shrink-0">
+            <HealthScoreRing score={machine.healthScore ?? 85} size={40} strokeWidth={3} />
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${machineStatusBadgeClass[machine.status]}`}>
               {machineStatusLabel[machine.status]}
             </Badge>
