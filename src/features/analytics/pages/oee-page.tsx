@@ -297,7 +297,7 @@ export function OEEPage() {
   )
 
   // ── Overall OEE ───────────────────────────────────────────────────────────
-  const overallOEE = useMemo(
+  const displayOEE = useMemo(
     () => machineData.reduce((sum, m) => sum + m.oee, 0) / machineData.length,
     [machineData]
   )
@@ -320,7 +320,7 @@ export function OEEPage() {
   // ── 24h OEE trend data ──────────────────────────────────────────────────
   const oeeTrend24h = useMemo(() => {
     const data: Array<{ hour: string; OEE: number }> = []
-    let val = overallOEE
+    const val = displayOEE
     for (let i = 0; i < 24; i++) {
       val = Math.max(65, Math.min(95, val + (Math.random() - 0.45) * 6))
       data.push({
@@ -329,7 +329,7 @@ export function OEEPage() {
       })
     }
     return data
-  }, [overallOEE])
+  }, [displayOEE])
 
   // ── 30-day OEE trend data ─────────────────────────────────────────────────
   const trendData = useMemo(() => {
@@ -385,12 +385,12 @@ export function OEEPage() {
       {/* OEE Gauge */}
       <Card className="chart-container-glass hover:border-border/60 transition-colors duration-300 animate-slide-up">
         <CardContent className="pt-6 flex flex-col items-center px-5 pb-5">
-          <OEEGauge value={overallOEE} />
+          <OEEGauge value={displayOEE} />
           <div className="flex items-center gap-2 mt-2">
             <Target className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
               Target: {OEE_TARGET}%{' '}
-              {overallOEE >= OEE_TARGET ? (
+              {displayOEE >= OEE_TARGET ? (
                 <span className="text-emerald-400 font-medium">
                   <ArrowUpRight className="inline h-3 w-3" /> On Track
                 </span>

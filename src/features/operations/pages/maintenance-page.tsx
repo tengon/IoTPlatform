@@ -96,8 +96,14 @@ const TECHNICIANS = [
   'Liu Hua',
 ]
 
-const today = new Date()
-const d = (offset: number) => format(addDays(today, offset), 'yyyy-MM-dd')
+// ─── Safe date helper (hydration-safe) ────────────────────
+let _today: Date | null = null
+function getToday(): Date {
+  if (!_today) _today = new Date()
+  return _today
+}
+
+const d = (offset: number) => format(addDays(getToday(), offset), 'yyyy-MM-dd')
 
 const mockTasks: MaintenanceTask[] = [
   { id: 'MT-2401', machine: 'CNC Lathe Alpha', taskType: 'Preventive', priority: 'High', scheduledDate: d(2), status: 'Scheduled', assignedTo: 'Zhang Wei', estimatedDuration: '2h', description: 'Quarterly spindle bearing inspection and lubrication' },
@@ -177,13 +183,13 @@ export function MaintenancePage() {
   const [filterMachine, setFilterMachine] = useState<string>('all')
 
   // Calendar state
-  const [calendarMonth, setCalendarMonth] = useState(new Date())
+  const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); d.setDate(1); d.setMonth(new Date().getMonth()); return d })
 
   // Add task form state
   const [formMachine, setFormMachine] = useState('')
   const [formType, setFormType] = useState<TaskType>('Preventive')
   const [formPriority, setFormPriority] = useState<Priority>('Medium')
-  const [formDate, setFormDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [formDate, setFormDate] = useState('')
   const [formTechnician, setFormTechnician] = useState('')
   const [formDuration, setFormDuration] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -191,10 +197,10 @@ export function MaintenancePage() {
   // ─── Computed values ─────────────────────────────────────────────────────
 
   const stats = useMemo(() => {
-    const now = startOfDay(new Date())
-    const weekLater = addDays(now, 7)
-    const monthStart = startOfMonth(now)
-    const monthEnd = endOfMonth(now)
+    const now = startOfDay(getToday())
+    const weekLater = addDays(getToday(), 7)
+    const monthStart = startOfMonth(getToday())
+    const monthEnd = endOfMonth(getToday())
 
     const upcoming = tasks.filter(
       (t) =>
