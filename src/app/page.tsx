@@ -53,18 +53,28 @@ export default function Home() {
       <SidebarInset>
         <AppTopbar />
         <WSInit />
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
+        <main key={currentPage} className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
           {PageComponent ? <PageComponent key={currentPage} /> : null}
         </main>
-        <footer className="border-t border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3 mt-auto">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>Industrial IoT Platform v2.1.0</span>
+        <footer className="border-t border-border/30 bg-card/50 backdrop-blur-sm px-6 py-3.5 mt-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 text-[11px] text-muted-foreground/60">
+            <div className="flex items-center gap-3">
+              <span className="font-semibold text-muted-foreground/80">IIoT Platform</span>
+              <span className="text-muted-foreground/30">|</span>
+              <span>v2.2.0</span>
+            </div>
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
                 All Systems Operational
               </span>
-              <span>Powered by Next.js 16</span>
+              <span className="text-muted-foreground/30">|</span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-1 w-1 rounded-full bg-cyan-500" />
+                WebSocket Connected
+              </span>
+              <span className="text-muted-foreground/30">|</span>
+              <span>Next.js 16 · Tailwind CSS 4</span>
             </div>
           </div>
         </footer>

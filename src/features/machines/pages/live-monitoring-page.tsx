@@ -19,6 +19,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Maximize2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +34,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { PageHeader } from '@/shared/components/page-header'
 import { useIIoTStore, type MachineStatus, type DeviceStatus } from '@/store/iiot'
+import { MachineDetailDialog } from '@/shared/components/machine-detail-dialog'
+import { formatDistanceToNow } from 'date-fns'
 
 // ─── Status color maps ───────────────────────────────────────────────
 
@@ -51,10 +54,10 @@ const machineStatusBorder: Record<MachineStatus['status'], string> = {
 }
 
 const machineStatusGlow: Record<MachineStatus['status'], string> = {
-  running: 'shadow-[0_0_15px_rgba(16,185,129,0.12)]',
+  running: 'shadow-[0_0_20px_rgba(16,185,129,0.08)]',
   idle: '',
   maintenance: '',
-  error: 'shadow-[0_0_15px_rgba(239,68,68,0.12)]',
+  error: 'shadow-[0_0_20px_rgba(239,68,68,0.08)]',
 }
 
 const machineStatusLabel: Record<MachineStatus['status'], string> = {
@@ -123,7 +126,7 @@ function TrendArrow({ value, prev }: { value: number; prev: number | undefined }
   return <TrendingDown className="size-3 text-red-400" />
 }
 
-// ─── Mini Sparkline (no axes, transparent) ───────────────────────────
+// ─── Mini Sparkline (enhanced with gradient) ─────────────────────────
 
 function MiniChart({ data, color }: { data: { timestamp: number; value: number }[]; color: string }) {
   if (!data || data.length < 2) {
@@ -144,17 +147,19 @@ function MiniChart({ data, color }: { data: { timestamp: number; value: number }
           strokeWidth={1.5}
           dot={false}
           isAnimationActive={false}
+          activeDot={{ r: 3, fill: color, strokeWidth: 0 }}
         />
       </LineChart>
     </ResponsiveContainer>
   )
 }
 
-// ─── Machine Status Card ─────────────────────────────────────────────
+// ─── Machine Status Card (enhanced) ──────────────────────────────────
 
-function MachineCard({ machine, telemetry }: {
+function MachineCard({ machine, telemetry, onSelect }: {
   machine: MachineStatus
   telemetry: { timestamp: number; value: number }[]
+  onSelect: () => void
 }) {
   const isRunning = machine.status === 'running'
   const tempPct = Math.min(100, Math.max(0, ((machine.temperature - 20) / 80) * 100))
@@ -162,11 +167,12 @@ function MachineCard({ machine, telemetry }: {
 
   return (
     <Card
-      className={`relative overflow-hidden border ${machineStatusBorder[machine.status]} ${machineStatusGlow[machine.status]} py-0 gap-0 transition-all duration-500`}
+      className={`relative overflow-hidden border ${machineStatusBorder[machine.status]} ${machineStatusGlow[machine.status]} transition-all duration-300 hover:shadow-lg group cursor-pointer animate-slide-up`}
+      onClick={onSelect}
     >
-      {/* Running pulse ring */}
+      {/* Running pulse bar */}
       {isRunning && (
-        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-60 animate-pulse" />
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-70 animate-pulse" />
       )}
 
       <CardHeader className="pb-2 pt-4 px-4">
@@ -175,31 +181,42 @@ function MachineCard({ machine, telemetry }: {
             <div className={`size-2.5 rounded-full shrink-0 ${machineStatusColors[machine.status]} ${isRunning ? 'animate-pulse-dot' : ''}`} />
             <div className="min-w-0">
               <CardTitle className="text-sm font-semibold truncate">{machine.name}</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">{machine.type}</p>
+              <p className="text-[11px] text-muted-foreground/70 mt-0.5">{machine.type}</p>
             </div>
           </div>
-          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${machineStatusBadgeClass[machine.status]}`}>
-            {machineStatusLabel[machine.status]}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${machineStatusBadgeClass[machine.status]}`}>
+              {machineStatusLabel[machine.status]}
+            </Badge>
+            <button
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted/50"
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect()
+              }}
+            >
+              <Maximize2 className="size-3 text-muted-foreground" />
+            </button>
+          </div>
         </div>
       </CardHeader>
 
-      <CardContent className="px-4 pb-4 space-y-3">
+      <CardContent className="px-4 pb-4 space-y-3.5">
         {/* Temperature Gauge */}
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Thermometer className="size-3" />
+              <Thermometer className={`size-3 ${tempTextColor(machine.temperature)}`} />
               <span>Temperature</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className={`font-mono font-medium ${tempTextColor(machine.temperature)}`}>
+              <span className={`font-mono text-sm font-bold metric-value ${tempTextColor(machine.temperature)}`}>
                 {machine.temperature.toFixed(1)}°C
               </span>
               <TrendArrow value={machine.temperature} prev={prevTemp} />
             </div>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-muted/40 overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-700 ${tempColor(machine.temperature)}`}
               style={{ width: `${tempPct}%` }}
@@ -211,35 +228,34 @@ function MachineCard({ machine, telemetry }: {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-0.5">
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <RotateCw className="size-3" />
+              <RotateCw className="size-3 text-cyan-400" />
               <span>RPM</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-sm font-mono font-medium">{machine.rpm.toFixed(0)}</span>
+              <span className="text-base font-mono font-bold metric-value">{machine.rpm.toFixed(0)}</span>
               <TrendArrow value={machine.rpm} prev={undefined} />
             </div>
           </div>
           <div className="space-y-0.5">
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Zap className="size-3" />
+              <Zap className="size-3 text-amber-400" />
               <span>Power</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="text-sm font-mono font-medium">{machine.power.toFixed(1)}</span>
-              <span className="text-xs text-muted-foreground">kW</span>
-              <TrendArrow value={machine.power} prev={undefined} />
+              <span className="text-base font-mono font-bold metric-value">{machine.power.toFixed(1)}</span>
+              <span className="text-[11px] text-muted-foreground">kW</span>
             </div>
           </div>
         </div>
 
         {/* OEE Segmented Bar */}
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Gauge className="size-3" />
+              <Gauge className={`size-3 ${oeeColor(machine.oee)}`} />
               <span>OEE</span>
             </div>
-            <span className={`text-sm font-mono font-semibold ${oeeColor(machine.oee)}`}>
+            <span className={`text-base font-mono font-bold metric-value ${oeeColor(machine.oee)}`}>
               {machine.oee.toFixed(1)}%
             </span>
           </div>
@@ -247,18 +263,18 @@ function MachineCard({ machine, telemetry }: {
             {[100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5].map((mark) => (
               <div
                 key={mark}
-                className={`h-1.5 flex-1 rounded-full ${
+                className={`h-1.5 flex-1 rounded-sm transition-colors duration-500 ${
                   machine.oee >= mark
                     ? oeeBarColor(machine.oee)
                     : 'bg-muted/30'
-                } transition-colors duration-500`}
+                }`}
               />
             ))}
           </div>
         </div>
 
         {/* Mini Temperature Chart */}
-        <div className="rounded-md bg-muted/20 p-1">
+        <div className="rounded-lg bg-muted/15 p-1.5">
           <MiniChart
             data={telemetry}
             color={
@@ -275,19 +291,18 @@ function MachineCard({ machine, telemetry }: {
   )
 }
 
-// ─── Telemetry Flash Value ───────────────────────────────────────────
+// ─── Telemetry Flash Value (enhanced) ────────────────────────────────
 
-function TelemetryValue({ label, value, unit, tick }: { label: string; value: number; unit?: string; tick: number }) {
-  // Use tick as a dependency to detect changes via key-based remount on the value span
+function TelemetryValue({ label, value, unit, tick, index }: { label: string; value: number; unit?: string; tick: number; index: number }) {
   return (
-    <div className="flex items-center justify-between py-1.5 px-2 rounded-md transition-colors duration-300 hover:bg-muted/30">
+    <div className={`flex items-center justify-between py-2 px-3 rounded-lg transition-colors duration-300 hover:bg-muted/30 ${index % 2 === 0 ? 'bg-muted/10' : ''}`}>
       <span className="text-xs text-muted-foreground truncate mr-2">{label}</span>
       <span
         key={`${tick}-${value}`}
-        className="text-sm font-mono font-medium shrink-0 animate-[telemetryFlash_600ms_ease-out]"
+        className="text-sm font-mono font-bold metric-value shrink-0 animate-[telemetryFlash_600ms_ease-out]"
       >
         {value.toFixed(2)}
-        {unit && <span className="text-xs text-muted-foreground ml-1">{unit}</span>}
+        {unit && <span className="text-[11px] text-muted-foreground ml-1 font-normal">{unit}</span>}
       </span>
     </div>
   )
@@ -297,16 +312,33 @@ function TelemetryValue({ label, value, unit, tick }: { label: string; value: nu
 
 export function LiveMonitoringPage() {
   const isConnected = useIIoTStore((s) => s.isConnected)
+  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
   const machines = useIIoTStore((s) => s.machines)
   const devices = useIIoTStore((s) => s.devices)
   const liveTelemetry = useIIoTStore((s) => s.liveTelemetry)
 
   // Force re-render every 2 seconds to pick up store changes
   const [tick, setTick] = useState(0)
+  const [lastUpdatedText, setLastUpdatedText] = useState('—')
+  const [selectedMachine, setSelectedMachine] = useState<MachineStatus | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+
   useEffect(() => {
     const interval = setInterval(() => setTick((k) => k + 1), 2000)
     return () => clearInterval(interval)
   }, [])
+
+  // Update last-updated text
+  useEffect(() => {
+    function update() {
+      if (lastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      }
+    }
+    update()
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   // Flatten all live telemetry into a displayable list
   const flatTelemetry = useMemo(() => {
@@ -325,7 +357,6 @@ export function LiveMonitoringPage() {
         })
       }
     })
-    // Also add current machine metrics
     machines.forEach((m) => {
       entries.push(
         { key: `${m.id}-rpm`, label: `${m.name} (RPM)`, value: m.rpm, unit: 'rpm' },
@@ -338,15 +369,20 @@ export function LiveMonitoringPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Page Header */}
       <PageHeader
         icon={Activity}
         title="Live Monitoring"
         description="Real-time machine and device telemetry"
+        lastUpdated={lastUpdatedText}
+        badge={isConnected ? 'STREAMING' : 'OFFLINE'}
       />
 
-      {/* 2. Connection Status Bar */}
-      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border bg-card">
+      {/* Connection Status Bar */}
+      <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-all duration-300 animate-fade-in ${
+        isConnected
+          ? 'border-emerald-500/20 bg-emerald-500/5'
+          : 'border-red-500/20 bg-red-500/5'
+      }`}>
         {isConnected ? (
           <Wifi className="size-4 text-emerald-400" />
         ) : (
@@ -357,7 +393,10 @@ export function LiveMonitoringPage() {
           {isConnected ? 'Connected to IIoT Gateway' : 'Disconnected — Reconnecting...'}
         </span>
         {isConnected ? (
-          <span className="ml-auto text-xs text-muted-foreground">Streaming live data</span>
+          <span className="ml-auto text-xs text-muted-foreground/60 flex items-center gap-1.5">
+            <span className="size-1 rounded-full bg-emerald-500 animate-pulse" />
+            Streaming live data
+          </span>
         ) : (
           <AlertTriangle className="ml-auto size-4 text-amber-400" />
         )}
@@ -367,12 +406,12 @@ export function LiveMonitoringPage() {
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
         {/* Left side: Machine Cards + Device Table */}
         <div className="space-y-6">
-          {/* 3. Machine Status Cards */}
+          {/* Machine Status Cards */}
           <section>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2.5 mb-4">
               <Activity className="size-4 text-emerald-400" />
-              <h2 className="text-lg font-semibold">Machine Status</h2>
-              <Badge variant="secondary" className="ml-auto text-xs">
+              <h2 className="text-base font-semibold">Machine Status</h2>
+              <Badge variant="secondary" className="ml-auto text-[10px]">
                 {machines.length} machines
               </Badge>
             </div>
@@ -383,23 +422,28 @@ export function LiveMonitoringPage() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {machines.map((machine) => (
-                  <MachineCard
-                    key={machine.id}
-                    machine={machine}
-                    telemetry={liveTelemetry[machine.id] || []}
-                  />
+                {machines.map((machine, i) => (
+                  <div key={machine.id} className={`animate-slide-up stagger-${Math.min(i + 1, 6)}`}>
+                    <MachineCard
+                      machine={machine}
+                      telemetry={liveTelemetry[machine.id] || []}
+                      onSelect={() => {
+                        setSelectedMachine(machine)
+                        setDetailOpen(true)
+                      }}
+                    />
+                  </div>
                 ))}
               </div>
             )}
           </section>
 
-          {/* 4. Device Telemetry Table */}
+          {/* Device Telemetry Table */}
           <section>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2.5 mb-4">
               <Signal className="size-4 text-emerald-400" />
-              <h2 className="text-lg font-semibold">Device Telemetry</h2>
-              <Badge variant="secondary" className="ml-auto text-xs">
+              <h2 className="text-base font-semibold">Device Telemetry</h2>
+              <Badge variant="secondary" className="ml-auto text-[10px]">
                 {devices.length} devices
               </Badge>
             </div>
@@ -413,22 +457,22 @@ export function LiveMonitoringPage() {
                 <div className="max-h-96 overflow-y-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-xs">Device Name</TableHead>
-                        <TableHead className="text-xs">Type</TableHead>
-                        <TableHead className="text-xs">Status</TableHead>
-                        <TableHead className="text-xs">Last Metric Values</TableHead>
-                        <TableHead className="text-xs text-right">Signal / Health</TableHead>
+                      <TableRow className="hover:bg-transparent border-border/30">
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Device</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Type</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Last Metrics</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right">Signal</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {devices.map((device) => {
                         const metricEntries = Object.entries(device.metrics)
                         return (
-                          <TableRow key={device.id}>
-                            <TableCell className="font-medium text-sm">{device.name}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{device.type}</TableCell>
-                            <TableCell>
+                          <TableRow key={device.id} className="border-border/20 transition-colors hover:bg-muted/20">
+                            <TableCell className="font-medium text-sm py-3">{device.name}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground py-3">{device.type}</TableCell>
+                            <TableCell className="py-3">
                               <div className="flex items-center gap-2">
                                 <div className={`size-2 rounded-full ${deviceStatusColors[device.status]}`} />
                                 <Badge
@@ -439,13 +483,13 @@ export function LiveMonitoringPage() {
                                 </Badge>
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="py-3">
                               <div className="flex flex-wrap gap-x-3 gap-y-1">
                                 {metricEntries.length > 0 ? (
                                   metricEntries.map(([key, val]) => (
                                     <span key={key} className="text-xs font-mono text-muted-foreground">
-                                      <span className="text-foreground/70">{key}:</span>{' '}
-                                      {typeof val === 'number' ? val.toFixed(1) : val}
+                                      <span className="text-foreground/50 text-[11px]">{key}:</span>{' '}
+                                      <span className="font-medium text-foreground/80">{typeof val === 'number' ? val.toFixed(1) : val}</span>
                                     </span>
                                   ))
                                 ) : (
@@ -453,7 +497,7 @@ export function LiveMonitoringPage() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right py-3">
                               <div className="flex items-center justify-end gap-1.5">
                                 <Signal className={`size-3.5 ${
                                   device.status === 'online'
@@ -484,33 +528,34 @@ export function LiveMonitoringPage() {
           </section>
         </div>
 
-        {/* 5. Real-time Telemetry Panel (right side, desktop only) */}
-        <aside className="hidden xl:block">
-          <div className="sticky top-6 space-y-4">
-            <div className="flex items-center gap-2">
+        {/* Real-time Telemetry Panel (right side, desktop only) */}
+        <aside className="hidden xl:block animate-slide-right">
+          <div className="sticky top-[72px] space-y-3">
+            <div className="flex items-center gap-2.5">
               <Activity className="size-4 text-emerald-400" />
-              <h2 className="text-lg font-semibold">Live Telemetry</h2>
-              <div className="ml-auto flex items-center gap-1.5">
+              <h2 className="text-base font-semibold">Live Telemetry</h2>
+              <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10">
                 <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Live</span>
+                <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-medium">Live</span>
               </div>
             </div>
             <Card className="py-0 gap-0 overflow-hidden">
               <ScrollArea className="max-h-[calc(100vh-220px)]">
-                <div className="p-2 space-y-0.5">
+                <div className="p-1.5 space-y-0">
                   {flatTelemetry.length === 0 ? (
                     <div className="py-8 flex flex-col items-center justify-center gap-2">
                       <Activity className="size-6 text-muted-foreground/40" />
                       <p className="text-xs text-muted-foreground">Waiting for telemetry data...</p>
                     </div>
                   ) : (
-                    flatTelemetry.map((entry) => (
+                    flatTelemetry.map((entry, index) => (
                       <TelemetryValue
                         key={entry.key}
                         label={entry.label}
                         value={entry.value}
                         unit={entry.unit}
                         tick={tick}
+                        index={index}
                       />
                     ))
                   )}
@@ -520,6 +565,13 @@ export function LiveMonitoringPage() {
           </div>
         </aside>
       </div>
+
+      {/* Machine Detail Dialog */}
+      <MachineDetailDialog
+        machine={selectedMachine}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   )
 }

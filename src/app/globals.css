@@ -180,3 +180,124 @@
   0% { color: #34d399; }
   100% { color: var(--foreground); }
 }
+
+/* Slide-in animation for page transitions */
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideInUp 0.35s ease-out both;
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.3s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.25s ease-out both;
+}
+
+.animate-count-up {
+  animation: countUp 0.4s ease-out both;
+}
+
+/* Staggered animation delays for card grids */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+
+/* Improved card hover effects */
+.glass-card {
+  backdrop-filter: blur(12px);
+  border: 1px solid oklch(0.3 0.01 155 / 50%);
+}
+
+/* Subtle gradient border on hover */
+.hover-glow:hover {
+  box-shadow: 0 0 20px oklch(0.65 0.17 155 / 8%);
+}
+
+/* Table row hover zebra striping */
+.zebra-row:nth-child(even) {
+  background-color: oklch(0.19 0.006 155 / 30%);
+}
+
+.zebra-row:hover {
+  background-color: oklch(0.22 0.008 155 / 50%);
+}
+
+/* Metric value emphasis */
+.metric-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Status pulse ring animation */
+@keyframes statusRing {
+  0% { box-shadow: 0 0 0 0 oklch(0.65 0.17 155 / 40%); }
+  70% { box-shadow: 0 0 0 6px oklch(0.65 0.17 155 / 0%); }
+  100% { box-shadow: 0 0 0 0 oklch(0.65 0.17 155 / 0%); }
+}
+
+.animate-status-ring {
+  animation: statusRing 2s ease-out infinite;
+}
+
+/* Skeleton shimmer effect */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.22 0.008 155 / 40%) 25%,
+    oklch(0.28 0.008 155 / 40%) 50%,
+    oklch(0.22 0.008 155 / 40%) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Chart tooltip improvement */
+.chart-tooltip {
+  backdrop-filter: blur(8px);
+  border: 1px solid oklch(0.3 0.01 155 / 60%);
+  box-shadow: 0 8px 32px oklch(0 0 0 / 40%);
+}
+
+/* KPI card subtle gradient bg */
+.kpi-gradient-green { background: linear-gradient(135deg, oklch(0.17 0.006 155 / 100%), oklch(0.19 0.012 155 / 80%)); }
+.kpi-gradient-red { background: linear-gradient(135deg, oklch(0.17 0.008 25 / 100%), oklch(0.19 0.012 25 / 80%)); }
+.kpi-gradient-amber { background: linear-gradient(135deg, oklch(0.17 0.008 65 / 100%), oklch(0.19 0.012 65 / 80%)); }
+.kpi-gradient-cyan { background: linear-gradient(135deg, oklch(0.17 0.006 200 / 100%), oklch(0.19 0.01 200 / 80%)); }

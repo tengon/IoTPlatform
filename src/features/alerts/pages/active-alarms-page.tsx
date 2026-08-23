@@ -1,10 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Bell, CheckCircle2, AlertTriangle, Info, ShieldAlert, Radio, WifiOff } from 'lucide-react'
+import { Bell, CheckCircle2, AlertTriangle, Info, ShieldAlert, Radio, WifiOff, Download } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
 import { PageHeader } from '@/shared/components/page-header'
+import { exportCSV } from '@/shared/utils/export-csv'
 import {
   Card,
   CardContent,
@@ -118,6 +119,30 @@ export function ActiveAlarmsPage() {
         icon={Bell}
         title="Active Alarms"
         description={`${activeAlarms.length} active alarm${activeAlarms.length !== 1 ? 's' : ''} requiring attention`}
+        badge={isConnected ? 'LIVE' : 'OFFLINE'}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => {
+              exportCSV({
+                data: filteredAlarms.map((a) => ({
+                  alarmId: a.alarmId,
+                  source: a.source,
+                  severity: a.severity,
+                  message: a.message,
+                  status: a.status,
+                  createdAt: a.createdAt,
+                })),
+                filename: `alarms-${new Date().toISOString().slice(0, 10)}`,
+              })
+            }}
+          >
+            <Download className="size-3.5" />
+            Export CSV
+          </Button>
+        }
       />
 
       {/* Connection indicator */}
@@ -171,6 +196,27 @@ export function ActiveAlarmsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            exportCSV({
+              data: filteredAlarms.map((a) => ({
+                alarmId: a.alarmId,
+                source: a.source,
+                severity: a.severity,
+                message: a.message,
+                status: a.status,
+                createdAt: a.createdAt,
+              })),
+              filename: `alarms-${new Date().toISOString().slice(0, 10)}`,
+            })
+          }}
+        >
+          <Download className="size-3" />
+          Export
+        </Button>
         <div className="ml-auto text-xs text-muted-foreground flex items-center gap-1.5">
           {filteredAlarms.length} alarm{filteredAlarms.length !== 1 ? 's' : ''} shown
         </div>

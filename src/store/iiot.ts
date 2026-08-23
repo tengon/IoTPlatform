@@ -66,6 +66,7 @@ interface IIoTState {
   energyHistory: EnergyData[]
   liveTelemetry: Record<string, TelemetryPoint[]>
   isConnected: boolean
+  lastUpdate: number | null
   setDevices: (devices: DeviceStatus[]) => void
   setAlarms: (alarms: AlarmItem[]) => void
   setMachines: (machines: MachineStatus[]) => void
@@ -84,11 +85,12 @@ export const useIIoTStore = create<IIoTState>((set) => ({
   energyHistory: [],
   liveTelemetry: {},
   isConnected: false,
-  setDevices: (devices) => set({ devices }),
-  setAlarms: (alarms) => set({ alarms }),
-  setMachines: (machines) => set({ machines }),
-  setProduction: (orders) => set({ production: orders }),
-  setEnergyHistory: (data) => set({ energyHistory: data }),
+  lastUpdate: null,
+  setDevices: (devices) => set({ devices, lastUpdate: Date.now() }),
+  setAlarms: (alarms) => set({ alarms, lastUpdate: Date.now() }),
+  setMachines: (machines) => set({ machines, lastUpdate: Date.now() }),
+  setProduction: (orders) => set({ production: orders, lastUpdate: Date.now() }),
+  setEnergyHistory: (data) => set({ energyHistory: data, lastUpdate: Date.now() }),
   updateTelemetry: (deviceId, point) =>
     set((s) => {
       const existing = s.liveTelemetry[deviceId] || []
