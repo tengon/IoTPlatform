@@ -1,0 +1,634 @@
+   185→            style={{ backgroundColor: accentColor ? `${accentColor}20` : 'var(--primary) 15%' }}
+   186→          >
+   187→            <Icon
+   188→              className="size-5"
+   189→              style={{ color: accentColor || 'var(--primary)' }}
+   190→            />
+   191→          </div>
+   192→          <div className="min-w-0">
+   193→            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+   194→              {label}
+   195→            </p>
+   196→            <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">
+   197→              {value}
+   198→            </p>
+   199→            <div className="mt-1 flex items-center gap-1.5 text-xs">
+   200→              {trend === 'up' && <TrendingUp className="size-3 text-emerald-400" />}
+   201→              {trend === 'down' && <TrendingDown className="size-3 text-red-400" />}
+   202→              <span
+   203→                className={
+   204→                  trend === 'up'
+   205→                    ? 'text-emerald-400'
+   206→                    : trend === 'down'
+   207→                      ? 'text-red-400'
+   208→                      : 'text-muted-foreground'
+   209→                }
+   210→              >
+   211→                {subtitle}
+   212→              </span>
+   213→            </div>
+   214→          </div>
+   215→        </div>
+   216→        {sparkData && sparkData.length > 1 && (
+   217→          <MiniSparkline data={sparkData} color={sparkColor} />
+   218→        )}
+   219→      </CardContent>
+   220→    </Card>
+   221→  )
+   222→}
+   223→}
+   224→
+   225→// ─── Main Dashboard Page ──────────────────────────────────────────────────────
+   226→export function DashboardPage() {
+   227→  const { devices, machines, alarms, energyHistory, production } = useIIoTStore()
+   228→  const { setCurrentPage } = useNavigation()
+   229→
+   230→  // ── Computed values ──
+   231→  const onlineDevices = useMemo(
+   232→    () => devices.filter((d) => d.status === 'online' || d.status === 'warning').length,
+   233→    [devices]
+   234→  )
+   235→  const offlineDevices = devices.length - onlineDevices
+   236→  const activeMachines = useMemo(
+   237→    () => machines.filter((m) => m.status === 'running').length,
+   238→    [machines]
+   239→  )
+   240→  const activeAlarms = useMemo(
+   241→    () => alarms.filter((a) => a.status === 'active'),
+   242→    [alarms]
+   243→  )
+   244→  const criticalAlarms = useMemo(
+   245→    () => activeAlarms.filter((a) => a.severity === 'critical').length,
+   246→    [activeAlarms]
+   247→  )
+   248→  const todayEnergy = useMemo(() => {
+   249→    if (!energyHistory.length) return 0
+   250→    return energyHistory.reduce((sum, e) => sum + e.kwh, 0)
+   251→  }, [energyHistory])
+   252→
+   253→  // ── Production trend data (simulated 24h) ──
+   254→  const productionTrendData = useMemo(() => {
+   255→    const hours: { hour: string; output: number; target: number }[] = []
+   256→    const totalTarget = production.reduce((s, p) => s + p.target, 0) || 1
+   257→    const totalActual = production.reduce((s, p) => s + p.actual, 0) || 0
+   258→    for (let h = 0; h < 24; h++) {
+   259→      const hourStr = `${String(h).padStart(2, '0')}:00`
+   260→      // Simulate production curve: ramp up, peak, slight dip at night
+   261→      const shiftMultiplier = h >= 6 && h <= 18 ? 1 : 0.4
+   262→      const peakMultiplier = h >= 9 && h <= 16 ? 1.2 : 1
+   263→      const noise = 0.85 + Math.sin(h * 0.7) * 0.15
+   264→      const output = Math.round(
+   265→        (totalActual / 24) * shiftMultiplier * peakMultiplier * noise
+   266→      )
+   267→      const target = Math.round((totalTarget / 24) * shiftMultiplier * peakMultiplier)
+   268→      hours.push({ hour: hourStr, output, target })
+   269→    }
+   270→    return hours
+   271→  }, [production])
+   272→
+   273→  // ── OEE Bar Chart data ──
+   274→  const oeeData = useMemo(
+   275→    () =>
+   276→      machines.map((m) => ({
+   277→        name: m.name.length > 12 ? m.name.slice(0, 12) + '…' : m.name,
+   278→        OEE: Number((m.oee * 100).toFixed(1)),
+   279→        Availability: Number((m.availability * 100).toFixed(1)),
+   280→        Performance: Number((m.performance * 100).toFixed(1)),
+   281→        Quality: Number((m.quality * 100).toFixed(1)),
+   282→      })),
+   283→    [machines]
+   284→  )
+   285→
+   286→  // ── Alarm distribution ──
+   287→  const alarmDistribution = useMemo(() => {
+   288→    const counts = { critical: 0, warning: 0, info: 0 }
+   289→    activeAlarms.forEach((a) => { counts[a.severity]++ })
+   290→    return [
+   291→      { name: 'Critical', value: counts.critical, fill: C_RED },
+   292→      { name: 'Warning', value: counts.warning, fill: C_YELLOW },
+   293→      { name: 'Info', value: counts.info, fill: C_CYAN },
+   294→    ].filter((d) => d.value > 0)
+   295→  }, [activeAlarms])
+   296→
+   297→  // ── Latest 5 active alarms ──
+   298→  const latestAlarms = useMemo(
+   299→    () =>
+   300→      [...activeAlarms]
+   301→        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+   302→        .slice(0, 5),
+   303→    [activeAlarms]
+   304→  )
+   305→
+   306→  // ── Energy chart data ──
+   307→  const energyChartData = useMemo(() => {
+   308→    if (!energyHistory.length) return []
+   309→    return energyHistory.map((e) => {
+   310→      const d = new Date(e.timestamp)
+   311→      return {
+   312→        time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+   313→        kWh: Number(e.kwh.toFixed(2)),
+   314→        voltage: Number(e.voltage.toFixed(1)),
+   315→      }
+   316→    })
+   317→  }, [energyHistory])
+   318→
+   319→  // ── Sparkline data for KPIs ──
+   320→  const deviceSparkData = useMemo(() => {
+   321→    // Simulate a small spark from recent device count changes
+   322→    return [devices.length - 1, devices.length, devices.length + 1, devices.length, onlineDevices, onlineDevices, onlineDevices + 1]
+   323→  }, [devices.length, onlineDevices])
+   324→
+   325→  const energySparkData = useMemo(
+   326→    () => energyHistory.slice(-12).map((e) => e.kwh),
+   327→    [energyHistory]
+   328→  )
+   329→
+   330→  const machineSparkData = useMemo(
+   331→    () => machines.map((m) => (m.status === 'running' ? 1 : 0)),
+   332→    [machines]
+   333→  )
+   334→
+   335→  return (
+   336→    <div className="flex flex-col gap-6">
+   337→      <PageHeader
+   338→        title="Dashboard"
+   339→        description="Real-time industrial operations overview"
+   340→        icon={Activity}
+   341→      />
+   342→
+   343→      {/* ── KPI Cards Row ── */}
+   344→      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   345→        <KPICard
+   346→          icon={MonitorSmartphone}
+   347→          label="Total Devices"
+   348→          value={devices.length}
+   349→          subtitle={`${onlineDevices} online · ${offlineDevices} offline`}
+   350→          trend="up"
+   351→          trendValue="+2 today"
+   352→          sparkData={deviceSparkData}
+   353→          sparkColor={C_GREEN}
+   354→          accentColor={C_GREEN}
+   355→        />
+   356→        <KPICard
+   357→          icon={Factory}
+   358→          label="Active Machines"
+   359→          value={activeMachines}
+   360→          subtitle={`${activeMachines} of ${machines.length} running`}
+   361→          trend={activeMachines > 0 ? 'up' : 'neutral'}
+   362→          sparkData={machineSparkData}
+   363→          sparkColor={C_GREEN}
+   364→          accentColor={C_CYAN}
+   365→        />
+   366→        <KPICard
+   367→          icon={Bell}
+   368→          label="Active Alarms"
+   369→          value={activeAlarms.length}
+   370→          subtitle={criticalAlarms > 0 ? `${criticalAlarms} critical` : 'No critical alarms'}
+   371→          trend={criticalAlarms > 0 ? 'down' : 'neutral'}
+   372→          sparkData={activeAlarms.map(() => Math.random())}
+   373→          sparkColor={criticalAlarms > 0 ? C_RED : C_YELLOW}
+   374→          accentColor={criticalAlarms > 0 ? C_RED : C_YELLOW}
+   375→          onClick={() => setCurrentPage('active-alarms')}
+   376→        />
+   377→        <KPICard
+   378→          icon={Zap}
+   379→          label="Energy Consumption"
+   380→          value={`${todayEnergy.toFixed(0)} kWh`}
+   381→          subtitle="Today's total consumption"
+   382→          trend="up"
+   383→          sparkData={energySparkData}
+   384→          sparkColor={C_ORANGE}
+   385→          accentColor={C_ORANGE}
+   386→        />
+   387→      </div>
+   388→
+   389→      {/* ── Production Trend + OEE Row ── */}
+   390→      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+   391→        {/* Production Overview (3/5 width) */}
+   392→        <Card className="lg:col-span-3 py-4">
+   393→          <CardHeader className="pb-2">
+   394→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   395→              <TrendingUp className="size-4 text-emerald-400" />
+   396→              Production Overview
+   397→            </CardTitle>
+   398→            <CardDescription>24-hour production output vs target</CardDescription>
+   399→          </CardHeader>
+   400→          <CardContent>
+   401→            <div className="h-[260px] w-full">
+   402→              <ResponsiveContainer width="100%" height="100%">
+   403→                <AreaChart data={productionTrendData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+   404→                  <defs>
+   405→                    <linearGradient id="gradOutput" x1="0" y1="0" x2="0" y2="1">
+   406→                      <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.3} />
+   407→                      <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
+   408→                    </linearGradient>
+   409→                    <linearGradient id="gradTarget" x1="0" y1="0" x2="0" y2="1">
+   410→                      <stop offset="0%" stopColor={C_CYAN} stopOpacity={0.15} />
+   411→                      <stop offset="100%" stopColor={C_CYAN} stopOpacity={0.01} />
+   412→                    </linearGradient>
+   413→                  </defs>
+   414→                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+   415→                  <XAxis
+   416→                    dataKey="hour"
+   417→                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+   418→                    tickLine={false}
+   419→                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+   420→                    interval={3}
+   421→                  />
+   422→                  <YAxis
+   423→                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+   424→                    tickLine={false}
+   425→                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+   426→                  />
+   427→                  <Tooltip content={<DarkTooltip />} />
+   428→                  <Area
+   429→                    type="monotone"
+   430→                    dataKey="target"
+   431→                    stroke={C_CYAN}
+   432→                    strokeWidth={1.5}
+   433→                    strokeDasharray="5 3"
+   434→                    fill="url(#gradTarget)"
+   435→                    name="Target"
+   436→                  />
+   437→                  <Area
+   438→                    type="monotone"
+   439→                    dataKey="output"
+   440→                    stroke={C_GREEN}
+   441→                    strokeWidth={2}
+   442→                    fill="url(#gradOutput)"
+   443→                    name="Output"
+   444→                  />
+   445→                </AreaChart>
+   446→              </ResponsiveContainer>
+   447→            </div>
+   448→          </CardContent>
+   449→        </Card>
+   450→
+   451→        {/* OEE Bar Chart (2/5 width) */}
+   452→        <Card className="lg:col-span-2 py-4">
+   453→          <CardHeader className="pb-2">
+   454→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   455→              <Gauge className="size-4 text-emerald-400" />
+   456→              Machine OEE Overview
+   457→            </CardTitle>
+   458→            <CardDescription>OEE, Availability, Performance, Quality (%)</CardDescription>
+   459→          </CardHeader>
+   460→          <CardContent>
+   461→            <div className="h-[260px] w-full">
+   462→              <ResponsiveContainer width="100%" height="100%">
+   463→                <BarChart data={oeeData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }} barSize={10}>
+   464→                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+   465→                  <XAxis
+   466→                    dataKey="name"
+   467→                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+   468→                    tickLine={false}
+   469→                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+   470→                  />
+   471→                  <YAxis
+   472→                    domain={[0, 100]}
+   473→                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+   474→                    tickLine={false}
+   475→                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+   476→                  />
+   477→                  <Tooltip content={<DarkTooltip valueSuffix="%" />} />
+   478→                  <Legend
+   479→                    iconType="circle"
+   480→                    iconSize={6}
+   481→                    wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}
+   482→                  />
+   483→                  <Bar dataKey="OEE" fill={C_GREEN} radius={[2, 2, 0, 0]} />
+   484→                  <Bar dataKey="Availability" fill={C_CYAN} radius={[2, 2, 0, 0]} />
+   485→                  <Bar dataKey="Performance" fill={C_ORANGE} radius={[2, 2, 0, 0]} />
+   486→                  <Bar dataKey="Quality" fill={C_YELLOW} radius={[2, 2, 0, 0]} />
+   487→                </BarChart>
+   488→              </ResponsiveContainer>
+   489→            </div>
+   490→          </CardContent>
+   491→        </Card>
+   492→      </div>
+   493→
+   494→      {/* ── Alarm Summary + Machine Status Grid ── */}
+   495→      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+   496→        {/* Alarm Summary (1/3) */}
+   497→        <Card className="lg:col-span-1 py-4 flex flex-col">
+   498→          <CardHeader className="pb-2">
+   499→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   500→              <AlertTriangle className="size-4 text-amber-400" />
+   501→              Alarm Summary
+   502→            </CardTitle>
+   503→            <CardDescription>Active alarm distribution</CardDescription>
+   504→          </CardHeader>
+   505→          <CardContent className="flex-1 flex flex-col gap-4">
+   506→            {/* Donut Chart */}
+   507→            <div className="flex items-center justify-center h-[160px]">
+   508→              {alarmDistribution.length > 0 ? (
+   509→                <ResponsiveContainer width="100%" height="100%">
+   510→                  <PieChart>
+   511→                    <Pie
+   512→                      data={alarmDistribution}
+   513→                      cx="50%"
+   514→                      cy="50%"
+   515→                      innerRadius={42}
+   516→                      outerRadius={65}
+   517→                      paddingAngle={3}
+   518→                      dataKey="value"
+   519→                      stroke="none"
+   520→                    >
+   521→                      {alarmDistribution.map((entry, index) => (
+   522→                        <Cell key={`cell-${index}`} fill={entry.fill} />
+   523→                      ))}
+   524→                    </Pie>
+   525→                    <Tooltip
+   526→                      contentStyle={{
+   527→                        backgroundColor: 'oklch(0.17 0.006 155)',
+   528→                        border: '1px solid oklch(0.25 0.008 155)',
+   529→                        borderRadius: '8px',
+   530→                        fontSize: '12px',
+   531→                        color: 'oklch(0.92 0.01 155)',
+   532→                      }}
+   533→                    />
+   534→                  </PieChart>
+   535→                </ResponsiveContainer>
+   536→              ) : (
+   537→                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+   538→                  <Bell className="size-8 opacity-30" />
+   539→                  <span className="text-xs">No active alarms</span>
+   540→                </div>
+   541→              )}
+   542→            </div>
+   543→
+   544→            {/* Legend row */}
+   545→            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+   546→              <div className="flex items-center gap-1.5">
+   547→                <span className="size-2 rounded-full bg-red-500" />
+   548→                Critical
+   549→              </div>
+   550→              <div className="flex items-center gap-1.5">
+   551→                <span className="size-2 rounded-full bg-yellow-500" />
+   552→                Warning
+   553→              </div>
+   554→              <div className="flex items-center gap-1.5">
+   555→                <span className="size-2 rounded-full bg-cyan-500" />
+   556→                Info
+   557→              </div>
+   558→            </div>
+   559→
+   560→            {/* Latest Alarms List */}
+   561→            <div className="flex-1">
+   562→              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+   563→                Latest Active Alarms
+   564→              </p>
+   565→              <ScrollArea className="h-[160px] max-h-[160px]">
+   566→                <div className="flex flex-col gap-2 pr-2">
+   567→                  {latestAlarms.length === 0 ? (
+   568→                    <p className="text-xs text-muted-foreground text-center py-4">
+   569→                      No active alarms
+   570→                    </p>
+   571→                  ) : (
+   572→                    latestAlarms.map((alarm) => {
+   573→                      const sev = SEVERITY_COLORS[alarm.severity]
+   574→                      const SevIcon = sev.icon
+   575→                      return (
+   576→                        <div
+   577→                          key={alarm.id}
+   578→                          className="flex items-start gap-2.5 rounded-lg border border-border/50 px-2.5 py-2 transition-colors hover:bg-muted/30"
+   579→                        >
+   580→                          <div
+   581→                            className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+   582→                            style={{ backgroundColor: sev.bg }}
+   583→                          >
+   584→                            <SevIcon className="size-3.5" style={{ color: sev.fill }} />
+   585→                          </div>
+   586→                          <div className="min-w-0 flex-1">
+   587→                            <p className="text-xs font-medium text-foreground truncate">
+   588→                              {alarm.source}
+   589→                            </p>
+   590→                            <p className="text-[11px] text-muted-foreground line-clamp-1">
+   591→                              {alarm.message}
+   592→                            </p>
+   593→                            <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground/70">
+   594→                              <Clock className="size-2.5" />
+   595→                              {formatDistanceToNow(new Date(alarm.createdAt), {
+   596→                                addSuffix: true,
+   597→                              })}
+   598→                            </p>
+   599→                          </div>
+   600→                        </div>
+   601→                      )
+   602→                    })
+   603→                  )}
+   604→                </div>
+   605→              </ScrollArea>
+   606→            </div>
+   607→
+   608→            {/* View all button */}
+   609→            <Button
+   610→              variant="outline"
+   611→              size="sm"
+   612→              className="mt-auto w-full"
+   613→              onClick={() => setCurrentPage('active-alarms')}
+   614→            >
+   615→              View All Alarms
+   616→              <ArrowRight className="ml-1 size-3.5" />
+   617→            </Button>
+   618→          </CardContent>
+   619→        </Card>
+   620→
+   621→        {/* Machine Status Grid (2/3) */}
+   622→        <Card className="lg:col-span-2 py-4">
+   623→          <CardHeader className="pb-2">
+   624→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   625→              <Factory className="size-4 text-emerald-400" />
+   626→              Machine Status
+   627→            </CardTitle>
+   628→            <CardDescription>Real-time status of all connected machines</CardDescription>
+   629→          </CardHeader>
+   630→          <CardContent>
+   631→            {machines.length === 0 ? (
+   632→              <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">
+   633→                No machines connected
+   634→              </div>
+   635→            ) : (
+   636→              <ScrollArea className="h-[320px] max-h-[320px]">
+   637→                <div className="grid grid-cols-1 gap-3 pr-2 sm:grid-cols-2">
+   638→                  {machines.map((machine) => {
+   639→                    const statusColor = STATUS_COLORS[machine.status]
+   640→                    return (
+   641→                      <div
+   642→                        key={machine.id}
+   643→                        className="relative rounded-lg border border-border/50 p-3 transition-colors hover:bg-muted/20"
+   644→                      >
+   645→                        {/* Status indicator dot */}
+   646→                        <div className="flex items-start justify-between">
+   647→                          <div className="flex items-center gap-2">
+   648→                            <span
+   649→                              className={`inline-block size-2.5 rounded-full ${machine.status === 'running' ? 'animate-pulse-dot glow-green' : machine.status === 'error' ? 'glow-red' : ''}`}
+   650→                              style={{ backgroundColor: statusColor }}
+   651→                            />
+   652→                            <p className="text-sm font-medium text-foreground truncate max-w-[140px]">
+   653→                              {machine.name}
+   654→                            </p>
+   655→                          </div>
+   656→                          <Badge
+   657→                            variant="outline"
+   658→                            className="text-[10px] px-1.5 py-0 h-5 capitalize"
+   659→                            style={{
+   660→                              borderColor: `${statusColor}50`,
+   661→                              color: statusColor,
+   662→                            }}
+   663→                          >
+   664→                            {machine.status}
+   665→                          </Badge>
+   666→                        </div>
+   667→
+   668→                        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+   669→                          <Factory className="size-3" />
+   670→                          {machine.type}
+   671→                        </div>
+   672→
+   673→                        <div className="mt-3 grid grid-cols-3 gap-2">
+   674→                          {/* Temperature */}
+   675→                          <div className="rounded-md bg-muted/30 px-2 py-1.5 text-center">
+   676→                            <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+   677→                              <Thermometer className="size-3 text-orange-400" />
+   678→                            </div>
+   679→                            <p className="mt-0.5 text-xs font-semibold text-foreground">
+   680→                              {machine.temperature}°C
+   681→                            </p>
+   682→                          </div>
+   683→                          {/* RPM */}
+   684→                          <div className="rounded-md bg-muted/30 px-2 py-1.5 text-center">
+   685→                            <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+   686→                              <Activity className="size-3 text-cyan-400" />
+   687→                            </div>
+   688→                            <p className="mt-0.5 text-xs font-semibold text-foreground">
+   689→                              {machine.rpm}
+   690→                            </p>
+   691→                          </div>
+   692→                          {/* OEE */}
+   693→                          <div className="rounded-md bg-muted/30 px-2 py-1.5 text-center">
+   694→                            <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+   695→                              <Gauge className="size-3 text-emerald-400" />
+   696→                            </div>
+   697→                            <p className="mt-0.5 text-xs font-semibold text-foreground">
+   698→                              {(machine.oee * 100).toFixed(0)}%
+   699→                            </p>
+   700→                          </div>
+   701→                        </div>
+   702→
+   703→                        {/* OEE Progress bar */}
+   704→                        <div className="mt-2">
+   705→                          <Progress
+   706→                            value={machine.oee * 100}
+   707→                            className="h-1.5"
+   708→                          />
+   709→                        </div>
+   710→                      </div>
+   711→                    )
+   712→                  })}
+   713→                </div>
+   714→              </ScrollArea>
+   715→            )}
+   716→          </CardContent>
+   717→        </Card>
+   718→      </div>
+   719→
+   720→      {/* ── Energy Consumption Chart ── */}
+   721→      <Card className="py-4">
+   722→        <CardHeader className="pb-2">
+   723→          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   724→            <Zap className="size-4 text-orange-400" />
+   725→            Energy Consumption
+   726→          </CardTitle>
+   727→          <CardDescription>Real-time power consumption (kWh) and voltage levels</CardDescription>
+   728→        </CardHeader>
+   729→        <CardContent>
+   730→          <div className="h-[220px] w-full">
+   731→            {energyChartData.length > 0 ? (
+   732→              <ResponsiveContainer width="100%" height="100%">
+   733→                <LineChart data={energyChartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+   734→                  <defs>
+   735→                    <linearGradient id="gradEnergy" x1="0" y1="0" x2="0" y2="1">
+   736→                      <stop offset="0%" stopColor={C_ORANGE} stopOpacity={0.25} />
+   737→                      <stop offset="100%" stopColor={C_ORANGE} stopOpacity={0.01} />
+   738→                    </linearGradient>
+   739→                  </defs>
+   740→                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+   741→                  <XAxis
+   742→                    dataKey="time"
+   743→                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+   744→                    tickLine={false}
+   745→                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+   746→                    interval={Math.max(0, Math.floor(energyChartData.length / 10) - 1)}
+   747→                  />
+   748→                  <YAxis
+   749→                    yAxisId="kwh"
+   750→                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+   751→                    tickLine={false}
+   752→                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+   753→                    label={{
+   754→                      value: 'kWh',
+   755→                      angle: -90,
+   756→                      position: 'insideLeft',
+   757→                      style: { fill: 'rgba(255,255,255,0.3)', fontSize: 10 },
+   758→                      offset: -5,
+   759→                    }}
+   760→                  />
+   761→                  <YAxis
+   762→                    yAxisId="voltage"
+   763→                    orientation="right"
+   764→                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+   765→                    tickLine={false}
+   766→                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+   767→                    label={{
+   768→                      value: 'V',
+   769→                      angle: 90,
+   770→                      position: 'insideRight',
+   771→                      style: { fill: 'rgba(255,255,255,0.3)', fontSize: 10 },
+   772→                      offset: -5,
+   773→                    }}
+   774→                  />
+   775→                  <Tooltip content={<DarkTooltip />} />
+   776→                  <Legend
+   777→                    iconType="circle"
+   778→                    iconSize={6}
+   779→                    wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}
+   780→                  />
+   781→                  <Line
+   782→                    yAxisId="kwh"
+   783→                    type="monotone"
+   784→                    dataKey="kWh"
+   785→                    stroke={C_ORANGE}
+   786→                    strokeWidth={2}
+   787→                    dot={false}
+   788→                    activeDot={{ r: 4, fill: C_ORANGE, strokeWidth: 0 }}
+   789→                    name="kWh"
+   790→                  />
+   791→                  <Line
+   792→                    yAxisId="voltage"
+   793→                    type="monotone"
+   794→                    dataKey="voltage"
+   795→                    stroke={C_CYAN}
+   796→                    strokeWidth={1.5}
+   797→                    strokeDasharray="4 2"
+   798→                    dot={false}
+   799→                    activeDot={{ r: 3, fill: C_CYAN, strokeWidth: 0 }}
+   800→                    name="Voltage"
+   801→                  />
+   802→                </LineChart>
+   803→              </ResponsiveContainer>
+   804→            ) : (
+   805→              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+   806→                <div className="flex flex-col items-center gap-2">
+   807→                  <Zap className="size-8 opacity-20" />
+   808→                  <span>Awaiting energy data...</span>
+   809→                </div>
+   810→              </div>
+   811→            )}
+   812→          </div>
+   813→        </CardContent>
+   814→      </Card>
+   815→    </div>
+   816→  )
+   817→}
+   818→

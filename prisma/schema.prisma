@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Site {
+  id          String    @id @default(uuid())
+  name        String
+  code        String    @unique
+  address     String?
+  timezone    String    @default("Asia/Jakarta")
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  devices     Device[]
+  machines    Machine[]
+  gateways    Gateway[]
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password      String?
+  role          String    @default("operator")
+  avatar        String?
+  status        String    @default("active")
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  auditLogs     AuditLog[]
+}
+
+model Device {
+  id            String   @id @default(uuid())
+  name          String
+   deviceId      String   @unique
+  deviceType    String   @default("sensor")
+  protocol      String   @default("MQTT")
+  status        String   @default("offline")
+  firmware      String?
+  firmwareVer   String?
+  battery       Float?
+  signal        Float?
+  lastSeen      DateTime?
+  gatewayId     String?
+  gateway       Gateway? @relation(fields: [gatewayId], references: [id])
+  siteId        String
+  site          Site     @relation(fields: [siteId], references: [id])
+  telemetry     Telemetry[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Gateway {
+  id            String   @id @default(uuid())
+  name          String
+  gatewayId     String   @unique
+  protocol      String   @default("MQTT")
+  status        String   @default("offline")
+  firmware      String?
+  firmwareVer   String?
+  ip            String?
+  port          Int?
+  siteId        String
+  site          Site     @relation(fields: [siteId], references: [id])
+  devices       Device[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Machine {
+  id            String   @id @default(uuid())
+  name          String
+  machineType   String
+  model         String?
+  manufacturer  String?
+  serialNumber  String?
+  status        String   @default("idle")
+  oee           Float?
+  availability  Float?
+  performance   Float?
+  quality       Float?
+  siteId        String
+  site          Site     @relation(fields: [siteId], references: [id])
+  production    Production[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Telemetry {
+  id            String   @id @default(uuid())
+  deviceId      String
+  device        Device   @relation(fields: [deviceId], references: [id])
+  metric        String
+  value         Float
+  unit          String?
+  timestamp     DateTime @default(now())
+  @@index([deviceId, timestamp])
+}
+
+model Alarm {
+  id            String   @id @default(uuid())
+  alarmId       String   @unique
+  severity      String   @default("info")
+  source        String
+  message       String
+  description   String?
+  status        String   @default("active")
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  resolvedAt    DateTime?
+  ruleId        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([status, severity])
+  @@index([createdAt])
+}
+
+model AlertRule {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  metric        String
+  condition     String
+  threshold     Float
+  severity      String   @default("warning")
+  cooldown      Int      @default(300)
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Production {
+  id            String   @id @default(uuid())
+  machineId     String
+  machine       Machine  @relation(fields: [machineId], references: [id])
+  productName   String?
+  targetCount   Int?
+  actualCount   Int      @default(0)
+  defectCount   Int      @default(0)
+  startTime     DateTime?
+  endTime       DateTime?
+  status        String   @default("running")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([machineId, createdAt])
+}
+
+model EnergyReading {
+  id            String   @id @default(uuid())
+  meterId       String
+  kwh           Float
+  voltage       Float?
+  current       Float?
+  powerFactor   Float?
+  timestamp     DateTime @default(now())
+  @@index([meterId, timestamp])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  action        String
+  resource      String
+  details       String?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+  @@index([userId, createdAt])
+}
+
+model PlatformSettings {
+  id            String   @id @default(uuid())
+  key           String   @unique
+  value         String
+  description   String?
+  updatedAt     DateTime @updatedAt
+}
