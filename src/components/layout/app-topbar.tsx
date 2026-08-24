@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/breadcrumb'
 import { NotificationPanel } from '@/components/layout/notification-panel'
 import { ActivityFeed } from '@/components/layout/activity-feed'
+import { GlobalFilters } from '@/shared/components/global-filters'
 import { formatDistanceToNow } from 'date-fns'
 
 const pageLabels: Record<string, string> = {
@@ -132,6 +133,11 @@ export function AppTopbar() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
+
+      {/* Global Filters (Factory + Time Range) */}
+      <div className="hidden lg:flex">
+        <GlobalFilters />
+      </div>
 
       <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
         {/* Search Bar */}

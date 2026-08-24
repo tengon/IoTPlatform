@@ -1,0 +1,1109 @@
+     1→@import "tailwindcss";
+     2→@import "tw-animate-css";
+     3→
+     4→@custom-variant dark (&:is(.dark *));
+     5→
+     6→@theme inline {
+     7→  --color-background: var(--background);
+     8→  --color-foreground: var(--foreground);
+     9→  --font-sans: var(--font-geist-sans);
+    10→  --font-mono: var(--font-geist-mono);
+    11→  --color-sidebar-ring: var(--sidebar-ring);
+    12→  --color-sidebar-border: var(--sidebar-border);
+    13→  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    14→  --color-sidebar-accent: var(--sidebar-accent);
+    15→  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    16→  --color-sidebar-primary: var(--sidebar-primary);
+    17→  --color-sidebar-foreground: var(--sidebar-foreground);
+    18→  --color-sidebar: var(--sidebar);
+    19→  --color-chart-5: var(--chart-5);
+    20→  --color-chart-4: var(--chart-4);
+    21→  --color-chart-3: var(--chart-3);
+    22→  --color-chart-2: var(--chart-2);
+    23→  --color-chart-1: var(--chart-1);
+    24→  --color-ring: var(--ring);
+    25→  --color-input: var(--input);
+    26→  --color-border: var(--border);
+    27→  --color-destructive: var(--destructive);
+    28→  --color-accent-foreground: var(--accent-foreground);
+    29→  --color-accent: var(--accent);
+    30→  --color-muted-foreground: var(--muted-foreground);
+    31→  --color-muted: var(--muted);
+    32→  --color-secondary-foreground: var(--secondary-foreground);
+    33→  --color-secondary: var(--secondary);
+    34→  --color-primary-foreground: var(--primary-foreground);
+    35→  --color-primary: var(--primary);
+    36→  --color-popover-foreground: var(--popover-foreground);
+    37→  --color-popover: var(--popover);
+    38→  --color-card-foreground: var(--card-foreground);
+    39→  --color-card: var(--card);
+    40→  --color-warning: var(--warning);
+    41→  --color-warning-foreground: var(--warning-foreground);
+    42→  --color-success: var(--success);
+    43→  --color-success-foreground: var(--success-foreground);
+    44→  --radius-sm: calc(var(--radius) - 4px);
+    45→  --radius-md: calc(var(--radius) - 2px);
+    46→  --radius-lg: var(--radius);
+    47→  --radius-xl: calc(var(--radius) + 4px);
+    48→}
+    49→
+    50→:root {
+    51→  --radius: 0.5rem;
+    52→  --background: oklch(0.985 0.002 120);
+    53→  --foreground: oklch(0.145 0.005 120);
+    54→  --card: oklch(1 0 0);
+    55→  --card-foreground: oklch(0.145 0.005 120);
+    56→  --popover: oklch(1 0 0);
+    57→  --popover-foreground: oklch(0.145 0.005 120);
+    58→  --primary: oklch(0.55 0.15 155);
+    59→  --primary-foreground: oklch(0.985 0 0);
+    60→  --secondary: oklch(0.96 0.005 120);
+    61→  --secondary-foreground: oklch(0.25 0.01 120);
+    62→  --muted: oklch(0.96 0.005 120);
+    63→  --muted-foreground: oklch(0.5 0.01 120);
+    64→  --accent: oklch(0.55 0.15 155);
+    65→  --accent-foreground: oklch(0.985 0 0);
+    66→  --destructive: oklch(0.577 0.245 27.325);
+    67→  --border: oklch(0.9 0.005 120);
+    68→  --input: oklch(0.9 0.005 120);
+    69→  --ring: oklch(0.55 0.15 155);
+    70→  --chart-1: oklch(0.55 0.15 155);
+    71→  --chart-2: oklch(0.65 0.18 85);
+    72→  --chart-3: oklch(0.6 0.12 200);
+    73→  --chart-4: oklch(0.7 0.15 60);
+    74→  --chart-5: oklch(0.65 0.2 25);
+    75→  --sidebar: oklch(0.17 0.01 155);
+    76→  --sidebar-foreground: oklch(0.92 0.01 155);
+    77→  --sidebar-primary: oklch(0.6 0.15 155);
+    78→  --sidebar-primary-foreground: oklch(0.985 0 0);
+    79→  --sidebar-accent: oklch(0.22 0.015 155);
+    80→  --sidebar-accent-foreground: oklch(0.95 0.01 155);
+    81→  --sidebar-border: oklch(0.28 0.01 155);
+    82→  --sidebar-ring: oklch(0.55 0.15 155);
+    83→  --warning: oklch(0.75 0.18 65);
+    84→  --warning-foreground: oklch(0.2 0.04 60);
+    85→  --success: oklch(0.6 0.15 155);
+    86→  --success-foreground: oklch(0.985 0 0);
+    87→}
+    88→
+    89→.dark {
+    90→  --background: oklch(0.13 0.005 155);
+    91→  --foreground: oklch(0.92 0.01 155);
+    92→  --card: oklch(0.17 0.006 155);
+    93→  --card-foreground: oklch(0.92 0.01 155);
+    94→  --popover: oklch(0.17 0.006 155);
+    95→  --popover-foreground: oklch(0.92 0.01 155);
+    96→  --primary: oklch(0.65 0.17 155);
+    97→  --primary-foreground: oklch(0.13 0.005 155);
+    98→  --secondary: oklch(0.22 0.008 155);
+    99→  --secondary-foreground: oklch(0.9 0.01 155);
+   100→  --muted: oklch(0.22 0.008 155);
+   101→  --muted-foreground: oklch(0.65 0.01 155);
+   102→  --accent: oklch(0.22 0.01 155);
+   103→  --accent-foreground: oklch(0.92 0.01 155);
+   104→  --destructive: oklch(0.65 0.22 25);
+   105→  --border: oklch(0.25 0.008 155);
+   106→  --input: oklch(0.22 0.008 155);
+   107→  --ring: oklch(0.65 0.17 155);
+   108→  --chart-1: oklch(0.65 0.17 155);
+   109→  --chart-2: oklch(0.75 0.15 85);
+   110→  --chart-3: oklch(0.6 0.12 200);
+   111→  --chart-4: oklch(0.8 0.15 60);
+   112→  --chart-5: oklch(0.7 0.2 25);
+   113→  --sidebar: oklch(0.11 0.005 155);
+   114→  --sidebar-foreground: oklch(0.9 0.01 155);
+   115→  --sidebar-primary: oklch(0.65 0.17 155);
+   116→  --sidebar-primary-foreground: oklch(0.13 0.005 155);
+   117→  --sidebar-accent: oklch(0.18 0.01 155);
+   118→  --sidebar-accent-foreground: oklch(0.9 0.01 155);
+   119→  --sidebar-border: oklch(0.22 0.008 155);
+   120→  --sidebar-ring: oklch(0.65 0.17 155);
+   121→  --warning: oklch(0.8 0.18 65);
+   122→  --warning-foreground: oklch(0.15 0.03 60);
+   123→  --success: oklch(0.65 0.17 155);
+   124→  --success-foreground: oklch(0.13 0.005 155);
+   125→}
+   126→
+   127→@layer base {
+   128→  * {
+   129→    @apply border-border outline-ring/50;
+   130→  }
+   131→  body {
+   132→    @apply bg-background text-foreground;
+   133→  }
+   134→}
+   135→
+   136→/* Custom scrollbar for IIoT platform */
+   137→::-webkit-scrollbar {
+   138→  width: 6px;
+   139→  height: 6px;
+   140→}
+   141→
+   142→::-webkit-scrollbar-track {
+   143→  background: transparent;
+   144→}
+   145→
+   146→::-webkit-scrollbar-thumb {
+   147→  background: oklch(0.4 0.01 155);
+   148→  border-radius: 3px;
+   149→}
+   150→
+   151→::-webkit-scrollbar-thumb:hover {
+   152→  background: oklch(0.5 0.01 155);
+   153→}
+   154→
+   155→/* Pulse animation for live indicators */
+   156→@keyframes pulse-dot {
+   157→  0%, 100% { opacity: 1; transform: scale(1); }
+   158→  50% { opacity: 0.5; transform: scale(0.8); }
+   159→}
+   160→
+   161→.animate-pulse-dot {
+   162→  animation: pulse-dot 2s ease-in-out infinite;
+   163→}
+   164→
+   165→/* Glow effect for active status */
+   166→.glow-green {
+   167→  box-shadow: 0 0 8px oklch(0.65 0.17 155 / 40%);
+   168→}
+   169→
+   170→.glow-red {
+   171→  box-shadow: 0 0 8px oklch(0.65 0.22 25 / 40%);
+   172→}
+   173→
+   174→.glow-amber {
+   175→  box-shadow: 0 0 8px oklch(0.8 0.18 65 / 40%);
+   176→}
+   177→
+   178→/* Telemetry value flash animation */
+   179→@keyframes telemetryFlash {
+   180→  0% { color: #34d399; }
+   181→  100% { color: var(--foreground); }
+   182→}
+   183→
+   184→/* Slide-in animation for page transitions */
+   185→@keyframes slideInUp {
+   186→  from { opacity: 0; transform: translateY(12px); }
+   187→  to { opacity: 1; transform: translateY(0); }
+   188→}
+   189→
+   190→@keyframes slideInRight {
+   191→  from { opacity: 0; transform: translateX(-8px); }
+   192→  to { opacity: 1; transform: translateX(0); }
+   193→}
+   194→
+   195→@keyframes fadeIn {
+   196→  from { opacity: 0; }
+   197→  to { opacity: 1; }
+   198→}
+   199→
+   200→@keyframes scaleIn {
+   201→  from { opacity: 0; transform: scale(0.95); }
+   202→  to { opacity: 1; transform: scale(1); }
+   203→}
+   204→
+   205→@keyframes shimmer {
+   206→  0% { background-position: -200% 0; }
+   207→  100% { background-position: 200% 0; }
+   208→}
+   209→
+   210→@keyframes countUp {
+   211→  from { opacity: 0; transform: translateY(4px); }
+   212→  to { opacity: 1; transform: translateY(0); }
+   213→}
+   214→
+   215→.animate-slide-up {
+   216→  animation: slideInUp 0.35s ease-out both;
+   217→}
+   218→
+   219→.animate-slide-right {
+   220→  animation: slideInRight 0.3s ease-out both;
+   221→}
+   222→
+   223→.animate-fade-in {
+   224→  animation: fadeIn 0.3s ease-out both;
+   225→}
+   226→
+   227→.animate-scale-in {
+   228→  animation: scaleIn 0.25s ease-out both;
+   229→}
+   230→
+   231→.animate-count-up {
+   232→  animation: countUp 0.4s ease-out both;
+   233→}
+   234→
+   235→/* Staggered animation delays for card grids */
+   236→.stagger-1 { animation-delay: 0.05s; }
+   237→.stagger-2 { animation-delay: 0.1s; }
+   238→.stagger-3 { animation-delay: 0.15s; }
+   239→.stagger-4 { animation-delay: 0.2s; }
+   240→.stagger-5 { animation-delay: 0.25s; }
+   241→.stagger-6 { animation-delay: 0.3s; }
+   242→
+   243→/* Improved card hover effects */
+   244→.glass-card {
+   245→  backdrop-filter: blur(12px);
+   246→  border: 1px solid oklch(0.3 0.01 155 / 50%);
+   247→}
+   248→
+   249→/* Subtle gradient border on hover */
+   250→.hover-glow:hover {
+   251→  box-shadow: 0 0 20px oklch(0.65 0.17 155 / 8%);
+   252→}
+   253→
+   254→/* Table row hover zebra striping */
+   255→.zebra-row:nth-child(even) {
+   256→  background: rgba(255,255,255,0.015);
+   257→}
+   258→
+   259→.zebra-row:hover {
+   260→  background-color: oklch(0.22 0.008 155 / 50%);
+   261→}
+   262→
+   263→/* Metric value emphasis */
+   264→.metric-value {
+   265→  font-variant-numeric: tabular-nums;
+   266→  letter-spacing: -0.02em;
+   267→}
+   268→
+   269→/* Status pulse ring animation */
+   270→@keyframes statusRing {
+   271→  0% { box-shadow: 0 0 0 0 oklch(0.65 0.17 155 / 40%); }
+   272→  70% { box-shadow: 0 0 0 6px oklch(0.65 0.17 155 / 0%); }
+   273→  100% { box-shadow: 0 0 0 0 oklch(0.65 0.17 155 / 0%); }
+   274→}
+   275→
+   276→.animate-status-ring {
+   277→  animation: statusRing 2s ease-out infinite;
+   278→}
+   279→
+   280→/* Skeleton shimmer effect */
+   281→.skeleton-shimmer {
+   282→  background: linear-gradient(
+   283→    90deg,
+   284→    oklch(0.22 0.008 155 / 40%) 25%,
+   285→    oklch(0.28 0.008 155 / 40%) 50%,
+   286→    oklch(0.22 0.008 155 / 40%) 75%
+   287→  );
+   288→  background-size: 200% 100%;
+   289→  animation: shimmer 1.5s infinite;
+   290→}
+   291→
+   292→/* Chart tooltip improvement */
+   293→.chart-tooltip {
+   294→  backdrop-filter: blur(8px);
+   295→  border: 1px solid oklch(0.3 0.01 155 / 60%);
+   296→  box-shadow: 0 8px 32px oklch(0 0 0 / 40%);
+   297→}
+   298→
+   299→/* Better card hover glow */
+   300→.card-glow {
+   301→  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+   302→}
+   303→.card-glow:hover {
+   304→  box-shadow: 0 0 20px rgba(16,185,129,0.06);
+   305→}
+   306→
+   307→/* Pulse animation for live indicators */
+   308→@keyframes livePulse {
+   309→  0%, 100% { opacity: 1; }
+   310→  50% { opacity: 0.4; }
+   311→}
+   312→.animate-live-pulse {
+   313→  animation: livePulse 2s ease-in-out infinite;
+   314→}
+   315→
+   316→/* Subtle slide-in for cards */
+   317→.animate-slide-in-up {
+   318→  animation: slideInUp 0.4s ease-out forwards;
+   319→}
+   320→
+   321→/* KPI card subtle gradient bg */
+   322→.kpi-gradient-green { background: linear-gradient(135deg, oklch(0.17 0.006 155 / 100%), oklch(0.19 0.012 155 / 80%)); }
+   323→.kpi-gradient-red { background: linear-gradient(135deg, oklch(0.17 0.008 25 / 100%), oklch(0.19 0.012 25 / 80%)); }
+   324→.kpi-gradient-amber { background: linear-gradient(135deg, oklch(0.17 0.008 65 / 100%), oklch(0.19 0.012 65 / 80%)); }
+   325→.kpi-gradient-cyan { background: linear-gradient(135deg, oklch(0.17 0.006 200 / 100%), oklch(0.19 0.01 200 / 80%)); }
+   326→
+   327→/* Enhanced table row interactions */
+   328→.table-row-interactive {
+   329→  transition: background-color 0.15s ease, transform 0.15s ease;
+   330→  cursor: pointer;
+   331→}
+   332→.table-row-interactive:hover {
+   333→  background: rgba(255,255,255,0.03);
+   334→}
+   335→.table-row-interactive:active {
+   336→  background: rgba(255,255,255,0.05);
+   337→}
+   338→
+   339→/* Focus ring for keyboard navigation */
+   340→.table-row-interactive:focus-within {
+   341→  outline: 1px solid rgba(16,185,129,0.3);
+   342→  outline-offset: -1px;
+   343→  border-radius: 4px;
+   344→}
+   345→
+   346→/* ============================================
+   347→   ROUND 5 - QA-DRIVEN STYLING IMPROVEMENTS
+   348→   ============================================ */
+   349→
+   350→/* Enhanced Recharts grid lines - visible but not distracting */
+   351→.dark .recharts-cartesian-grid-horizontal line,
+   352→.dark .recharts-cartesian-grid-vertical line {
+   353→  stroke: rgba(255, 255, 255, 0.06);
+   354→  stroke-dasharray: 4 4;
+   355→}
+   356→.recharts-cartesian-grid-horizontal line,
+   357→.recharts-cartesian-grid-vertical line {
+   358→  stroke: rgba(0, 0, 0, 0.06);
+   359→  stroke-dasharray: 4 4;
+   360→}
+   361→
+   362→/* Chart axis labels - improved contrast */
+   363→.dark .recharts-text {
+   364→  fill: oklch(0.65 0.01 155);
+   365→  font-size: 11px;
+   366→}
+   367→.recharts-text {
+   368→  fill: oklch(0.4 0.005 155);
+   369→  font-size: 11px;
+   370→}
+   371→
+   372→/* Ghost action button for tables */
+   373→.ghost-action-btn {
+   374→  width: 32px;
+   375→  height: 32px;
+   376→  display: inline-flex;
+   377→  align-items: center;
+   378→  justify-content: center;
+   379→  border-radius: 6px;
+   380→  color: oklch(0.65 0.01 155);
+   381→  transition: all 0.2s ease;
+   382→  cursor: pointer;
+   383→  border: 1px solid transparent;
+   384→}
+   385→.ghost-action-btn:hover {
+   386→  background-color: rgba(255, 255, 255, 0.08);
+   387→  color: #fff;
+   388→  border-color: rgba(255, 255, 255, 0.08);
+   389→  transform: scale(1.05);
+   390→}
+   391→.dark .ghost-action-btn {
+   392→  color: oklch(0.65 0.01 155);
+   393→}
+   394→.dark .ghost-action-btn:hover {
+   395→  background-color: rgba(255, 255, 255, 0.08);
+   396→}
+   397→
+   398→/* Enhanced table row with severity left border on hover */
+   399→.table-row-severity {
+   400→  transition: all 0.2s ease;
+   401→}
+   402→.table-row-severity:hover {
+   403→  background-color: rgba(255, 255, 255, 0.03);
+   404→  box-shadow: inset 3px 0 0 oklch(0.65 0.17 155 / 50%);
+   405→}
+   406→
+   407→/* Notification badge - use primary color instead of red for counts */
+   408→.notification-badge-count {
+   409→  background: oklch(0.65 0.17 155);
+   410→  color: #fff;
+   411→  box-shadow: 0 0 8px oklch(0.65 0.17 155 / 40%);
+   412→}
+   413→.notification-badge-critical {
+   414→  background: oklch(0.65 0.22 25);
+   415→  color: #fff;
+   416→  box-shadow: 0 0 10px oklch(0.65 0.22 25 / 50%);
+   417→}
+   418→
+   419→/* Stat group for site/device cards */
+   420→.stat-group {
+   421→  display: flex;
+   422→  gap: 24px;
+   423→  padding-top: 16px;
+   424→  margin-top: 16px;
+   425→  border-top: 1px solid rgba(255, 255, 255, 0.05);
+   426→}
+   427→.dark .stat-group {
+   428→  border-top-color: oklch(0.25 0.008 155 / 50%);
+   429→}
+   430→.stat-item {
+   431→  display: flex;
+   432→  flex-direction: column;
+   433→  gap: 2px;
+   434→}
+   435→.stat-item-label {
+   436→  font-size: 0.7rem;
+   437→  text-transform: uppercase;
+   438→  letter-spacing: 0.05em;
+   439→  color: oklch(0.55 0.01 155);
+   440→  font-weight: 500;
+   441→}
+   442→.stat-item-value {
+   443→  font-size: 1.2rem;
+   444→  font-weight: 700;
+   445→  color: oklch(0.92 0.01 155);
+   446→  font-variant-numeric: tabular-nums;
+   447→}
+   448→.dark .stat-item-label {
+   449→  color: oklch(0.65 0.01 155);
+   450→}
+   451→.dark .stat-item-value {
+   452→  color: oklch(0.92 0.01 155);
+   453→}
+   454→
+   455→/* Toast depth/glassmorphism for critical alarms */
+   456→.toast-critical {
+   457→  background: linear-gradient(135deg, oklch(0.55 0.2 25) 0%, oklch(0.45 0.18 25) 100%) !important;
+   458→  border-left: 4px solid oklch(0.75 0.15 25) !important;
+   459→  box-shadow: 
+   460→    0 10px 25px -5px oklch(0.5 0.2 25 / 30%),
+   461→    0 8px 10px -6px oklch(0 0 0 / 40%) !important;
+   462→}
+   463→
+   464→/* Temperature bar alert glow */
+   465→.temp-bar-alert {
+   466→  position: relative;
+   467→}
+   468→.temp-bar-alert::after {
+   469→  content: '';
+   470→  position: absolute;
+   471→  inset: -2px;
+   472→  border-radius: inherit;
+   473→  box-shadow: 0 0 8px oklch(0.65 0.22 25 / 50%);
+   474→  animation: pulse-red 2s ease-in-out infinite;
+   475→}
+   476→@keyframes pulse-red {
+   477→  0%, 100% { opacity: 0.5; }
+   478→  50% { opacity: 1; }
+   479→}
+   480→
+   481→/* Search bar - prevent truncation */
+   482→.search-bar-topbar {
+   483→  min-width: 200px !important;
+   484→  max-width: none !important;
+   485→}
+   486→
+   487→/* ============================================
+   488→   MOBILE RESPONSIVE IMPROVEMENTS
+   489→   ============================================ */
+   490→
+   491→/* Hide footer on mobile to maximize content area */
+   492→@media (max-width: 639px) {
+   493→  .platform-footer {
+   494→    display: none;
+   495→  }
+   496→}
+   497→
+   498→/* Mobile touch targets - minimum 44px */
+   499→@media (max-width: 768px) {
+   500→  button, [role="button"], .touch-target {
+   501→    min-height: 36px;
+   502→  }
+   503→  
+   504→  /* Improve font readability on mobile */
+   505→  body {
+   506→    font-size: 15px;
+   507→    -webkit-text-size-adjust: 100%;
+   508→  }
+   509→  
+   510→  /* Better subtitle contrast on mobile */
+   511→  .text-muted-foreground {
+   512→    color: oklch(0.6 0.01 155) !important;
+   513→  }
+   514→}
+   515→
+   516→/* Chart container glass effect */
+   517→.chart-container-glass {
+   518→  background: linear-gradient(145deg, oklch(0.17 0.006 155 / 100%), oklch(0.15 0.004 155 / 100%));
+   519→  border: 1px solid oklch(0.3 0.01 155 / 50%);
+   520→  border-radius: 12px;
+   521→  box-shadow: 0 4px 20px oklch(0 0 0 / 20%);
+   522→  padding: 16px;
+   523→}
+   524→.dark .chart-container-glass {
+   525→  background: linear-gradient(145deg, oklch(0.17 0.006 155 / 100%), oklch(0.15 0.004 155 / 100%));
+   526→  border-color: oklch(0.3 0.01 155 / 50%);
+   527→}
+   528→
+   529→/* Pulse glow for alert temperature bars */
+   530→@keyframes tempAlertGlow {
+   531→  0%, 100% { box-shadow: 0 0 4px oklch(0.65 0.22 25 / 30%); }
+   532→  50% { box-shadow: 0 0 12px oklch(0.65 0.22 25 / 60%); }
+   533→}
+   534→.temp-alert-glow {
+   535→  animation: tempAlertGlow 2s ease-in-out infinite;
+   536→}
+   537→
+   538→/* ============================================
+   539→   ROUND 6 - PROFESSIONAL POLISH & NEW FEATURES
+   540→   ============================================ */
+   541→
+   542→/* Card hover lift - subtle translateY for premium feel */
+   543→.kpi-card-hover {
+   544→  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+   545→              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+   546→              border-color 0.25s ease;
+   547→}
+   548→.kpi-card-hover:hover {
+   549→  transform: translateY(-2px);
+   550→  box-shadow: 0 8px 25px -5px oklch(0 0 0 / 30%),
+   551→              0 4px 10px -6px oklch(0 0 0 / 20%);
+   552→}
+   553→
+   554→/* Inline micro sparkline for telemetry values */
+   555→.micro-sparkline {
+   556→  display: inline-flex;
+   557→  align-items: center;
+   558→  vertical-align: middle;
+   559→}
+   560→
+   561→/* Tabular numbers everywhere for data consistency */
+   562→.tabular-nums,
+   563→.metric-value,
+   564→.stat-item-value,
+   565→.recharts-text tspan {
+   566→  font-variant-numeric: tabular-nums;
+   567→}
+   568→
+   569→/* Metric label - reduced weight for hierarchy */
+   570→.metric-label {
+   571→  font-weight: 500;
+   572→  font-size: 0.75rem;
+   573→  text-transform: uppercase;
+   574→  letter-spacing: 0.06em;
+   575→  color: oklch(0.65 0.01 155);
+   576→}
+   577→.dark .metric-label {
+   578→  color: oklch(0.65 0.01 155);
+   579→}
+   580→
+   581→/* Severity card glow accents */
+   582→.severity-card-critical {
+   583→  border-color: oklch(0.65 0.22 25 / 25%);
+   584→  background: linear-gradient(135deg, oklch(0.55 0.2 25 / 5%) 0%, transparent 60%);
+   585→}
+   586→.severity-card-critical:hover {
+   587→  border-color: oklch(0.65 0.22 25 / 40%);
+   588→  box-shadow: 0 0 20px oklch(0.65 0.22 25 / 10%);
+   589→}
+   590→
+   591→.severity-card-warning {
+   592→  border-color: oklch(0.8 0.18 65 / 25%);
+   593→  background: linear-gradient(135deg, oklch(0.8 0.18 65 / 5%) 0%, transparent 60%);
+   594→}
+   595→.severity-card-warning:hover {
+   596→  border-color: oklch(0.8 0.18 65 / 40%);
+   597→  box-shadow: 0 0 20px oklch(0.8 0.18 65 / 10%);
+   598→}
+   599→
+   600→.severity-card-info {
+   601→  border-color: oklch(0.6 0.12 200 / 25%);
+   602→  background: linear-gradient(135deg, oklch(0.6 0.12 200 / 5%) 0%, transparent 60%);
+   603→}
+   604→.severity-card-info:hover {
+   605→  border-color: oklch(0.6 0.12 200 / 40%);
+   606→  box-shadow: 0 0 20px oklch(0.6 0.12 200 / 10%);
+   607→}
+   608→
+   609→/* Health score ring animation */
+   610→@keyframes healthRingFill {
+   611→  from { stroke-dashoffset: 251.2; }
+   612→}
+   613→.health-ring-animate {
+   614→  animation: healthRingFill 1s ease-out forwards;
+   615→}
+   616→
+   617→/* Maintenance status chip styles */
+   618→.maintenance-chip-overdue {
+   619→  background: oklch(0.65 0.22 25 / 15%);
+   620→  color: oklch(0.75 0.15 25);
+   621→  border: 1px solid oklch(0.65 0.22 25 / 25%);
+   622→}
+   623→.maintenance-chip-upcoming {
+   624→  background: oklch(0.8 0.18 65 / 15%);
+   625→  color: oklch(0.85 0.16 65);
+   626→  border: 1px solid oklch(0.8 0.18 65 / 25%);
+   627→}
+   628→.maintenance-chip-completed {
+   629→  background: oklch(0.65 0.17 155 / 15%);
+   630→  color: oklch(0.7 0.17 155);
+   631→  border: 1px solid oklch(0.65 0.17 155 / 25%);
+   632→}
+   633→.maintenance-chip-scheduled {
+   634→  background: oklch(0.6 0.12 200 / 15%);
+   635→  color: oklch(0.65 0.14 200);
+   636→  border: 1px solid oklch(0.6 0.12 200 / 25%);
+   637→}
+   638→
+   639→/* Activity feed item slide-in */
+   640→@keyframes feedSlideIn {
+   641→  from { opacity: 0; transform: translateX(-8px); }
+   642→  to { opacity: 1; transform: translateX(0); }
+   643→}
+   644→.feed-item-enter {
+   645→  animation: feedSlideIn 0.3s ease-out forwards;
+   646→}
+   647→
+   648→/* Smooth number transitions */
+   649→.number-transition {
+   650→  transition: all 0.4s ease-out;
+   651→}
+   652→
+   653→/* Enhanced progress bar for maintenance */
+   654→.maintenance-progress {
+   655→  position: relative;
+   656→  overflow: hidden;
+   657→}
+   658→.maintenance-progress::after {
+   659→  content: '';
+   660→  position: absolute;
+   661→  top: 0;
+   662→  left: -100%;
+   663→  width: 100%;
+   664→  height: 100%;
+   665→  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+   666→  animation: shimmer 2s infinite;
+   667→}
+   668→
+   669→/* ============================================
+   670→   ROUND 8 - ENTERPRISE POLISH & ACCESSIBILITY
+   671→   ============================================ */
+   672→
+   673→/* Improve chart axis label contrast */
+   674→.dark .recharts-cartesian-axis-tick-value {
+   675→  fill: oklch(0.7 0.01 155) !important;
+   676→  font-size: 11px !important;
+   677→}
+   678→
+   679→/* Command palette overlay backdrop */
+   680→.cmdk-overlay {
+   681→  backdrop-filter: blur(4px);
+   682→  background: oklch(0 0 0 / 50%);
+   683→}
+   684→
+   685→/* Enhanced KPI card internal padding */
+   686→.kpi-card-compact > [class*="CardContent"] {
+   687→  padding: 16px 20px;
+   688→}
+   689→
+   690→/* Focus visible for keyboard accessibility */
+   691→button:focus-visible,
+   692→a:focus-visible,
+   693→[role="button"]:focus-visible {
+   694→  outline: 2px solid oklch(0.65 0.17 155 / 60%);
+   695→  outline-offset: 2px;
+   696→  border-radius: 6px;
+   697→}
+   698→
+   699→/* Toast slide-in from bottom for mobile */
+   700→@keyframes toastSlideUp {
+   701→  from { opacity: 0; transform: translateY(16px); }
+   702→  to { opacity: 1; transform: translateY(0); }
+   703→}
+   704→
+   705→/* Improved mobile spacing for page header */
+   706→@media (max-width: 639px) {
+   707→  .page-header-mobile-safe {
+   708→    padding-top: 4px;
+   709→    margin-bottom: 12px;
+   710→  }
+   711→}
+   712→
+   713→/* Subtle breathing animation for live status indicators */
+   714→@keyframes breathe {
+   715→  0%, 100% { opacity: 0.7; }
+   716→  50% { opacity: 1; }
+   717→}
+   718→.animate-breathe {
+   719→  animation: breathe 3s ease-in-out infinite;
+   720→}
+   721→
+   722→/* Table header sticky shadow */
+   723→.table-header-sticky {
+   724→  position: sticky;
+   725→  top: 0;
+   726→  z-index: 5;
+   727→}
+   728→.table-header-sticky::after {
+   729→  content: '';
+   730→  position: absolute;
+   731→  bottom: -1px;
+   732→  left: 0;
+   733→  right: 0;
+   734→  height: 8px;
+   735→  background: linear-gradient(to bottom, oklch(0.22 0.008 155 / 80%), transparent);
+   736→  pointer-events: none;
+   737→}
+   738→
+   739→/* Tooltip hover for icon-only action buttons */
+   740→[title] {
+   741→  position: relative;
+   742→}
+   743→
+   744→/* Subtle card border glow on focus-within */
+   745→.card-focus-glow:focus-within {
+   746→  border-color: oklch(0.65 0.17 155 / 30%);
+   747→  box-shadow: 0 0 0 3px oklch(0.65 0.17 155 / 8%);
+   748→}
+   749→
+   750→/* Improved scroll shadow for overflow containers */
+   751→.scroll-shadow-top {
+   752→  position: relative;
+   753→}
+   754→.scroll-shadow-top::before {
+   755→  content: '';
+   756→  position: absolute;
+   757→  top: 0;
+   758→  left: 0;
+   759→  right: 0;
+   760→  height: 12px;
+   761→  background: linear-gradient(to bottom, oklch(0.17 0.006 155 / 100%), transparent);
+   762→  z-index: 2;
+   763→  pointer-events: none;
+   764→}
+   765→
+   766→/* Improved badge text rendering */
+   767→.badge-sharp {
+   768→  font-variant-numeric: tabular-nums;
+   769→  letter-spacing: 0.01em;
+   770→  line-height: 1;
+   771→}
+   772→
+   773→/* Threshold alert pulsing border for KPI cards */
+   774→@keyframes thresholdPulseBorder {
+   775→  0%, 100% { border-color: oklch(0.65 0.22 25 / 50%); box-shadow: 0 0 4px oklch(0.65 0.22 25 / 20%); }
+   776→  50% { border-color: oklch(0.65 0.22 25 / 100%); box-shadow: 0 0 16px oklch(0.65 0.22 25 / 40%); }
+   777→}
+   778→.threshold-alert-border {
+   779→  animation: thresholdPulseBorder 1.8s ease-in-out infinite;
+   780→}
+   781→
+   782→/* ============================================
+   783→   ROUND 9 - VISUAL CONSISTENCY & POLISH
+   784→   ============================================ */
+   785→
+   786→/* KPI subtext - improved contrast for secondary/description text in cards */
+   787→.kpi-subtext {
+   788→  color: oklch(0.7 0.01 155) !important;
+   789→  line-height: 1.4;
+   790→}
+   791→.dark .kpi-subtext {
+   792→  color: oklch(0.72 0.008 155) !important;
+   793→}
+   794→
+   795→/* KPI description - for longer descriptions under KPI values */
+   796→.kpi-description {
+   797→  color: oklch(0.55 0.008 155);
+   798→  font-size: 0.75rem;
+   799→  line-height: 1.5;
+   800→}
+   801→.dark .kpi-description {
+   802→  color: oklch(0.65 0.008 155);
+   803→}
+   804→
+   805→/* Card section divider - subtle horizontal rule within cards */
+   806→.card-divider {
+   807→  height: 1px;
+   808→  background: linear-gradient(90deg, transparent, oklch(0.3 0.01 155 / 40%), transparent);
+   809→  margin: 12px 0;
+   810→}
+   811→
+   812→/* OEE gauge ring glow effect */
+   813→.oee-gauge-glow {
+   814→  filter: drop-shadow(0 0 8px oklch(0.65 0.17 155 / 30%));
+   815→}
+   816→.oee-gauge-glow-warning {
+   817→  filter: drop-shadow(0 0 8px oklch(0.8 0.18 65 / 30%));
+   818→}
+   819→.oee-gauge-glow-danger {
+   820→  filter: drop-shadow(0 0 8px oklch(0.65 0.22 25 / 30%));
+   821→}
+   822→
+   823→/* Loss category bar styles for OEE loss analysis */
+   824→.loss-bar-availability {
+   825→  background: linear-gradient(90deg, oklch(0.6 0.12 200), oklch(0.65 0.14 200));
+   826→}
+   827→.loss-bar-performance {
+   828→  background: linear-gradient(90deg, oklch(0.8 0.18 65), oklch(0.85 0.16 65));
+   829→}
+   830→.loss-bar-quality {
+   831→  background: linear-gradient(90deg, oklch(0.65 0.22 25), oklch(0.7 0.2 25));
+   832→}
+   833→
+   834→/* Icon container - unified background style for report/metric icons */
+   835→.icon-container {
+   836→  display: inline-flex;
+   837→  align-items: center;
+   838→  justify-content: center;
+   839→  width: 40px;
+   840→  height: 40px;
+   841→  border-radius: 10px;
+   842→  flex-shrink: 0;
+   843→}
+   844→.icon-container-emerald {
+   845→  background: oklch(0.65 0.17 155 / 12%);
+   846→  color: oklch(0.7 0.17 155);
+   847→}
+   848→.icon-container-amber {
+   849→  background: oklch(0.8 0.18 65 / 12%);
+   850→  color: oklch(0.85 0.16 65);
+   851→}
+   852→.icon-container-cyan {
+   853→  background: oklch(0.6 0.12 200 / 12%);
+   854→  color: oklch(0.65 0.14 200);
+   855→}
+   856→.icon-container-red {
+   857→  background: oklch(0.65 0.22 25 / 12%);
+   858→  color: oklch(0.7 0.2 25);
+   859→}
+   860→.icon-container-violet {
+   861→  background: oklch(0.6 0.15 300 / 12%);
+   862→  color: oklch(0.65 0.15 300);
+   863→}
+   864→
+   865→/* Chart legend - custom styled for Recharts */
+   866→.chart-legend {
+   867→  display: flex;
+   868→  flex-wrap: wrap;
+   869→  gap: 16px;
+   870→  padding: 8px 0;
+   871→  justify-content: center;
+   872→}
+   873→.chart-legend-item {
+   874→  display: flex;
+   875→  align-items: center;
+   876→  gap: 6px;
+   877→  font-size: 0.75rem;
+   878→  color: oklch(0.7 0.01 155);
+   879→}
+   880→.dark .chart-legend-item {
+   881→  color: oklch(0.72 0.008 155);
+   882→}
+   883→.chart-legend-dot {
+   884→  width: 10px;
+   885→  height: 10px;
+   886→  border-radius: 3px;
+   887→  flex-shrink: 0;
+   888→}
+   889→
+   890→/* Improved table action column with tooltips */
+   891→.table-actions {
+   892→  display: flex;
+   893→  gap: 4px;
+   894→  align-items: center;
+   895→}
+   896→.table-actions .ghost-action-btn {
+   897→  width: 28px;
+   898→  height: 28px;
+   899→}
+   900→.table-actions .ghost-action-btn svg {
+   901→  width: 14px;
+   902→  height: 14px;
+   903→}
+   904→
+   905→/* Animated gradient border for highlighted cards */
+   906→@keyframes gradientBorder {
+   907→  0%, 100% { border-color: oklch(0.65 0.17 155 / 30%); }
+   908→  50% { border-color: oklch(0.65 0.17 155 / 60%); }
+   909→}
+   910→.animate-gradient-border {
+   911→  animation: gradientBorder 3s ease-in-out infinite;
+   912→}
+   913→
+   914→/* Machine status dot with label */
+   915→.machine-status-dot {
+   916→  display: inline-flex;
+   917→  align-items: center;
+   918→  gap: 6px;
+   919→  font-size: 0.75rem;
+   920→}
+   921→.machine-status-dot::before {
+   922→  content: '';
+   923→  width: 6px;
+   924→  height: 6px;
+   925→  border-radius: 50%;
+   926→  flex-shrink: 0;
+   927→}
+   928→.machine-status-dot-running::before { background: oklch(0.65 0.17 155); }
+   929→.machine-status-dot-idle::before { background: oklch(0.8 0.18 65); }
+   930→.machine-status-dot-error::before { background: oklch(0.65 0.22 25); }
+   931→.machine-status-dot-maintenance::before { background: oklch(0.6 0.12 200); }
+   932→
+   933→/* ============================================
+   934→   ROUND 10 - ADVANCED POLISH & NEW COMPONENTS
+   935→   ============================================ */
+   936→
+   937→/* Table row hover with subtle left accent border */
+   938→.table-row-hover-accent {
+   939→  transition: all 0.15s ease;
+   940→  border-left: 3px solid transparent;
+   941→}
+   942→.table-row-hover-accent:hover {
+   943→  background: oklch(0.22 0.006 155 / 50%);
+   944→  border-left-color: oklch(0.65 0.17 155 / 60%);
+   945→}
+   946→
+   947→/* Improved card section title with left accent */
+   948→.section-title-accent {
+   949→  display: flex;
+   950→  align-items: center;
+   951→  gap: 8px;
+   952→  font-size: 0.7rem;
+   953→  font-weight: 600;
+   954→  text-transform: uppercase;
+   955→  letter-spacing: 0.08em;
+   956→  color: oklch(0.72 0.008 155);
+   957→}
+   958→.section-title-accent::before {
+   959→  content: '';
+   960→  width: 3px;
+   961→  height: 14px;
+   962→  border-radius: 2px;
+   963→  background: oklch(0.65 0.17 155);
+   964→  flex-shrink: 0;
+   965→}
+   966→
+   967→/* Glass card variant with top accent border */
+   968→.glass-card-accent {
+   969→  border-top: 2px solid oklch(0.65 0.17 155 / 40%);
+   970→}
+   971→.glass-card-accent-amber {
+   972→  border-top: 2px solid oklch(0.8 0.18 65 / 40%);
+   973→}
+   974→.glass-card-accent-red {
+   975→  border-top: 2px solid oklch(0.65 0.22 25 / 40%);
+   976→}
+   977→.glass-card-accent-cyan {
+   978→  border-top: 2px solid oklch(0.6 0.12 200 / 40%);
+   979→}
+   980→
+   981→/* Target reference line style for charts */
+   982→.target-line-label {
+   983→  font-size: 10px;
+   984→  font-weight: 600;
+   985→  fill: oklch(0.8 0.18 65);
+   986→}
+   987→
+   988→/* Status badge unified with dot indicator */
+   989→.status-badge {
+   990→  display: inline-flex;
+   991→  align-items: center;
+   992→  gap: 5px;
+   993→  font-size: 0.6875rem;
+   994→  font-weight: 500;
+   995→  padding: 2px 8px 2px 6px;
+   996→  border-radius: 9999px;
+   997→  border: none;
+   998→  line-height: 1.4;
+   999→}
+  1000→.status-badge::before {
+  1001→  content: '';
+  1002→  width: 5px;
+  1003→  height: 5px;
+  1004→  border-radius: 50%;
+  1005→  flex-shrink: 0;
+  1006→}
+  1007→.status-badge-running { background: oklch(0.65 0.17 155 / 12%); color: oklch(0.7 0.17 155); }
+  1008→.status-badge-running::before { background: oklch(0.65 0.17 155); }
+  1009→.status-badge-idle { background: oklch(0.8 0.18 65 / 12%); color: oklch(0.85 0.16 65); }
+  1010→.status-badge-idle::before { background: oklch(0.8 0.18 65); }
+  1011→.status-badge-error { background: oklch(0.65 0.22 25 / 12%); color: oklch(0.7 0.2 25); }
+  1012→.status-badge-error::before { background: oklch(0.65 0.22 25); }
+  1013→.status-badge-warning { background: oklch(0.8 0.18 65 / 12%); color: oklch(0.85 0.16 65); }
+  1014→.status-badge-warning::before { background: oklch(0.8 0.18 65); }
+  1015→.status-badge-success { background: oklch(0.65 0.17 155 / 12%); color: oklch(0.7 0.17 155); }
+  1016→.status-badge-success::before { background: oklch(0.65 0.17 155); }
+  1017→.status-badge-info { background: oklch(0.6 0.12 200 / 12%); color: oklch(0.65 0.14 200); }
+  1018→.status-badge-info::before { background: oklch(0.6 0.12 200); }
+  1019→.status-badge-scheduled { background: oklch(0.6 0.12 200 / 12%); color: oklch(0.65 0.14 200); }
+  1020→.status-badge-scheduled::before { background: oklch(0.6 0.12 200); }
+  1021→.status-badge-overdue { background: oklch(0.65 0.22 25 / 12%); color: oklch(0.7 0.2 25); }
+  1022→.status-badge-overdue::before { background: oklch(0.65 0.22 25); }
+  1023→.status-badge-completed { background: oklch(0.65 0.17 155 / 12%); color: oklch(0.7 0.17 155); }
+  1024→.status-badge-completed::before { background: oklch(0.65 0.17 155); }
+  1025→.status-badge-in-progress { background: oklch(0.65 0.14 250 / 12%); color: oklch(0.7 0.14 250); }
+  1026→.status-badge-in-progress::before { background: oklch(0.65 0.14 250); }
+  1027→.status-badge-predictive { background: oklch(0.6 0.15 300 / 12%); color: oklch(0.65 0.15 300); }
+  1028→.status-badge-predictive::before { background: oklch(0.6 0.15 300); }
+  1029→.status-badge-emergency { background: oklch(0.65 0.22 25 / 15%); color: oklch(0.7 0.2 25); }
+  1030→.status-badge-emergency::before { background: oklch(0.65 0.22 25); }
+  1031→
+  1032→/* Notification preference card with severity color bar */
+  1033→.notif-pref-card {
+  1034→  position: relative;
+  1035→  padding-left: 16px;
+  1036→  overflow: hidden;
+  1037→}
+  1038→.notif-pref-card::before {
+  1039→  content: '';
+  1040→  position: absolute;
+  1041→  left: 0;
+  1042→  top: 0;
+  1043→  bottom: 0;
+  1044→  width: 3px;
+  1045→  border-radius: 3px 0 0 3px;
+  1046→}
+  1047→.notif-pref-critical::before { background: oklch(0.65 0.22 25); }
+  1048→.notif-pref-warning::before { background: oklch(0.8 0.18 65); }
+  1049→.notif-pref-info::before { background: oklch(0.6 0.12 200); }
+  1050→
+  1051→/* Export dialog format option card */
+  1052→.export-option {
+  1053→  display: flex;
+  1054→  flex-direction: column;
+  1055→  align-items: center;
+  1056→  gap: 8px;
+  1057→  padding: 16px 12px;
+  1058→  border-radius: 12px;
+  1059→  border: 1px solid oklch(0.3 0.01 155 / 40%);
+  1060→  background: oklch(0.17 0.006 155 / 50%);
+  1061→  cursor: pointer;
+  1062→  transition: all 0.2s ease;
+  1063→}
+  1064→.export-option:hover {
+  1065→  border-color: oklch(0.65 0.17 155 / 40%);
+  1066→  background: oklch(0.2 0.006 155 / 60%);
+  1067→}
+  1068→.export-option.selected {
+  1069→  border-color: oklch(0.65 0.17 155 / 60%);
+  1070→  background: oklch(0.65 0.17 155 / 8%);
+  1071→  box-shadow: 0 0 0 1px oklch(0.65 0.17 155 / 20%);
+  1072→}
+  1073→
+  1074→/* Animated progress shimmer for loading states */
+  1075→@keyframes shimmer {
+  1076→  0% { background-position: -200% 0; }
+  1077→  100% { background-position: 200% 0; }
+  1078→}
+  1079→.shimmer-loading {
+  1080→  background: linear-gradient(90deg, oklch(0.22 0.006 155 / 30%) 25%, oklch(0.28 0.006 155 / 50%) 50%, oklch(0.22 0.006 155 / 30%) 75%);
+  1081→  background-size: 200% 100%;
+  1082→  animation: shimmer 1.5s ease-in-out infinite;
+  1083→  border-radius: 4px;
+  1084→}
+  1085→
+  1086→/* Subtle topbar status cluster refinement */
+  1087→.topbar-status-cluster {
+  1088→  display: flex;
+  1089→  align-items: center;
+  1090→  gap: 6px;
+  1091→  min-width: fit-content;
+  1092→}
+  1093→
+  1094→/* Sound wave animation for notification settings */
+  1095→@keyframes soundWave {
+  1096→  0%, 100% { height: 4px; }
+  1097→  50% { height: 16px; }
+  1098→}
+  1099→.sound-wave-bar {
+  1100→  width: 3px;
+  1101→  border-radius: 2px;
+  1102→  background: oklch(0.65 0.17 155);
+  1103→  animation: soundWave 0.8s ease-in-out infinite;
+  1104→}
+  1105→.sound-wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  1106→.sound-wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  1107→.sound-wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  1108→.sound-wave-bar:nth-child(5) { animation-delay: 0.15s; }
+  1109→

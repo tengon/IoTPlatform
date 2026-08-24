@@ -52,6 +52,7 @@ import {
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
+import { StateArchitectureDiagram } from '@/shared/components/state-architecture-diagram'
 import { PageHeader } from '@/shared/components/page-header'
 import {
   ChartTooltip,
@@ -562,6 +563,11 @@ export function DiagnosticsPage() {
           color={isConnected ? C_GREEN : C_ORANGE}
           index={3}
         />
+      </div>
+
+      {/* ── State Architecture (3-Layer Design) ────────────────────── */}
+      <div className="animate-slide-up stagger-1">
+        <StateArchitectureDiagram />
       </div>
 
       {/* ── Threshold Configuration Panel ────────────────────────────── */}

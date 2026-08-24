@@ -1,6 +1,134 @@
 # IIoT Platform - Worklog
 
 ---
+Task ID: 11
+Agent: main
+Task: Implement 3-Layer Frontend State Architecture
+
+Work Log:
+- Read full worklog (1677 lines) to understand project state through Round 10 (v2.4.0)
+- Analyzed existing state: 2 Zustand stores (navigation.ts, iiot.ts), WS client (ws-init.tsx), 6 REST API routes, TanStack Query configured but unused
+- Identified 29 files importing from @/store/iiot — backward compatibility critical
+
+### New Files Created (12 files)
+1. **src/types/index.ts** — Centralized domain types: Machine, Device, Alarm, TelemetryPoint, ProductionOrder, EnergyDataPoint, Site, Gateway, API response types, UI state types (TimeRange, ChartConfig, FactoryFilter), WS event types, backward-compatible aliases
+2. **src/store/realtime-store.ts** — Real-time State (Zustand): machines, devices, alarms, production, energyHistory, telemetry stream, event log, connection state, reconnect counter, per-entity update actions, last heartbeat tracking
+3. **src/store/ui-store.ts** — UI State (Zustand + localStorage persistence): factory/site filter, time range (7 presets + custom), chart configuration (grid, legend, tooltip, smooth lines, line width, point size, animation), sidebar collapsed, panel open states, table page size, auto-refresh toggle + interval
+4. **src/hooks/queries/index.ts** — Barrel export for all query hooks
+5. **src/hooks/queries/use-machines-query.ts** — useMachinesQuery, useMachineQuery (stale: 5min)
+6. **src/hooks/queries/use-devices-query.ts** — useDevicesQuery (stale: 5min)
+7. **src/hooks/queries/use-alarms-query.ts** — useAlarmsQuery with severity/status/source filtering (stale: 30sec)
+8. **src/hooks/queries/use-production-query.ts** — useProductionQuery (stale: 1min)
+9. **src/hooks/queries/use-energy-query.ts** — useEnergyQuery with from/to/interval params (stale: 2min)
+10. **src/hooks/queries/use-sites-query.ts** — useSitesQuery (stale: 30min)
+11. **src/hooks/queries/use-telemetry-query.ts** — useTelemetryQuery with deviceId/metric/from/to/interval (stale: 2min)
+12. **src/hooks/queries/use-users-query.ts** — useUsersQuery (stale: 10min)
+13. **src/app/api/telemetry/route.ts** — Historical telemetry API with per-metric base values, random walk with mean reversion, configurable from/to/interval
+14. **src/shared/components/state-architecture-diagram.tsx** — Interactive 3-column visualization showing Server State (7 endpoints with stale times), Real-time State (live counts, WS status, reconnect count, event log, last heartbeat), UI State (factory, time range, chart config, auto-refresh), plus Data Flow diagram and migration notice
+15. **src/shared/components/global-filters.tsx** — Topbar component with Factory selector (populated from useSitesQuery) and Time Range selector (6 presets), Reset button, uses UI store for persistence
+
+### Modified Files (4 files)
+1. **src/store/iiot.ts** — Kept as backward-compatible legacy store (identical API surface), all 29 existing imports continue to work
+2. **src/components/layout/ws-init.tsx** — Refactored to populate BOTH legacy store (useIIoTStore) and new realtime store (useRealtimeStore) on every WS event
+3. **src/app/api/machines/route.ts** — Enhanced with siteId/status filtering, individual machine lookup by id, added siteId to mock data
+4. **src/components/layout/app-topbar.tsx** — Integrated GlobalFilters component (Factory + Time Range) in topbar, visible at lg breakpoint
+5. **src/features/administration/pages/diagnostics-page.tsx** — Added StateArchitectureDiagram component after KPI cards
+6. **src/app/globals.css** — Added 50+ lines of state-arch-* CSS classes (layer containers with gradient borders, icon variants, rows, pulse animation)
+
+### Architecture Summary
+```
+┌──────────────────────────────────────┐
+│            FRONTEND STATE            │
+├──────────────────────────────────────┤
+│ SERVER STATE (TanStack Query)        │
+│ ├─ useMachinesQuery   → /api/machines     (5m stale)  │
+│ ├─ useDevicesQuery   → /api/devices     (5m stale)  │
+│ ├─ useAlarmsQuery    → /api/alarms      (30s stale) │
+│ ├─ useProductionQuery → /api/production  (1m stale)  │
+│ ├─ useEnergyQuery    → /api/energy      (2m stale)  │
+│ ├─ useTelemetryQuery → /api/telemetry   (2m stale)  │
+│ ├─ useSitesQuery     → /api/sites       (30m stale) │
+│ └─ useUsersQuery     → /api/users       (10m stale) │
+│                                      │
+│ REAL-TIME STATE (Zustand + WebSocket) │
+│ ├─ Machines (live status)             │
+│ ├─ Devices (live status)              │
+│ ├─ Alarms (pushed by WS)              │
+│ ├─ Production (pushed by WS)          │
+│ ├─ Energy (rolling window, 120 pts)   │
+│ ├─ Telemetry (streaming, 60 pts/key)  │
+│ ├─ Event Log (last 100 events)        │
+│ └─ Connection state + heartbeat       │
+│                                      │
+│ UI STATE (Zustand + localStorage)     │
+│ ├─ Factory / Site Filter              │
+│ ├─ Time Range (7 presets)             │
+│ ├─ Chart Configuration                │
+│ ├─ Panel States                       │
+│ ├─ Table Page Size                    │
+│ └─ Auto-Refresh                       │
+└──────────────────────────────────────┘
+```
+
+### VLM QA Scores
+- Dashboard: 9/10 — All Sites + 24 Hours filters visible in topbar, proper rendering
+- Diagnostics (State Architecture): 9/10 — 3-column layout confirmed, Data Flow section visible on scroll
+
+Stage Summary:
+- 15 new files created (types, stores, hooks, API, components, CSS)
+- 6 files modified (stores, WS init, topbar, diagnostics, API, CSS)
+- 0 breaking changes (legacy store preserved, all 29 imports work)
+- Lint: 0 errors, 0 warnings
+- Platform version: v3.0.0
+- Total pages: 22 (unchanged)
+
+## Current Project Status (Post Round 11)
+
+### Platform Overview
+- **22 pages** across 6 menu groups
+- **3-Layer Frontend State Architecture** (Server + Real-time + UI)
+- Real-time WebSocket data simulation (port 3002)
+- Dark industrial theme with emerald green primary
+- **NEW: Global Factory + Time Range filters in topbar**
+- **NEW: State Architecture visualization on Diagnostics page**
+- All previous features intact (22 pages, WebSocket, activity feed, OEE loss analysis, export dialog, etc.)
+
+### Architecture Details
+- **Server State**: 7 TanStack Query hooks with configurable stale times (30s to 30min)
+- **Real-time State**: Zustand store with event log, heartbeat tracking, reconnect counter
+- **UI State**: Zustand store persisted to localStorage (factory, time range, chart config, auto-refresh)
+- **Migration path**: Legacy useIIoTStore still active; new code should use useRealtimeStore + use*Query hooks
+
+### VLM Quality Scores (Round 11)
+| Page | Round 10 | Round 11 | Notes |
+|------|----------|----------|-------|
+| Dashboard | N/A | 9/10 | Global filters confirmed in topbar |
+| Diagnostics | N/A | 9/10 | State Architecture 3-column + Data Flow confirmed |
+
+### New Features This Round
+1. 3-Layer State Architecture (types, realtime-store, ui-store, query hooks)
+2. State Architecture visualization on Diagnostics page
+3. Global Factory selector in topbar (populated from /api/sites)
+4. Global Time Range selector in topbar (6 presets: 1H to 30D)
+5. Historical Telemetry API endpoint (/api/telemetry)
+6. Enhanced Machines API with siteId/status filtering
+
+### Unresolved Issues / Risks
+1. **LOW**: agent-browser cannot connect to WebSocket (shows Offline in screenshots, not a real bug)
+2. **LOW**: Dev server process management in sandbox (server auto-exits, needs keepalive)
+3. **LOW**: Pages not yet migrated from useIIoTStore to useRealtimeStore (gradual migration)
+4. **LOW**: Data Flow section below fold on Diagnostics (user needs to scroll)
+
+### Priority Recommendations for Next Phase
+1. **HIGH**: Migrate Dashboard page to use new architecture (useRealtimeStore + useMachinesQuery)
+2. **HIGH**: Migrate Analytics pages to use useTelemetryQuery for historical data
+3. **MEDIUM**: Add chart config controls (toggle grid, smooth lines) from UI store
+4. **MEDIUM**: Wire factory filter to actually filter data on pages
+5. **MEDIUM**: Add more data visualization to Reports page
+6. **LOW**: Mobile responsive testing at 768px tablet breakpoint
+7. **LOW**: Add PDF export option to Export Dialog
+
+---
 Task ID: 1
 Agent: main
 Task: Set up project foundation

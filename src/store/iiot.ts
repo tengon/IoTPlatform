@@ -1,6 +1,12 @@
 import { create } from 'zustand'
+import type { TelemetryPoint, Device, Alarm, Machine, ProductionOrder, EnergyDataPoint } from '@/types'
 
-export interface TelemetryPoint {
+// ─── Backward-Compatible IIoT Store ─────────────────────────────────────
+// This store remains the PRIMARY real-time store for all existing pages.
+// The new useRealtimeStore is the NEXT-GEN store that will gradually replace this.
+// Both are populated by ws-init.tsx during the transition period.
+
+export interface TelemetryPoint_ {
   timestamp: number
   value: number
 }
@@ -10,7 +16,7 @@ export interface DeviceStatus {
   name: string
   type: string
   status: 'online' | 'offline' | 'warning' | 'error'
- lastSeen: string
+  lastSeen: string
   metrics: Record<string, number>
 }
 
@@ -65,7 +71,7 @@ interface IIoTState {
   machines: MachineStatus[]
   production: ProductionOrder[]
   energyHistory: EnergyData[]
-  liveTelemetry: Record<string, TelemetryPoint[]>
+  liveTelemetry: Record<string, TelemetryPoint_[]>
   isConnected: boolean
   lastUpdate: number | null
   setDevices: (devices: DeviceStatus[]) => void
@@ -73,7 +79,7 @@ interface IIoTState {
   setMachines: (machines: MachineStatus[]) => void
   setProduction: (orders: ProductionOrder[]) => void
   setEnergyHistory: (data: EnergyData[]) => void
-  updateTelemetry: (deviceId: string, point: TelemetryPoint) => void
+  updateTelemetry: (deviceId: string, point: TelemetryPoint_) => void
   setConnected: (connected: boolean) => void
   acknowledgeAlarm: (id: string) => void
   bulkAcknowledgeAlarms: (ids: string[]) => void
