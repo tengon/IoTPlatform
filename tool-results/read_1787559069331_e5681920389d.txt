@@ -1,0 +1,433 @@
+   300→   609→   609→          {production.length > 0 && (
+   301→   610→   610→            <div className="mt-4 border-t border-border/40 pt-3">
+   302→   611→   611→              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest kpi-subtext">
+   303→   612→   612→                Active Production Orders
+   304→   613→   613→              </p>
+   305→   614→   614→              <div className="flex flex-col gap-2.5">
+   306→   615→   615→                {production.slice(0, 5).map((order) => {
+   307→   616→   616→                  const ratio = order.target > 0 ? (order.actual / order.target) * 100 : 0
+   308→   617→   617→                  const progressColor = ratio >= 90
+   309→   618→   618→                    ? '[&>div]:bg-emerald-500'
+   310→   619→   619→                    : ratio >= 60
+   311→   620→   620→                      ? '[&>div]:bg-amber-500'
+   312→   621→   621→                      : '[&>div]:bg-red-500'
+   313→   622→   622→                  const textColor = ratio >= 90
+   314→   623→   623→                    ? 'text-emerald-400'
+   315→   624→   624→                    : ratio >= 60
+   316→   625→   625→                      ? 'text-amber-400'
+   317→   626→   626→                      : 'text-red-400'
+   318→   627→   627→                  return (
+   319→   628→   628→                    <div key={order.id} className="flex items-center gap-3">
+   320→   629→   629→                      <div className="min-w-0 flex-1">
+   321→   630→   630→                        <div className="flex items-center gap-2">
+   322→   631→   631→                          <Package className="size-3 shrink-0 text-emerald-400/60" />
+   323→   632→   632→                          <p className="text-xs font-medium text-foreground truncate">{order.productName}</p>
+   324→   633→   633→                        </div>
+   325→   634→   634→                        <p className="text-[10px] kpi-subtext mt-0.5 ml-5">{order.machineName} · {order.actual}/{order.target} units</p>
+   326→   635→   635→                      </div>
+   327→   636→   636→                      <span className={`text-xs font-bold metric-value ${textColor} shrink-0 w-12 text-right`}>{ratio.toFixed(0)}%</span>
+   328→   637→   637→                      <div className="w-20 shrink-0">
+   329→   638→   638→                        <Progress value={Math.min(ratio, 100)} className={`h-1.5 ${progressColor}`} />
+   330→   639→   639→                      </div>
+   331→   640→   640→                    </div>
+   332→   641→   641→                  )
+   333→   642→   642→                })}
+   334→   643→   643→              </div>
+   335→   644→   644→            </div>
+   336→   645→   645→          )}
+   337→   646→   646→        </ChartCard>
+   338→   647→   647→
+   339→   648→   648→        {/* OEE Bar Chart */}
+   340→   649→   649→        <ChartCard
+   341→   650→   650→          title="Machine OEE Overview"
+   342→   651→   651→          description="OEE, Availability, Performance, Quality (%)"
+   343→   652→   652→          icon={Gauge}
+   344→   653→   653→          iconColor="text-emerald-400"
+   345→   654→   654→          className="lg:col-span-2"
+   346→   655→   655→        >
+   347→   656→   656→          <div className="h-[280px] w-full">
+   348→   657→   657→            <ResponsiveContainer width="100%" height="100%">
+   349→   658→   658→              <BarChart data={oeeData} margin={{ top: 8, right: 5, left: -15, bottom: 0 }} barSize={8}>
+   350→   659→   659→                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   351→   660→   660→                <XAxis dataKey="name" tick={{ ...AXIS_TICK, fontSize: 10 }} tickLine={false} axisLine={AXIS_LINE} />
+   352→   661→   661→                <YAxis domain={[0, 100]} tick={AXIS_TICK} tickLine={false} axisLine={AXIS_LINE} />
+   353→   662→   662→                <Tooltip content={<DarkTooltip valueSuffix="%" />} />
+   354→   663→   663→                <Legend iconType="circle" iconSize={6} wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }} />
+   355→   664→   664→                <Bar dataKey="OEE" fill={C_GREEN} radius={[2, 2, 0, 0]} />
+   356→   665→   665→                <Bar dataKey="Availability" fill={C_CYAN} radius={[2, 2, 0, 0]} />
+   357→   666→   666→                <Bar dataKey="Performance" fill={C_ORANGE} radius={[2, 2, 0, 0]} />
+   358→   667→   667→                <Bar dataKey="Quality" fill={C_YELLOW} radius={[2, 2, 0, 0]} />
+   359→   668→   668→              </BarChart>
+   360→   669→   669→            </ResponsiveContainer>
+   361→   670→   670→          </div>
+   362→   671→   671→        </ChartCard>
+   363→   672→   672→      </div>
+   364→   673→   673→
+   365→   674→   674→      {/* ── Alarm Summary + Machine Status Grid ── */}
+   366→   675→   675→      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-slide-up stagger-6">
+   367→   676→   676→        {/* Alarm Summary */}
+   368→   677→   677→        <ChartCard
+   369→   678→   678→          title="Alarm Summary"
+   370→   679→   679→          description="Active alarm distribution"
+   371→   680→   680→          icon={AlertTriangle}
+   372→   681→   681→          iconColor="text-amber-400"
+   373→   682→   682→          className="lg:col-span-1 flex flex-col"
+   374→   683→   683→        >
+   375→   684→   684→          <div className="flex flex-col gap-4 flex-1">
+   376→   685→   685→            {/* Gauge + Breakdown */}
+   377→   686→   686→            <div className="flex items-center gap-4 h-[130px]">
+   378→   687→   687→              {/* Donut Gauge - left */}
+   379→   688→   688→              <div className="w-[130px] shrink-0 h-full">
+   380→   689→   689→                {alarmDistribution.length > 0 ? (
+   381→   690→   690→                  <ResponsiveContainer width="100%" height="100%">
+   382→   691→   691→                    <PieChart>
+   383→   692→   692→                      <Pie
+   384→   693→   693→                        data={alarmDistribution}
+   385→   694→   694→                        cx="50%"
+   386→   695→   695→                        cy="50%"
+   387→   696→   696→                        innerRadius={35}
+   388→   697→   697→                        outerRadius={55}
+   389→   698→   698→                        paddingAngle={3}
+   390→   699→   699→                        dataKey="value"
+   391→   700→   700→                        stroke="none"
+   392→   701→   701→                        animationBegin={0}
+   393→   702→   702→                        animationDuration={800}
+   394→   703→   703→                      >
+   395→   704→   704→                        {alarmDistribution.map((entry, index) => (
+   396→   705→   705→                          <Cell key={`cell-${index}`} fill={entry.fill} />
+   397→   706→   706→                        ))}
+   398→   707→   707→                      </Pie>
+   399→   708→   708→                      <Tooltip
+   400→   709→   709→                        contentStyle={{
+   401→   710→   710→                          backgroundColor: 'oklch(0.17 0.006 155)',
+   402→   711→   711→                          border: '1px solid oklch(0.25 0.008 155)',
+   403→   712→   712→                          borderRadius: '10px',
+   404→   713→   713→                          fontSize: '12px',
+   405→   714→   714→                          color: 'oklch(0.92 0.01 155)',
+   406→   715→   715→                        }}
+   407→   716→   716→                      />
+   408→   717→   717→                    </PieChart>
+   409→   718→   718→                  </ResponsiveContainer>
+   410→   719→   719→                ) : (
+   411→   720→   720→                  <div className="flex h-full items-center justify-center">
+   412→   721→   721→                    <Bell className="size-6 opacity-30" />
+   413→   722→   722→                  </div>
+   414→   723→   723→                )}
+   415→   724→   724→              </div>
+   416→   725→   725→
+   417→   726→   726→              {/* Breakdown list - right */}
+   418→   727→   727→              <div className="flex flex-col justify-center gap-3 flex-1 min-w-0">
+   419→   728→   728→                <div className="flex items-center gap-2.5">
+   420→   729→   729→                  <span className="size-2.5 rounded-full bg-red-500 ring-2 ring-red-500/20 shrink-0" />
+   421→   730→   730→                  <span className="text-sm text-muted-foreground flex-1">Critical</span>
+   422→   731→   731→                  <span className="text-sm font-bold text-red-400 metric-value">{alarmDistribution.find(d => d.name === 'Critical')?.value || 0}</span>
+   423→   732→   732→                </div>
+   424→   733→   733→                <div className="flex items-center gap-2.5">
+   425→   734→   734→                  <span className="size-2.5 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shrink-0" />
+   426→   735→   735→                  <span className="text-sm text-muted-foreground flex-1">Warning</span>
+   427→   736→   736→                  <span className="text-sm font-bold text-amber-400 metric-value">{alarmDistribution.find(d => d.name === 'Warning')?.value || 0}</span>
+   428→   737→   737→                </div>
+   429→   738→   738→                <div className="flex items-center gap-2.5">
+   430→   739→   739→                  <span className="size-2.5 rounded-full bg-cyan-500 ring-2 ring-cyan-500/20 shrink-0" />
+   431→   740→   740→                  <span className="text-sm text-muted-foreground flex-1">Info</span>
+   432→   741→   741→                  <span className="text-sm font-bold text-cyan-400 metric-value">{alarmDistribution.find(d => d.name === 'Info')?.value || 0}</span>
+   433→   742→   742→                </div>
+   434→   743→   743→              </div>
+   435→   744→   744→            </div>
+   436→   745→   745→
+   437→   746→   746→            {/* Latest Alarms List */}
+   438→   747→   747→            <div className="flex-1">
+   439→   748→   748→              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest kpi-subtext">
+   440→   749→   749→                Latest Active Alarms
+   441→   750→   750→              </p>
+   442→   751→   751→              <ScrollArea className="h-[140px] max-h-[140px]">
+   443→   752→   752→                <div className="flex flex-col gap-1.5 pr-2">
+   444→   753→   753→                  {latestAlarms.length === 0 ? (
+   445→   754→   754→                    <p className="text-xs text-muted-foreground text-center py-4">No active alarms</p>
+   446→   755→   755→                  ) : (
+   447→   756→   756→                    latestAlarms.map((alarm) => {
+   448→   757→   757→                      const sev = SEVERITY_COLORS[alarm.severity]
+   449→   758→   758→                      const SevIcon = sev.icon
+   450→   759→   759→                      return (
+   451→   760→   760→                        <div
+   452→   761→   761→                          key={alarm.id}
+   453→   762→   762→                          className="flex items-start gap-2.5 rounded-lg border border-border/30 px-3 py-2.5 transition-all duration-200 hover:bg-muted/30 hover:border-border/50"
+   454→   763→   763→                        >
+   455→   764→   764→                          <div
+   456→   765→   765→                            className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
+   457→   766→   766→                            style={{ backgroundColor: sev.bg }}
+   458→   767→   767→                          >
+   459→   768→   768→                            <SevIcon className="size-3" style={{ color: sev.fill }} />
+   460→   769→   769→                          </div>
+   461→   770→   770→                          <div className="min-w-0 flex-1">
+   462→   771→   771→                            <p className="text-xs font-medium text-foreground truncate">{alarm.source}</p>
+   463→   772→   772→                            <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{alarm.message}</p>
+   464→   773→   773→                            <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground/50">
+   465→   774→   774→                              <Clock className="size-2.5" />
+   466→   775→   775→                              {formatDistanceToNow(new Date(alarm.createdAt), { addSuffix: true })}
+   467→   776→   776→                            </p>
+   468→   777→   777→                          </div>
+   469→   778→   778→                        </div>
+   470→   779→   779→                      )
+   471→   780→   780→                    })
+   472→   781→   781→                  )}
+   473→   782→   782→                </div>
+   474→   783→   783→              </ScrollArea>
+   475→   784→   784→            </div>
+   476→   785→   785→
+   477→   786→   786→            {/* View all button */}
+   478→   787→   787→            <Button
+   479→   788→   788→              variant="outline"
+   480→   789→   789→              size="sm"
+   481→   790→   790→              className="mt-auto w-full text-xs gap-1.5 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
+   482→   791→   791→              onClick={() => setCurrentPage('active-alarms')}
+   483→   792→   792→            >
+   484→   793→   793→              View All Alarms
+   485→   794→   794→              <ArrowRight className="size-3.5" />
+   486→   795→   795→            </Button>
+   487→   796→   796→          </div>
+   488→   797→   797→        </ChartCard>
+   489→   798→   798→
+   490→   799→   799→        {/* Machine Status Grid */}
+   491→   800→   800→        <ChartCard
+   492→   801→   801→          title="Machine Status"
+   493→   802→   802→          description="Real-time status of all connected machines"
+   494→   803→   803→          icon={Factory}
+   495→   804→   804→          iconColor="text-emerald-400"
+   496→   805→   805→          className="lg:col-span-1"
+   497→   806→   806→          actions={
+   498→   807→   807→            <Badge variant="secondary" className="text-[10px]">
+   499→   808→   808→              {machines.length} machines
+   500→   809→   809→            </Badge>
+   501→   810→   810→          }
+   502→   811→   811→        >
+   503→   812→   812→          {machines.length === 0 ? (
+   504→   813→   813→            <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">
+   505→   814→   814→              <div className="flex flex-col items-center gap-2">
+   506→   815→   815→                <Factory className="size-8 opacity-20" />
+   507→   816→   816→                <span>No machines connected</span>
+   508→   817→   817→              </div>
+   509→   818→   818→            </div>
+   510→   819→   819→          ) : (
+   511→   820→   820→            <ScrollArea className="h-[320px] max-h-[320px]">
+   512→   821→   821→              <div className="grid grid-cols-1 gap-3 pr-2 sm:grid-cols-2">
+   513→   822→   822→                {machines.map((machine) => {
+   514→   823→   823→                  const statusColor = STATUS_COLORS[machine.status]
+   515→   824→   824→                  return (
+   516→   825→   825→                    <div
+   517→   826→   826→                      key={machine.id}
+   518→   827→   827→                      className="relative rounded-xl border border-border/40 py-2.5 px-3 transition-all duration-200 hover:bg-muted/20 hover:border-border/60 cursor-pointer group/machine"
+   519→   828→   828→                      onClick={() => {
+   520→   829→   829→                        setSelectedMachine(machine)
+   521→   830→   830→                        setMachineDialogOpen(true)
+   522→   831→   831→                      }}
+   523→   832→   832→                    >
+   524→   833→   833→                      <div className="flex items-start justify-between">
+   525→   834→   834→                        <div className="flex items-center gap-2.5 min-w-0">
+   526→   835→   835→                          <span
+   527→   836→   836→                            className={`inline-block size-2.5 rounded-full ${machine.status === 'running' ? 'animate-pulse-dot glow-green' : machine.status === 'error' ? 'glow-red' : ''}`}
+   528→   837→   837→                            style={{ backgroundColor: statusColor }}
+   529→   838→   838→                          />
+   530→   839→   839→                          <p className="text-sm font-semibold text-foreground truncate max-w-[140px]">
+   531→   840→   840→                            {machine.name}
+   532→   841→   841→                          </p>
+   533→   842→   842→                        </div>
+   534→   843→   843→                        <Badge
+   535→   844→   844→                          variant="outline"
+   536→   845→   845→                          className={`text-[10px] px-1.5 py-0 h-4 capitalize transition-colors ${
+   537→   846→   846→                            machine.status === 'running'
+   538→   847→   847→                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+   539→   848→   848→                              : machine.status === 'error'
+   540→   849→   849→                                ? 'bg-red-500/10 text-red-400 border-red-500/30'
+   541→   850→   850→                                : machine.status === 'idle'
+   542→   851→   851→                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+   543→   852→   852→                                  : 'bg-slate-500/10 text-slate-400 border-slate-500/30'
+   544→   853→   853→                          }`}
+   545→   854→   854→                        >
+   546→   855→   855→                          {machine.status}
+   547→   856→   856→                        </Badge>
+   548→   857→   857→                      </div>
+   549→   858→   858→
+   550→   859→   859→                      <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+   551→   860→   860→                        <Factory className="size-3" />
+   552→   861→   861→                        {machine.type}
+   553→   862→   862→                      </div>
+   554→   863→   863→
+   555→   864→   864→                      <div className="mt-3 grid grid-cols-3 gap-2">
+   556→   865→   865→                        <div className="rounded-lg bg-muted/20 px-2.5 py-2 text-center transition-colors group-hover/machine:bg-muted/30">
+   557→   866→   866→                          <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mb-0.5">
+   558→   867→   867→                            <Thermometer className={`size-3 ${machine.temperature > 80 ? 'text-red-400' : machine.temperature > 60 ? 'text-amber-400' : 'text-emerald-400'}`} />
+   559→   868→   868→                          </div>
+   560→   869→   869→                          <p className={`text-xs font-bold metric-value ${machine.temperature > 80 ? 'text-red-400' : 'text-foreground'}`}>
+   561→   870→   870→                            {machine.temperature}°C
+   562→   871→   871→                          </p>
+   563→   872→   872→                        </div>
+   564→   873→   873→                        <div className="rounded-lg bg-muted/20 px-2.5 py-2 text-center transition-colors group-hover/machine:bg-muted/30">
+   565→   874→   874→                          <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mb-0.5">
+   566→   875→   875→                            <Activity className="size-3 text-cyan-400" />
+   567→   876→   876→                          </div>
+   568→   877→   877→                          <p className="text-xs font-bold metric-value text-foreground">
+   569→   878→   878→                            {machine.rpm}
+   570→   879→   879→                          </p>
+   571→   880→   880→                        </div>
+   572→   881→   881→                        <div className="rounded-lg bg-muted/20 px-2.5 py-2 text-center transition-colors group-hover/machine:bg-muted/30">
+   573→   882→   882→                          <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mb-0.5">
+   574→   883→   883→                            <Gauge className={`size-3 ${machine.oee > 85 ? 'text-emerald-400' : machine.oee > 70 ? 'text-amber-400' : 'text-red-400'}`} />
+   575→   884→   884→                          </div>
+   576→   885→   885→                          <p className={`text-xs font-bold metric-value ${machine.oee > 85 ? 'text-emerald-400' : machine.oee > 70 ? 'text-amber-400' : 'text-red-400'}`}>
+   577→   886→   886→                            {(machine.oee * 100).toFixed(0)}%
+   578→   887→   887→                          </p>
+   579→   888→   888→                        </div>
+   580→   889→   889→                      </div>
+   581→   890→   890→
+   582→   891→   891→                      {/* OEE Progress bar */}
+   583→   892→   892→                      <div className="mt-2.5">
+   584→   893→   893→                        <Progress
+   585→   894→   894→                          value={machine.oee * 100}
+   586→   895→   895→                          className="h-1.5"
+   587→   896→   896→                        />
+   588→   897→   897→                      </div>
+   589→   898→   898→                    </div>
+   590→   899→   899→                  )
+   591→   900→   900→                })}
+   592→   901→   901→              </div>
+   593→   902→   902→            </ScrollArea>
+   594→   903→   903→          )}
+   595→   904→   904→        </ChartCard>
+   596→   905→   905→      </div>
+   597→   906→   906→
+   598→   907→   907→      {/* ── Energy Consumption Chart ── */}
+   599→   908→   908→      <div className="animate-slide-up stagger-6">
+   600→   909→   909→        <ChartCard
+   601→   910→   910→          title="Energy Consumption"
+   602→   911→   911→          className="chart-container-glass"
+   603→   912→   912→          description="Real-time power consumption (kWh) and voltage levels"
+   604→   913→   913→          icon={Zap}
+   605→   914→   914→          iconColor="text-orange-400"
+   606→   915→   915→          actions={
+   607→   916→   916→            <div className="flex items-center gap-3 text-[10px]">
+   608→   917→   917→              <div className="flex items-center gap-1.5">
+   609→   918→   918→                <span className="size-2 rounded-full bg-orange-500" />
+   610→   919→   919→                <span className="text-muted-foreground">kWh</span>
+   611→   920→   920→              </div>
+   612→   921→   921→              <div className="flex items-center gap-1.5">
+   613→   922→   922→                <span className="size-2 rounded-full bg-cyan-500" />
+   614→   923→   923→                <span className="text-muted-foreground">Voltage</span>
+   615→   924→   924→              </div>
+   616→   925→   925→            </div>
+   617→   926→   926→          }
+   618→   927→   927→        >
+   619→   928→   928→          <div className="h-[240px] w-full">
+   620→   929→   929→            {energyChartData.length > 0 ? (
+   621→   930→   930→              <ResponsiveContainer width="100%" height="100%">
+   622→   931→   931→                <LineChart data={energyChartData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+   623→   932→   932→                  <defs>
+   624→   933→   933→                    <linearGradient id="gradEnergy" x1="0" y1="0" x2="0" y2="1">
+   625→   934→   934→                      <stop offset="0%" stopColor={C_ORANGE} stopOpacity={0.2} />
+   626→   935→   935→                      <stop offset="100%" stopColor={C_ORANGE} stopOpacity={0.01} />
+   627→   936→   936→                    </linearGradient>
+   628→   937→   937→                  </defs>
+   629→   938→   938→                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   630→   939→   939→                  <XAxis
+   631→   940→   940→                    dataKey="time"
+   632→   941→   941→                    tick={AXIS_TICK}
+   633→   942→   942→                    tickLine={false}
+   634→   943→   943→                    axisLine={AXIS_LINE}
+   635→   944→   944→                    interval={Math.max(0, Math.floor(energyChartData.length / 10) - 1)}
+   636→   945→   945→                  />
+   637→   946→   946→                  <YAxis
+   638→   947→   947→                    yAxisId="kwh"
+   639→   948→   948→                    tick={AXIS_TICK}
+   640→   949→   949→                    tickLine={false}
+   641→   950→   950→                    axisLine={AXIS_LINE}
+   642→   951→   951→                    label={{
+   643→   952→   952→                      value: 'kWh',
+   644→   953→   953→                      angle: -90,
+   645→   954→   954→                      position: 'insideLeft',
+   646→   955→   955→                      style: { fill: 'rgba(255,255,255,0.25)', fontSize: 10 },
+   647→   956→   956→                      offset: -5,
+   648→   957→   957→                    }}
+   649→   958→   958→                  />
+   650→   959→   959→                  <YAxis
+   651→   960→   960→                    yAxisId="voltage"
+   652→   961→   961→                    orientation="right"
+   653→   962→   962→                    tick={AXIS_TICK}
+   654→   963→   963→                    tickLine={false}
+   655→   964→   964→                    axisLine={AXIS_LINE}
+   656→   965→   965→                    label={{
+   657→   966→   966→                      value: 'V',
+   658→   967→   967→                      angle: 90,
+   659→   968→   968→                      position: 'insideRight',
+   660→   969→   969→                      style: { fill: 'rgba(255,255,255,0.25)', fontSize: 10 },
+   661→   970→   970→                      offset: -5,
+   662→   971→   971→                    }}
+   663→   972→   972→                  />
+   664→   973→   973→                  <Tooltip content={<DarkTooltip />} />
+   665→   974→   974→                  <Legend
+   666→   975→   975→                    iconType="circle"
+   667→   976→   976→                    iconSize={6}
+   668→   977→   977→                    wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}
+   669→   978→   978→                  />
+   670→   979→   979→                  <Line
+   671→   980→   980→                    yAxisId="kwh"
+   672→   981→   981→                    type="monotone"
+   673→   982→   982→                    dataKey="kWh"
+   674→   983→   983→                    stroke={C_ORANGE}
+   675→   984→   984→                    strokeWidth={2}
+   676→   985→   985→                    dot={false}
+   677→   986→   986→                    activeDot={{ r: 4, fill: C_ORANGE, strokeWidth: 0 }}
+   678→   987→   987→                    name="kWh"
+   679→   988→   988→                  />
+   680→   989→   989→                  <Line
+   681→   990→   990→                    yAxisId="voltage"
+   682→   991→   991→                    type="monotone"
+   683→   992→   992→                    dataKey="voltage"
+   684→   993→   993→                    stroke={C_CYAN}
+   685→   994→   994→                    strokeWidth={1.5}
+   686→   995→   995→                    strokeDasharray="4 2"
+   687→   996→   996→                    dot={false}
+   688→   997→   997→                    activeDot={{ r: 3, fill: C_CYAN, strokeWidth: 0 }}
+   689→   998→   998→                    name="Voltage"
+   690→   999→   999→                  />
+   691→  1000→  1000→                </LineChart>
+   692→  1001→  1001→              </ResponsiveContainer>
+   693→  1002→  1002→            ) : (
+   694→  1003→  1003→              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+   695→  1004→  1004→                <div className="flex flex-col items-center gap-2">
+   696→  1005→  1005→                  <Zap className="size-8 opacity-20" />
+   697→  1006→  1006→                  <span>Awaiting energy data...</span>
+   698→  1007→  1007→                </div>
+   699→  1008→  1008→              </div>
+   700→  1009→  1009→            )}
+   701→  1010→  1010→          </div>
+   702→  1011→  1011→        </ChartCard>
+   703→  1012→  1012→      </div>
+   704→  1013→  1013→
+   705→  1014→  1014→      {/* ── Active Alarms Banner ── */}
+   706→  1015→  1015→      <div className="animate-slide-up stagger-7 flex items-center gap-4 rounded-xl border border-red-500/20 bg-red-500/[0.03] px-5 py-3.5 border-l-[3px] border-l-red-500/70">
+   707→  1016→  1016→        <AlertTriangle className="size-5 text-red-400 shrink-0" />
+   708→  1017→  1017→        <div className="flex items-baseline gap-3 min-w-0">
+   709→  1018→  1018→          <span className="text-xs uppercase tracking-wider text-red-400/80 font-medium">Active Alarms</span>
+   710→  1019→  1019→          <span className="text-2xl font-bold text-red-400 leading-none">{activeAlarms.length}</span>
+   711→  1020→  1020→        </div>
+   712→  1021→  1021→        <div className="flex-1" />
+   713→  1022→  1022→        <Button
+   714→  1023→  1023→          variant="ghost"
+   715→  1024→  1024→          size="sm"
+   716→  1025→  1025→          className="text-xs gap-1.5 text-red-400/80 hover:text-red-300 hover:bg-red-500/10 shrink-0"
+   717→  1026→  1026→          onClick={() => setCurrentPage('active-alarms')}
+   718→  1027→  1027→        >
+   719→  1028→  1028→          View All
+   720→  1029→  1029→          <ArrowRight className="size-3.5" />
+   721→  1030→  1030→        </Button>
+   722→  1031→  1031→      </div>
+   723→  1032→  1032→
+   724→  1033→  1033→      {/* Machine Detail Dialog */}
+   725→  1034→  1034→      <MachineDetailDialog
+   726→  1035→  1035→        machine={selectedMachine}
+   727→  1036→  1036→        open={machineDialogOpen}
+   728→  1037→  1037→        onOpenChange={setMachineDialogOpen}
+   729→  1038→  1038→      />
+   730→  1039→  1039→    </div>
+   731→  1040→  1040→  )
+   732→  1041→  1041→}

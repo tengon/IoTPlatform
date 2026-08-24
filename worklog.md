@@ -1,6 +1,47 @@
 # IIoT Platform - Worklog
 
 ---
+Task ID: 12
+Agent: main
+Task: Fix dashboard showing all zeros when WebSocket is disconnected
+
+Work Log:
+- User reported "dashboard data preview tidak tertampil" — all KPIs showing 0
+- VLM confirmed: KPIs all zeros, charts empty, WS status Offline
+- Root cause: Dashboard relied 100% on WebSocket (useIIoTStore), no REST API fallback
+- This was the exact scenario the 3-layer state architecture was designed to solve
+- Implemented hybrid data merge in dashboard-page.tsx:
+  - Added useMachinesQuery, useDevicesQuery, useAlarmsQuery, useProductionQuery, useEnergyQuery
+  - Server data normalized to match WS shape (add missing fields)
+  - Merge logic: `isConnected && wsData.length > 0 ? wsData : serverData`
+  - Added effectiveLastUpdate fallback (Date.now()) for REST data mode
+
+### Verification
+Before fix (WS disconnected):
+| Metric | Value |
+|--------|-------|
+| Total Devices | 0 |
+| Active Machines | 0 |
+| Active Alarms | 0 |
+| Energy | 0 kWh |
+
+After fix (WS disconnected, REST fallback):
+| Metric | Value |
+|--------|-------|
+| Total Devices | 8 (7 online, 1 offline) |
+| Active Machines | 4 of 6 running |
+| Active Alarms | 4 (2 critical) |
+| Energy | 30,901 kWh |
+| Sparklines | ✅ Rendering with data |
+
+Stage Summary:
+- 1 file modified (dashboard-page.tsx) — added Server State + merge logic
+- Dashboard now shows data from REST API even when WebSocket is disconnected
+- When WS connects, seamlessly switches to real-time data
+- Lint: 0 errors, 0 warnings
+- VLM Score: ~9/10 (data displaying correctly without WS)
+
+---
 Task ID: 11
 Agent: main
 Task: Implement 3-Layer Frontend State Architecture

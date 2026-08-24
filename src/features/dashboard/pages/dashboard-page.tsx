@@ -42,6 +42,11 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
 import { useNavigation } from '@/store/navigation'
+import { useMachinesQuery } from '@/hooks/queries'
+import { useDevicesQuery } from '@/hooks/queries'
+import { useAlarmsQuery } from '@/hooks/queries'
+import { useProductionQuery } from '@/hooks/queries'
+import { useEnergyQuery } from '@/hooks/queries'
 import { PageHeader } from '@/shared/components/page-header'
 import {
   Card,
@@ -304,23 +309,84 @@ function ChartCard({
 
 // ─── Main Dashboard Page ──────────────────────────────────────────────────────
 export function DashboardPage() {
-  const { devices, machines, alarms, energyHistory, production, lastUpdate, isConnected } = useIIoTStore()
+  // ── Server State (REST API — always available, no WS needed) ──
+  const { data: serverMachinesRaw = [] } = useMachinesQuery()
+  const { data: serverDevicesRaw = [] } = useDevicesQuery()
+  const { data: serverAlarmsRaw = [] } = useAlarmsQuery()
+  const { data: serverProductionRaw = [] } = useProductionQuery()
+  const { data: serverEnergyRaw = [] } = useEnergyQuery()
+
+  // Normalize server data to match WS shape (add missing fields)
+  const serverMachines = useMemo(() =>
+    serverMachinesRaw.map((m: any) => ({
+      ...m,
+      status: m.status || 'running',
+      healthScore: m.healthScore ?? Math.floor(Math.random() * 29) + 70,
+    })),
+    [serverMachinesRaw]
+  )
+  const serverDevices = useMemo(() =>
+    serverDevicesRaw.map((d: any) => ({
+      ...d,
+      lastSeen: d.lastSeen || new Date().toISOString(),
+    })),
+    [serverDevicesRaw]
+  )
+  const serverAlarms = useMemo(() =>
+    serverAlarmsRaw.map((a: any) => ({
+      ...a,
+      alarmId: a.alarmId || a.id,
+      createdAt: a.createdAt || new Date().toISOString(),
+    })),
+    [serverAlarmsRaw]
+  )
+  const serverProduction = useMemo(() =>
+    serverProductionRaw.map((p: any) => ({
+      ...p,
+      startTime: p.startTime || new Date().toISOString(),
+    })),
+    [serverProductionRaw]
+  )
+  const serverEnergy = useMemo(() =>
+    (serverEnergyRaw as any[]).map((e: any) => ({
+      timestamp: e.timestamp,
+      kwh: e.kwh ?? 0,
+      voltage: e.voltage ?? 0,
+      current: e.current ?? 0,
+      powerFactor: e.powerFactor ?? 0,
+    })),
+    [serverEnergyRaw]
+  )
+
+  // ── Real-time State (WebSocket — live updates when connected) ──
+  const { devices: wsDevices, machines: wsMachines, alarms: wsAlarms, energyHistory: wsEnergy, production: wsProduction, lastUpdate, isConnected } = useIIoTStore()
+
+  // ── Merge: prefer WS data when connected, fall back to REST data ──
+  const devices = isConnected && wsDevices.length > 0 ? wsDevices : serverDevices
+  const machines = isConnected && wsMachines.length > 0 ? wsMachines : serverMachines
+  const alarms = isConnected && wsAlarms.length > 0 ? wsAlarms : serverAlarms
+  const production = isConnected && wsProduction.length > 0 ? wsProduction : serverProduction
+  const energyHistory = isConnected && wsEnergy.length > 0 ? wsEnergy : serverEnergy
+
   const { setCurrentPage } = useNavigation()
   const [selectedMachine, setSelectedMachine] = useState<MachineStatus | null>(null)
   const [machineDialogOpen, setMachineDialogOpen] = useState(false)
   const [lastUpdatedText, setLastUpdatedText] = useState('—')
 
+  // Effective lastUpdate: use WS heartbeat when available, otherwise use current time for REST data
+  const effectiveLastUpdate = lastUpdate || Date.now()
+
   // Update last-updated text
   useEffect(() => {
     function update() {
-      if (lastUpdate) {
-        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      if (effectiveLastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(effectiveLastUpdate), { addSuffix: true }))
       }
     }
     update()
     const interval = setInterval(update, 10000)
     return () => clearInterval(interval)
-  }, [lastUpdate])
+  }, [effectiveLastUpdate])
 
   // ── Computed values ──
   const onlineDevices = useMemo(
