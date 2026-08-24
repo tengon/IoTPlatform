@@ -26,6 +26,7 @@ import {
   ResponsiveContainer,
   Legend,
   LabelList,
+  ReferenceLine,
 } from 'recharts'
 import { formatDistanceToNow } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
@@ -591,7 +592,7 @@ export function OEEPage() {
           <CardContent className="px-5 pb-5 space-y-5">
             {/* Horizontal stacked loss bar */}
             <div>
-              <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider mb-2">Overall Loss Distribution</p>
+              <p className="section-title-accent mb-2">Overall Loss Distribution</p>
               <div className="h-7 w-full rounded-md overflow-hidden flex">
                 <div
                   className="loss-bar-availability flex items-center justify-center"
@@ -642,7 +643,7 @@ export function OEEPage() {
 
             {/* Machine loss table */}
             <div>
-              <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider mb-2">Per-Machine Loss Breakdown</p>
+              <p className="section-title-accent mb-2">Per-Machine Loss Breakdown</p>
               <div className="rounded-md border border-border/30 overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -726,7 +727,7 @@ export function OEEPage() {
                   {machineData.map((m) => {
                     const mOeeColor = oeeColor(m.oee)
                     return (
-                      <TableRow key={m.name} className="transition-colors hover:bg-muted/20">
+                      <TableRow key={m.name} className="table-row-hover-accent">
                         <TableCell className="text-xs font-medium">
                           {m.name}
                         </TableCell>
@@ -884,7 +885,8 @@ export function OEEPage() {
                   <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[0, 100]} width={35} />
                   <Tooltip content={<ChartTooltip valueSuffix="%" />} />
                   <Legend wrapperStyle={LEGEND_STYLE} />
-                  <Bar dataKey="Target" fill="rgba(255,255,255,0.12)" radius={[2, 2, 0, 0]} barSize={16} />
+                  <ReferenceLine y={OEE_TARGET} stroke="#f59e0b" strokeDasharray="6 3" label={{ value: 'Target 85%', position: 'insideTopRight', fill: '#f59e0b', fontSize: 11, fontWeight: 600 }} />
+                  <Bar dataKey="Target" fill="rgba(245,158,11,0.15)" stroke={C_YELLOW} strokeDasharray="4 2" radius={[2, 2, 0, 0]} barSize={16} />
                   <Bar dataKey="Actual" radius={[2, 2, 0, 0]} barSize={16}>
                     {targetVsActual.map((entry, idx) => (
                       <Cell
@@ -898,6 +900,29 @@ export function OEEPage() {
                         }
                       />
                     ))}
+                    <LabelList
+                      dataKey="Actual"
+                      position="top"
+                      style={{ fontSize: 10, fontWeight: 600 }}
+                      formatter={(value: number) =>
+                        `${value}%`
+                      }
+                      content={(props: any) => {
+                        const v = props.value
+                        return (
+                          <text
+                            x={props.x}
+                            y={props.y - 4}
+                            textAnchor="middle"
+                            fill={v >= OEE_TARGET ? C_GREEN : v >= 70 ? C_YELLOW : C_RED}
+                            fontSize={10}
+                            fontWeight={600}
+                          >
+                            {v}%
+                          </text>
+                        )
+                      }}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

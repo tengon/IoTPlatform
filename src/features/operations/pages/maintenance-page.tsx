@@ -17,10 +17,12 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-react'
 import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday, isBefore, startOfDay } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
 import { PageHeader } from '@/shared/components/page-header'
+import { ExportDialog } from '@/shared/components/export-dialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -175,6 +177,7 @@ export function MaintenancePage() {
   const [tasks, setTasks] = useState<MaintenanceTask[]>(mockTasks)
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   // Filter state
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -314,6 +317,15 @@ export function MaintenancePage() {
             >
               <CalendarDays className="size-4" />
               <span className="hidden sm:inline">Calendar</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setExportOpen(true)}
+            >
+              <Download className="size-4" />
+              <span className="hidden sm:inline">Export</span>
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -729,6 +741,30 @@ export function MaintenancePage() {
           </CardContent>
         </Card>
       )}
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Export Maintenance Tasks"
+        data={filtered.map((t) => ({
+          id: t.id,
+          title: t.description,
+          machine: t.machine,
+          type: t.taskType,
+          priority: t.priority,
+          status: t.status,
+          dueDate: t.scheduledDate,
+        }))}
+        columns={[
+          { key: 'id', label: 'Task ID' },
+          { key: 'title', label: 'Title' },
+          { key: 'machine', label: 'Machine' },
+          { key: 'type', label: 'Type' },
+          { key: 'priority', label: 'Priority' },
+          { key: 'status', label: 'Status' },
+          { key: 'dueDate', label: 'Due Date' },
+        ]}
+        filename="maintenance-tasks"
+      />
     </div>
   )
 }

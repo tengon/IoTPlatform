@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import {
   Building2, Shield, Cog, Plus, MapPin, Clock,
   LayoutGrid, List, Pencil, Eye, Bell, Globe, Database, Lock, Webhook,
-  Sun, Moon, Monitor, AlertTriangle, Volume2, Trash2,
+  Sun, Moon, Monitor, AlertTriangle, Volume2, Trash2, Speaker,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/shared/components/page-header'
@@ -409,6 +409,13 @@ export function SettingsPage() {
     inAppNotif: true,
     soundAlerts: false,
     desktopPush: false,
+    notifCritical: true,
+    notifWarning: true,
+    notifInfo: false,
+    soundVolume: 70,
+    quietHours: false,
+    quietStart: '22:00',
+    quietEnd: '07:00',
     theme: 'system' as 'light' | 'dark' | 'system',
     defaultPage: 'dashboard' as string,
     compactMode: false,
@@ -436,6 +443,18 @@ export function SettingsPage() {
 
   const update = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const previewSound = () => {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = 880
+    gain.gain.value = settings.soundVolume / 100 * 0.3
+    osc.start()
+    osc.stop(ctx.currentTime + 0.15)
   }
 
   return (
@@ -614,6 +633,111 @@ export function SettingsPage() {
               </div>
               <Switch checked={settings.desktopPush} onCheckedChange={(v) => update('desktopPush', v)} />
             </div>
+
+            <Separator />
+
+            {/* Severity-Based Rules */}
+            <div className="section-title-accent mb-3">Alarm Severity Rules</div>
+            <div className="space-y-2">
+              {([{
+                key: 'notifCritical' as const,
+                label: 'Critical',
+                color: 'text-red-400',
+                cssClass: 'notif-pref-critical',
+                description: 'Critical equipment failures, safety hazards',
+              }, {
+                key: 'notifWarning' as const,
+                label: 'Warning',
+                color: 'text-amber-400',
+                cssClass: 'notif-pref-warning',
+                description: 'Performance degradation, approaching thresholds',
+              }, {
+                key: 'notifInfo' as const,
+                label: 'Info',
+                color: 'text-cyan-400',
+                cssClass: 'notif-pref-info',
+                description: 'Status changes, routine notifications',
+              }]).map((item) => (
+                <div key={item.key} className={`notif-pref-card ${item.cssClass} flex items-center justify-between`}>
+                  <div className="space-y-0.5">
+                    <span className={`text-sm font-medium ${item.color}`}>{item.label}</span>
+                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                  </div>
+                  <Switch checked={settings[item.key]} onCheckedChange={(v) => update(item.key, v)} />
+                </div>
+              ))}
+            </div>
+
+            <Separator />
+
+            {/* Sound Configuration */}
+            {settings.soundAlerts && (
+              <>
+                <div className="section-title-accent mb-3">Sound Configuration</div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={settings.soundVolume}
+                      onChange={(e) => update('soundVolume', Number(e.target.value))}
+                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    />
+                    <span className="kpi-subtext text-sm font-medium w-12 text-right">{settings.soundVolume}%</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={previewSound}
+                    >
+                      <Speaker className="size-4" />
+                      Preview Sound
+                    </Button>
+                    <div className="inline-flex items-end gap-0.5 h-5">
+                      {settings.soundAlerts && [0, 1, 2, 3, 4].map((i) => (
+                        <div key={i} className="sound-wave-bar" style={{ animationDelay: `${i * 0.1}s` }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Quiet Hours */}
+            <div className="section-title-accent mb-3">Quiet Hours</div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Quiet Hours</Label>
+                <p className="text-xs text-muted-foreground">Suppress non-critical notifications during set hours</p>
+              </div>
+              <Switch checked={settings.quietHours} onCheckedChange={(v) => update('quietHours', v)} />
+            </div>
+            {settings.quietHours && (
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="space-y-1.5">
+                  <span className="kpi-subtext text-xs">Start Time</span>
+                  <input
+                    type="time"
+                    value={settings.quietStart}
+                    onChange={(e) => update('quietStart', e.target.value)}
+                    className="w-full h-9 rounded-md border border-border/50 bg-transparent px-3 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <span className="kpi-subtext text-xs">End Time</span>
+                  <input
+                    type="time"
+                    value={settings.quietEnd}
+                    onChange={(e) => update('quietEnd', e.target.value)}
+                    className="w-full h-9 rounded-md border border-border/50 bg-transparent px-3 text-sm"
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

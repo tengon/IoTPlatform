@@ -1,0 +1,735 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo, useCallback } from 'react'
+     4→import {
+     5→  Wrench,
+     6→  Plus,
+     7→  CalendarDays,
+     8→  LayoutList,
+     9→  Clock,
+    10→  AlertTriangle,
+    11→  CheckCircle2,
+    12→  TrendingUp,
+    13→  Eye,
+    14→  Pencil,
+    15→  Inbox,
+    16→  Filter,
+    17→  X,
+    18→  ChevronLeft,
+    19→  ChevronRight,
+    20→} from 'lucide-react'
+    21→import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday, isBefore, startOfDay } from 'date-fns'
+    22→import { useIIoTStore } from '@/store/iiot'
+    23→import { PageHeader } from '@/shared/components/page-header'
+    24→import { Card, CardContent } from '@/components/ui/card'
+    25→import { Badge } from '@/components/ui/badge'
+    26→import { Button } from '@/components/ui/button'
+    27→import { Input } from '@/components/ui/input'
+    28→import { Textarea } from '@/components/ui/textarea'
+    29→import { Label } from '@/components/ui/label'
+    30→import {
+    31→  Table,
+    32→  TableBody,
+    33→  TableCell,
+    34→  TableHead,
+    35→  TableHeader,
+    36→  TableRow,
+    37→} from '@/components/ui/table'
+    38→import {
+    39→  Dialog,
+    40→  DialogContent,
+    41→  DialogDescription,
+    42→  DialogFooter,
+    43→  DialogHeader,
+    44→  DialogTitle,
+    45→  DialogTrigger,
+    46→} from '@/components/ui/dialog'
+    47→import {
+    48→  Select,
+    49→  SelectContent,
+    50→  SelectItem,
+    51→  SelectTrigger,
+    52→  SelectValue,
+    53→} from '@/components/ui/select'
+    54→
+    55→// ─── Types ───────────────────────────────────────────────────────────────────
+    56→
+    57→type TaskStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Overdue' | 'Skipped'
+    58→type TaskType = 'Preventive' | 'Corrective' | 'Predictive' | 'Emergency'
+    59→type Priority = 'Critical' | 'High' | 'Medium' | 'Low'
+    60→
+    61→interface MaintenanceTask {
+    62→  id: string
+    63→  machine: string
+    64→  taskType: TaskType
+    65→  priority: Priority
+    66→  scheduledDate: string
+    67→  status: TaskStatus
+    68→  assignedTo: string
+    69→  estimatedDuration: string
+    70→  description: string
+    71→}
+    72→
+    73→// ─── Mock Data ───────────────────────────────────────────────────────────────
+    74→
+    75→const MACHINE_NAMES = [
+    76→  'CNC Lathe Alpha',
+    77→  'CNC Mill Beta',
+    78→  'Injection Molder #1',
+    79→  'Injection Molder #2',
+    80→  'Conveyor Belt A1',
+    81→  'Conveyor Belt B1',
+    82→  'Robotic Arm R1',
+    83→  'Robotic Arm R2',
+    84→  'Packaging Line 1',
+    85→  'Hydraulic Press P1',
+    86→  'CNC Grinder G1',
+    87→  'Welding Robot W1',
+    88→]
+    89→
+    90→const TECHNICIANS = [
+    91→  'Zhang Wei',
+    92→  'Li Ming',
+    93→  'Wang Jun',
+    94→  'Chen Yang',
+    95→  'Zhao Tao',
+    96→  'Liu Hua',
+    97→]
+    98→
+    99→// ─── Safe date helper (hydration-safe) ────────────────────
+   100→let _today: Date | null = null
+   101→function getToday(): Date {
+   102→  if (!_today) _today = new Date()
+   103→  return _today
+   104→}
+   105→
+   106→const d = (offset: number) => format(addDays(getToday(), offset), 'yyyy-MM-dd')
+   107→
+   108→const mockTasks: MaintenanceTask[] = [
+   109→  { id: 'MT-2401', machine: 'CNC Lathe Alpha', taskType: 'Preventive', priority: 'High', scheduledDate: d(2), status: 'Scheduled', assignedTo: 'Zhang Wei', estimatedDuration: '2h', description: 'Quarterly spindle bearing inspection and lubrication' },
+   110→  { id: 'MT-2402', machine: 'Robotic Arm R1', taskType: 'Corrective', priority: 'Critical', scheduledDate: d(-1), status: 'Overdue', assignedTo: 'Chen Yang', estimatedDuration: '4h', description: 'Replace faulty servo motor on joint 3' },
+   111→  { id: 'MT-2403', machine: 'Injection Molder #1', taskType: 'Preventive', priority: 'Medium', scheduledDate: d(5), status: 'Scheduled', assignedTo: 'Li Ming', estimatedDuration: '3h', description: 'Barrel and screw inspection, thermocouple calibration' },
+   112→  { id: 'MT-2404', machine: 'Conveyor Belt A1', taskType: 'Predictive', priority: 'High', scheduledDate: d(1), status: 'In Progress', assignedTo: 'Wang Jun', estimatedDuration: '1.5h', description: 'Belt tension adjustment based on vibration analysis' },
+   113→  { id: 'MT-2405', machine: 'Hydraulic Press P1', taskType: 'Emergency', priority: 'Critical', scheduledDate: d(-2), status: 'Completed', assignedTo: 'Zhao Tao', estimatedDuration: '6h', description: 'Hydraulic seal failure - full system rebuild' },
+   114→  { id: 'MT-2406', machine: 'CNC Grinder G1', taskType: 'Preventive', priority: 'Low', scheduledDate: d(14), status: 'Scheduled', assignedTo: 'Liu Hua', estimatedDuration: '2h', description: 'Wheel dressing and coolant system flush' },
+   115→  { id: 'MT-2407', machine: 'Welding Robot W1', taskType: 'Corrective', priority: 'High', scheduledDate: d(-3), status: 'Completed', assignedTo: 'Chen Yang', estimatedDuration: '3h', description: 'Wire feed mechanism realignment and nozzle replacement' },
+   116→  { id: 'MT-2408', machine: 'CNC Mill Beta', taskType: 'Preventive', priority: 'Medium', scheduledDate: d(7), status: 'Scheduled', assignedTo: 'Zhang Wei', estimatedDuration: '2.5h', description: 'Ball screw preload check and axis calibration' },
+   117→  { id: 'MT-2409', machine: 'Conveyor Belt B1', taskType: 'Corrective', priority: 'High', scheduledDate: d(-1), status: 'Overdue', assignedTo: 'Wang Jun', estimatedDuration: '4h', description: 'Replace worn roller bearings on section B3-B7' },
+   118→  { id: 'MT-2410', machine: 'Injection Molder #2', taskType: 'Predictive', priority: 'Medium', scheduledDate: d(4), status: 'Scheduled', assignedTo: 'Li Ming', estimatedDuration: '2h', description: 'Heater band resistance check per predictive model' },
+   119→  { id: 'MT-2411', machine: 'Robotic Arm R2', taskType: 'Emergency', priority: 'Critical', scheduledDate: d(0), status: 'In Progress', assignedTo: 'Zhao Tao', estimatedDuration: '5h', description: 'Emergency brake system malfunction - full diagnostics' },
+   120→  { id: 'MT-2412', machine: 'Packaging Line 1', taskType: 'Preventive', priority: 'Low', scheduledDate: d(-5), status: 'Completed', assignedTo: 'Liu Hua', estimatedDuration: '1.5h', description: 'Seal bar replacement and sensor cleaning' },
+   121→  { id: 'MT-2413', machine: 'CNC Lathe Alpha', taskType: 'Corrective', priority: 'Medium', scheduledDate: d(-7), status: 'Skipped', assignedTo: 'Zhang Wei', estimatedDuration: '2h', description: 'Chuck jaw replacement - postponed due to part unavailability' },
+   122→  { id: 'MT-2414', machine: 'Packaging Line 1', taskType: 'Preventive', priority: 'Medium', scheduledDate: d(10), status: 'Scheduled', assignedTo: 'Chen Yang', estimatedDuration: '2h', description: 'Conveyor chain tensioning and photo-eye alignment' },
+   123→]
+   124→
+   125→// ─── Config Maps ─────────────────────────────────────────────────────────────
+   126→
+   127→const taskTypeConfig: Record<TaskType, { color: string; bg: string; border: string; ring: string }> = {
+   128→  Preventive: { color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/30', ring: 'ring-cyan-400/20' },
+   129→  Corrective: { color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', ring: 'ring-amber-400/20' },
+   130→  Predictive: { color: 'text-violet-400', bg: 'bg-violet-400/10', border: 'border-violet-400/30', ring: 'ring-violet-400/20' },
+   131→  Emergency: { color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', ring: 'ring-red-400/20' },
+   132→}
+   133→
+   134→const priorityConfig: Record<Priority, { color: string; bg: string; border: string; ring: string }> = {
+   135→  Critical: { color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', ring: 'ring-red-400/20' },
+   136→  High: { color: 'text-orange-400', bg: 'bg-orange-400/10', border: 'border-orange-400/30', ring: 'ring-orange-400/20' },
+   137→  Medium: { color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/30', ring: 'ring-amber-400/20' },
+   138→  Low: { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', ring: 'ring-emerald-400/20' },
+   139→}
+   140→
+   141→const statusChipClass: Record<TaskStatus, string> = {
+   142→  Overdue: 'maintenance-chip-overdue',
+   143→  Scheduled: 'maintenance-chip-scheduled',
+   144→  Completed: 'maintenance-chip-completed',
+   145→  'In Progress': 'maintenance-chip-upcoming',
+   146→  Skipped: 'maintenance-chip-overdue',
+   147→}
+   148→
+   149→const statusDotColor: Record<TaskStatus, string> = {
+   150→  Scheduled: 'bg-cyan-400',
+   151→  'In Progress': 'bg-amber-400',
+   152→  Completed: 'bg-emerald-400',
+   153→  Overdue: 'bg-red-400',
+   154→  Skipped: 'bg-zinc-500',
+   155→}
+   156→
+   157→const calendarDotColor: Record<TaskType, string> = {
+   158→  Preventive: 'bg-cyan-400',
+   159→  Corrective: 'bg-amber-400',
+   160→  Predictive: 'bg-violet-400',
+   161→  Emergency: 'bg-red-400',
+   162→}
+   163→
+   164→// ─── Component ───────────────────────────────────────────────────────────────
+   165→
+   166→export function MaintenancePage() {
+   167→  const storeMachines = useIIoTStore((s) => s.machines)
+   168→  const machineNames = useMemo(() => {
+   169→    if (storeMachines.length > 0) {
+   170→      return storeMachines.map((m) => m.name)
+   171→    }
+   172→    return MACHINE_NAMES
+   173→  }, [storeMachines])
+   174→
+   175→  const [tasks, setTasks] = useState<MaintenanceTask[]>(mockTasks)
+   176→  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table')
+   177→  const [dialogOpen, setDialogOpen] = useState(false)
+   178→
+   179→  // Filter state
+   180→  const [filterStatus, setFilterStatus] = useState<string>('all')
+   181→  const [filterPriority, setFilterPriority] = useState<string>('all')
+   182→  const [filterType, setFilterType] = useState<string>('all')
+   183→  const [filterMachine, setFilterMachine] = useState<string>('all')
+   184→
+   185→  // Calendar state
+   186→  const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); d.setDate(1); d.setMonth(new Date().getMonth()); return d })
+   187→
+   188→  // Add task form state
+   189→  const [formMachine, setFormMachine] = useState('')
+   190→  const [formType, setFormType] = useState<TaskType>('Preventive')
+   191→  const [formPriority, setFormPriority] = useState<Priority>('Medium')
+   192→  const [formDate, setFormDate] = useState('')
+   193→  const [formTechnician, setFormTechnician] = useState('')
+   194→  const [formDuration, setFormDuration] = useState('')
+   195→  const [formDescription, setFormDescription] = useState('')
+   196→
+   197→  // ─── Computed values ─────────────────────────────────────────────────────
+   198→
+   199→  const stats = useMemo(() => {
+   200→    const now = startOfDay(getToday())
+   201→    const weekLater = addDays(getToday(), 7)
+   202→    const monthStart = startOfMonth(getToday())
+   203→    const monthEnd = endOfMonth(getToday())
+   204→
+   205→    const upcoming = tasks.filter(
+   206→      (t) =>
+   207→        (t.status === 'Scheduled' || t.status === 'In Progress') &&
+   208→        !isBefore(new Date(t.scheduledDate), now) &&
+   209→        !isBefore(weekLater, new Date(t.scheduledDate))
+   210→    ).length
+   211→
+   212→    const overdue = tasks.filter((t) => t.status === 'Overdue').length
+   213→
+   214→    const completedThisMonth = tasks.filter(
+   215→      (t) =>
+   216→        t.status === 'Completed' &&
+   217→        !isBefore(new Date(t.scheduledDate), monthStart) &&
+   218→        !isBefore(monthEnd, new Date(t.scheduledDate))
+   219→    ).length
+   220→
+   221→    const totalScheduled = tasks.filter((t) => t.status !== 'Skipped').length
+   222→    const totalCompleted = tasks.filter((t) => t.status === 'Completed').length
+   223→    const avgRate = totalScheduled > 0 ? ((totalCompleted / totalScheduled) * 100).toFixed(1) : '0.0'
+   224→
+   225→    return { upcoming, overdue, completedThisMonth, avgRate }
+   226→  }, [tasks])
+   227→
+   228→  const filtered = useMemo(() => {
+   229→    return tasks.filter((t) => {
+   230→      if (filterStatus !== 'all' && t.status !== filterStatus) return false
+   231→      if (filterPriority !== 'all' && t.priority !== filterPriority) return false
+   232→      if (filterType !== 'all' && t.taskType !== filterType) return false
+   233→      if (filterMachine !== 'all' && t.machine !== filterMachine) return false
+   234→      return true
+   235→    })
+   236→  }, [tasks, filterStatus, filterPriority, filterType, filterMachine])
+   237→
+   238→  const hasActiveFilters = filterStatus !== 'all' || filterPriority !== 'all' || filterType !== 'all' || filterMachine !== 'all'
+   239→
+   240→  const clearFilters = useCallback(() => {
+   241→    setFilterStatus('all')
+   242→    setFilterPriority('all')
+   243→    setFilterType('all')
+   244→    setFilterMachine('all')
+   245→  }, [])
+   246→
+   247→  // ─── Calendar helpers ────────────────────────────────────────────────────
+   248→
+   249→  const calendarDays = useMemo(() => {
+   250→    const monthStart = startOfMonth(calendarMonth)
+   251→    const monthEnd = endOfMonth(calendarMonth)
+   252→    const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+   253→    const startDay = getDay(monthStart) // 0=Sun
+   254→    return { days, startDay }
+   255→  }, [calendarMonth])
+   256→
+   257→  const getTasksForDay = useCallback(
+   258→    (day: Date) => tasks.filter((t) => isSameDay(new Date(t.scheduledDate), day)),
+   259→    [tasks]
+   260→  )
+   261→
+   262→  // ─── Add task handler ────────────────────────────────────────────────────
+   263→
+   264→  const handleAddTask = useCallback(() => {
+   265→    if (!formMachine || !formDate || !formTechnician || !formDuration) return
+   266→    const newId = `MT-${2415 + tasks.length}`
+   267→    const newTask: MaintenanceTask = {
+   268→      id: newId,
+   269→      machine: formMachine,
+   270→      taskType: formType,
+   271→      priority: formPriority,
+   272→      scheduledDate: formDate,
+   273→      status: 'Scheduled',
+   274→      assignedTo: formTechnician,
+   275→      estimatedDuration: formDuration,
+   276→      description: formDescription,
+   277→    }
+   278→    setTasks((prev) => [newTask, ...prev])
+   279→    setDialogOpen(false)
+   280→    // Reset form
+   281→    setFormMachine('')
+   282→    setFormType('Preventive')
+   283→    setFormPriority('Medium')
+   284→    setFormDate(format(new Date(), 'yyyy-MM-dd'))
+   285→    setFormTechnician('')
+   286→    setFormDuration('')
+   287→    setFormDescription('')
+   288→  }, [formMachine, formDate, formTechnician, formDuration, formType, formPriority, formDescription, tasks.length])
+   289→
+   290→  // ─── Render ──────────────────────────────────────────────────────────────
+   291→
+   292→  return (
+   293→    <div className="space-y-6 animate-slide-up">
+   294→      <PageHeader
+   295→        icon={Wrench}
+   296→        title="Maintenance Schedule"
+   297→        description="Plan and track equipment maintenance tasks"
+   298→        actions={
+   299→          <div className="flex items-center gap-2">
+   300→            <Button
+   301→              variant={viewMode === 'table' ? 'default' : 'outline'}
+   302→              size="sm"
+   303→              className="gap-2"
+   304→              onClick={() => setViewMode('table')}
+   305→            >
+   306→              <LayoutList className="size-4" />
+   307→              <span className="hidden sm:inline">Table</span>
+   308→            </Button>
+   309→            <Button
+   310→              variant={viewMode === 'calendar' ? 'default' : 'outline'}
+   311→              size="sm"
+   312→              className="gap-2"
+   313→              onClick={() => setViewMode('calendar')}
+   314→            >
+   315→              <CalendarDays className="size-4" />
+   316→              <span className="hidden sm:inline">Calendar</span>
+   317→            </Button>
+   318→            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   319→              <DialogTrigger asChild>
+   320→                <Button size="sm" className="gap-2">
+   321→                  <Plus className="size-4" />
+   322→                  <span className="hidden sm:inline">Add Task</span>
+   323→                </Button>
+   324→              </DialogTrigger>
+   325→              <DialogContent className="sm:max-w-[520px] bg-card border-border/60">
+   326→                <DialogHeader>
+   327→                  <DialogTitle className="text-base">Add Maintenance Task</DialogTitle>
+   328→                  <DialogDescription className="text-xs text-muted-foreground">
+   329→                    Schedule a new maintenance task for equipment.
+   330→                  </DialogDescription>
+   331→                </DialogHeader>
+   332→                <div className="grid gap-4 py-4">
+   333→                  <div className="grid gap-2">
+   334→                    <Label className="text-xs">Machine / Asset</Label>
+   335→                    <Select value={formMachine} onValueChange={setFormMachine}>
+   336→                      <SelectTrigger className="h-9 text-sm">
+   337→                        <SelectValue placeholder="Select machine..." />
+   338→                      </SelectTrigger>
+   339→                      <SelectContent>
+   340→                        {machineNames.map((name) => (
+   341→                          <SelectItem key={name} value={name} className="text-sm">
+   342→                            {name}
+   343→                          </SelectItem>
+   344→                        ))}
+   345→                      </SelectContent>
+   346→                    </Select>
+   347→                  </div>
+   348→                  <div className="grid grid-cols-2 gap-4">
+   349→                    <div className="grid gap-2">
+   350→                      <Label className="text-xs">Task Type</Label>
+   351→                      <Select value={formType} onValueChange={(v) => setFormType(v as TaskType)}>
+   352→                        <SelectTrigger className="h-9 text-sm">
+   353→                          <SelectValue />
+   354→                        </SelectTrigger>
+   355→                        <SelectContent>
+   356→                          <SelectItem value="Preventive" className="text-sm">Preventive</SelectItem>
+   357→                          <SelectItem value="Corrective" className="text-sm">Corrective</SelectItem>
+   358→                          <SelectItem value="Predictive" className="text-sm">Predictive</SelectItem>
+   359→                          <SelectItem value="Emergency" className="text-sm">Emergency</SelectItem>
+   360→                        </SelectContent>
+   361→                      </Select>
+   362→                    </div>
+   363→                    <div className="grid gap-2">
+   364→                      <Label className="text-xs">Priority</Label>
+   365→                      <Select value={formPriority} onValueChange={(v) => setFormPriority(v as Priority)}>
+   366→                        <SelectTrigger className="h-9 text-sm">
+   367→                          <SelectValue />
+   368→                        </SelectTrigger>
+   369→                        <SelectContent>
+   370→                          <SelectItem value="Critical" className="text-sm">Critical</SelectItem>
+   371→                          <SelectItem value="High" className="text-sm">High</SelectItem>
+   372→                          <SelectItem value="Medium" className="text-sm">Medium</SelectItem>
+   373→                          <SelectItem value="Low" className="text-sm">Low</SelectItem>
+   374→                        </SelectContent>
+   375→                      </Select>
+   376→                    </div>
+   377→                  </div>
+   378→                  <div className="grid grid-cols-2 gap-4">
+   379→                    <div className="grid gap-2">
+   380→                      <Label className="text-xs">Scheduled Date</Label>
+   381→                      <Input
+   382→                        type="date"
+   383→                        className="h-9 text-sm"
+   384→                        value={formDate}
+   385→                        onChange={(e) => setFormDate(e.target.value)}
+   386→                      />
+   387→                    </div>
+   388→                    <div className="grid gap-2">
+   389→                      <Label className="text-xs">Estimated Duration</Label>
+   390→                      <Input
+   391→                        type="text"
+   392→                        className="h-9 text-sm"
+   393→                        placeholder="e.g. 2h, 30min"
+   394→                        value={formDuration}
+   395→                        onChange={(e) => setFormDuration(e.target.value)}
+   396→                      />
+   397→                    </div>
+   398→                  </div>
+   399→                  <div className="grid gap-2">
+   400→                    <Label className="text-xs">Assigned Technician</Label>
+   401→                    <Select value={formTechnician} onValueChange={setFormTechnician}>
+   402→                      <SelectTrigger className="h-9 text-sm">
+   403→                        <SelectValue placeholder="Select technician..." />
+   404→                      </SelectTrigger>
+   405→                      <SelectContent>
+   406→                        {TECHNICIANS.map((name) => (
+   407→                          <SelectItem key={name} value={name} className="text-sm">
+   408→                            {name}
+   409→                          </SelectItem>
+   410→                        ))}
+   411→                      </SelectContent>
+   412→                    </Select>
+   413→                  </div>
+   414→                  <div className="grid gap-2">
+   415→                    <Label className="text-xs">Description</Label>
+   416→                    <Textarea
+   417→                      className="text-sm min-h-[80px] resize-none"
+   418→                      placeholder="Describe the maintenance task..."
+   419→                      value={formDescription}
+   420→                      onChange={(e) => setFormDescription(e.target.value)}
+   421→                    />
+   422→                  </div>
+   423→                </div>
+   424→                <DialogFooter>
+   425→                  <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
+   426→                    Cancel
+   427→                  </Button>
+   428→                  <Button size="sm" onClick={handleAddTask}>
+   429→                    Create Task
+   430→                  </Button>
+   431→                </DialogFooter>
+   432→              </DialogContent>
+   433→            </Dialog>
+   434→          </div>
+   435→        }
+   436→      />
+   437→
+   438→      {/* ─── KPI Summary Row ──────────────────────────────────────────── */}
+   439→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up stagger-1">
+   440→        <Card className="border-border/50 kpi-card-hover">
+   441→          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
+   442→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10">
+   443→              <Clock className="size-5 text-cyan-400" />
+   444→            </div>
+   445→            <div>
+   446→              <p className="text-xs text-muted-foreground metric-label">Upcoming Tasks</p>
+   447→              <p className="text-2xl font-bold text-cyan-400 metric-value">{stats.upcoming}</p>
+   448→              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Next 7 days</p>
+   449→            </div>
+   450→          </CardContent>
+   451→        </Card>
+   452→        <Card className="border-red-500/20 kpi-card-hover cursor-pointer" onClick={() => { setFilterStatus(filterStatus === 'Overdue' ? 'all' : 'Overdue') }}>
+   453→          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
+   454→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10">
+   455→              <AlertTriangle className="size-5 text-red-400" />
+   456→            </div>
+   457→            <div>
+   458→              <p className="text-xs text-muted-foreground metric-label">Overdue Tasks {filterStatus === 'Overdue' ? '(filtered)' : ''}</p>
+   459→              <p className="text-2xl font-bold text-red-400 metric-value">{stats.overdue}</p>
+   460→              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Click to filter</p>
+   461→            </div>
+   462→          </CardContent>
+   463→        </Card>
+   464→        <Card className="border-emerald-500/20 kpi-card-hover cursor-pointer" onClick={() => { setFilterStatus(filterStatus === 'Completed' ? 'all' : 'Completed') }}>
+   465→          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
+   466→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
+   467→              <CheckCircle2 className="size-5 text-emerald-400" />
+   468→            </div>
+   469→            <div>
+   470→              <p className="text-xs text-muted-foreground metric-label">Completed This Month {filterStatus === 'Completed' ? '(filtered)' : ''}</p>
+   471→              <p className="text-2xl font-bold text-emerald-400 metric-value">{stats.completedThisMonth}</p>
+   472→              <p className="text-[10px] text-muted-foreground/60 mt-0.5">On schedule</p>
+   473→            </div>
+   474→          </CardContent>
+   475→        </Card>
+   476→        <Card className="border-border/50 kpi-card-hover">
+   477→          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
+   478→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+   479→              <TrendingUp className="size-5 text-primary" />
+   480→            </div>
+   481→            <div>
+   482→              <p className="text-xs text-muted-foreground metric-label">Avg Completion Rate</p>
+   483→              <p className="text-2xl font-bold text-primary metric-value">{stats.avgRate}%</p>
+   484→              <p className="text-[10px] text-emerald-400/80 mt-0.5">+2.3% from last month</p>
+   485→            </div>
+   486→          </CardContent>
+   487→        </Card>
+   488→      </div>
+   489→
+   490→      {/* ─── Filter Bar ──────────────────────────────────────────────── */}
+   491→      <Card className="border-border/50 animate-slide-up stagger-2">
+   492→        <CardContent className="pt-4 px-5 pb-4">
+   493→          <div className="flex items-center gap-2 flex-wrap">
+   494→            <Filter className="size-4 text-muted-foreground shrink-0" />
+   495→            <Select value={filterStatus} onValueChange={setFilterStatus}>
+   496→              <SelectTrigger className="h-8 w-[130px] text-xs">
+   497→                <SelectValue placeholder="Status" />
+   498→              </SelectTrigger>
+   499→              <SelectContent>
+   500→                <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
+   501→                <SelectItem value="Scheduled" className="text-xs">Scheduled</SelectItem>
+   502→                <SelectItem value="In Progress" className="text-xs">In Progress</SelectItem>
+   503→                <SelectItem value="Completed" className="text-xs">Completed</SelectItem>
+   504→                <SelectItem value="Overdue" className="text-xs">Overdue</SelectItem>
+   505→                <SelectItem value="Skipped" className="text-xs">Skipped</SelectItem>
+   506→              </SelectContent>
+   507→            </Select>
+   508→            <Select value={filterPriority} onValueChange={setFilterPriority}>
+   509→              <SelectTrigger className="h-8 w-[120px] text-xs">
+   510→                <SelectValue placeholder="Priority" />
+   511→              </SelectTrigger>
+   512→              <SelectContent>
+   513→                <SelectItem value="all" className="text-xs">All Priorities</SelectItem>
+   514→                <SelectItem value="Critical" className="text-xs">Critical</SelectItem>
+   515→                <SelectItem value="High" className="text-xs">High</SelectItem>
+   516→                <SelectItem value="Medium" className="text-xs">Medium</SelectItem>
+   517→                <SelectItem value="Low" className="text-xs">Low</SelectItem>
+   518→              </SelectContent>
+   519→            </Select>
+   520→            <Select value={filterType} onValueChange={setFilterType}>
+   521→              <SelectTrigger className="h-8 w-[130px] text-xs">
+   522→                <SelectValue placeholder="Task Type" />
+   523→              </SelectTrigger>
+   524→              <SelectContent>
+   525→                <SelectItem value="all" className="text-xs">All Types</SelectItem>
+   526→                <SelectItem value="Preventive" className="text-xs">Preventive</SelectItem>
+   527→                <SelectItem value="Corrective" className="text-xs">Corrective</SelectItem>
+   528→                <SelectItem value="Predictive" className="text-xs">Predictive</SelectItem>
+   529→                <SelectItem value="Emergency" className="text-xs">Emergency</SelectItem>
+   530→              </SelectContent>
+   531→            </Select>
+   532→            <Select value={filterMachine} onValueChange={setFilterMachine}>
+   533→              <SelectTrigger className="h-8 w-[160px] text-xs">
+   534→                <SelectValue placeholder="Machine" />
+   535→              </SelectTrigger>
+   536→              <SelectContent>
+   537→                <SelectItem value="all" className="text-xs">All Machines</SelectItem>
+   538→                {machineNames.map((name) => (
+   539→                  <SelectItem key={name} value={name} className="text-xs">
+   540→                    {name}
+   541→                  </SelectItem>
+   542→                ))}
+   543→              </SelectContent>
+   544→            </Select>
+   545→            {hasActiveFilters && (
+   546→              <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
+   547→                <X className="size-3" />
+   548→                Clear
+   549→              </Button>
+   550→            )}
+   551→          </div>
+   552→        </CardContent>
+   553→      </Card>
+   554→
+   555→      {/* ─── Table View ──────────────────────────────────────────────── */}
+   556→      {viewMode === 'table' && (
+   557→        <Card className="border-border/50 animate-slide-up stagger-3">
+   558→          <CardContent className="pt-5 px-5 pb-5">
+   559→            <div className="max-h-[calc(100vh-420px)] overflow-y-auto rounded-lg border border-border/40 overflow-hidden">
+   560→              <Table>
+   561→                <TableHeader>
+   562→                  <TableRow className="hover:bg-transparent border-border/30">
+   563→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Task ID</TableHead>
+   564→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Machine</TableHead>
+   565→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden md:table-cell">Type</TableHead>
+   566→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden sm:table-cell">Priority</TableHead>
+   567→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Date</TableHead>
+   568→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
+   569→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden lg:table-cell">Technician</TableHead>
+   570→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden xl:table-cell">Duration</TableHead>
+   571→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right">Actions</TableHead>
+   572→                  </TableRow>
+   573→                </TableHeader>
+   574→                <TableBody>
+   575→                  {filtered.length === 0 ? (
+   576→                    <TableRow>
+   577→                      <TableCell colSpan={9} className="py-16 text-center">
+   578→                        <div className="flex flex-col items-center gap-2">
+   579→                          <Inbox className="size-8 text-muted-foreground/30" />
+   580→                          <p className="text-sm font-medium text-muted-foreground">No maintenance tasks found</p>
+   581→                          <p className="text-xs text-muted-foreground/50">Try adjusting your filter criteria.</p>
+   582→                        </div>
+   583→                      </TableCell>
+   584→                    </TableRow>
+   585→                  ) : (
+   586→                    filtered.map((task, idx) => {
+   587→                      const tc = taskTypeConfig[task.taskType]
+   588→                      const pc = priorityConfig[task.priority]
+   589→                      const chipClass = statusChipClass[task.status]
+   590→                      const dotColor = statusDotColor[task.status]
+   591→                      return (
+   592→                        <TableRow key={task.id} className={`table-row-severity zebra-row ${idx % 2 === 0 ? '' : 'bg-muted/[0.02]'}`}>
+   593→                          <TableCell className="font-mono text-xs font-medium py-3">{task.id}</TableCell>
+   594→                          <TableCell className="py-3">
+   595→                            <div className="font-medium text-sm">{task.machine}</div>
+   596→                          </TableCell>
+   597→                          <TableCell className="hidden md:table-cell py-3">
+   598→                            <Badge
+   599→                              variant="outline"
+   600→                              className={`${tc.bg} ${tc.color} ${tc.border} ring-2 ${tc.ring} text-xs`}
+   601→                              style={{ boxShadow: 'none' }}
+   602→                            >
+   603→                              {task.taskType}
+   604→                            </Badge>
+   605→                          </TableCell>
+   606→                          <TableCell className="hidden sm:table-cell py-3">
+   607→                            <Badge
+   608→                              variant="outline"
+   609→                              className={`${pc.bg} ${pc.color} ${pc.border} ring-2 ${pc.ring} text-xs`}
+   610→                              style={{ boxShadow: 'none' }}
+   611→                            >
+   612→                              {task.priority}
+   613→                            </Badge>
+   614→                          </TableCell>
+   615→                          <TableCell className="py-3 text-sm text-muted-foreground">
+   616→                            {format(new Date(task.scheduledDate), 'MMM dd')}
+   617→                          </TableCell>
+   618→                          <TableCell className="py-3">
+   619→                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${chipClass}`}>
+   620→                              <span className={`size-1.5 rounded-full ${dotColor}`} />
+   621→                              {task.status}
+   622→                            </span>
+   623→                          </TableCell>
+   624→                          <TableCell className="hidden lg:table-cell py-3 text-sm text-muted-foreground">
+   625→                            {task.assignedTo}
+   626→                          </TableCell>
+   627→                          <TableCell className="hidden xl:table-cell py-3 text-sm text-muted-foreground metric-value">
+   628→                            {task.estimatedDuration}
+   629→                          </TableCell>
+   630→                          <TableCell className="text-right py-3">
+   631→                            <div className="flex items-center justify-end gap-1">
+   632→                              <button className="ghost-action-btn" title="View details">
+   633→                                <Eye className="size-4" />
+   634→                              </button>
+   635→                              <button className="ghost-action-btn" title="Edit task">
+   636→                                <Pencil className="size-4" />
+   637→                              </button>
+   638→                            </div>
+   639→                          </TableCell>
+   640→                        </TableRow>
+   641→                      )
+   642→                    })
+   643→                  )}
+   644→                </TableBody>
+   645→              </Table>
+   646→            </div>
+   647→            <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
+   648→              <span>Showing {filtered.length} of {tasks.length} tasks</span>
+   649→            </div>
+   650→          </CardContent>
+   651→        </Card>
+   652→      )}
+   653→
+   654→      {/* ─── Calendar View ───────────────────────────────────────────── */}
+   655→      {viewMode === 'calendar' && (
+   656→        <Card className="border-border/50 animate-slide-up stagger-3 glass-card">
+   657→          <CardContent className="pt-5 px-5 pb-5">
+   658→            {/* Calendar header with navigation */}
+   659→            <div className="flex items-center justify-between mb-4">
+   660→              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>
+   661→                <ChevronLeft className="size-4" />
+   662→              </Button>
+   663→              <h3 className="text-sm font-semibold tracking-tight">
+   664→                {format(calendarMonth, 'MMMM yyyy')}
+   665→              </h3>
+   666→              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>
+   667→                <ChevronRight className="size-4" />
+   668→              </Button>
+   669→            </div>
+   670→
+   671→            {/* Day headers */}
+   672→            <div className="grid grid-cols-7 mb-1">
+   673→              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+   674→                <div key={day} className="text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 py-2">
+   675→                  {day}
+   676→                </div>
+   677→              ))}
+   678→            </div>
+   679→
+   680→            {/* Calendar grid */}
+   681→            <div className="grid grid-cols-7 gap-px bg-border/20 rounded-lg overflow-hidden">
+   682→              {/* Empty cells for offset */}
+   683→              {Array.from({ length: calendarDays.startDay }).map((_, i) => (
+   684→                <div key={`empty-${i}`} className="bg-card/50 min-h-[72px] sm:min-h-[88px] p-1.5" />
+   685→              ))}
+   686→
+   687→              {/* Day cells */}
+   688→              {calendarDays.days.map((day) => {
+   689→                const dayTasks = getTasksForDay(day)
+   690→                const todayFlag = isToday(day)
+   691→                return (
+   692→                  <div
+   693→                    key={day.toISOString()}
+   694→                    className={`bg-card/50 min-h-[72px] sm:min-h-[88px] p-1.5 transition-colors hover:bg-muted/20 ${todayFlag ? 'ring-1 ring-primary/30' : ''}`}
+   695→                  >
+   696→                    <div className={`text-[11px] font-medium mb-1 ${todayFlag ? 'text-primary' : 'text-muted-foreground'}`}>
+   697→                      {format(day, 'd')}
+   698→                    </div>
+   699→                    <div className="flex flex-wrap gap-0.5">
+   700→                      {dayTasks.slice(0, 3).map((task) => (
+   701→                        <div
+   702→                          key={task.id}
+   703→                          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight max-w-full truncate"
+   704→                          title={`${task.id} - ${task.taskType}: ${task.description}`}
+   705→                        >
+   706→                          <span className={`size-1.5 rounded-full shrink-0 ${calendarDotColor[task.taskType]}`} />
+   707→                          <span className="truncate text-muted-foreground/80">{task.id}</span>
+   708→                        </div>
+   709→                      ))}
+   710→                      {dayTasks.length > 3 && (
+   711→                        <span className="text-[9px] text-muted-foreground/50 px-1">+{dayTasks.length - 3} more</span>
+   712→                      )}
+   713→                    </div>
+   714→                  </div>
+   715→                )
+   716→              })}
+   717→            </div>
+   718→
+   719→            {/* Calendar legend */}
+   720→            <div className="flex items-center gap-4 mt-4 flex-wrap">
+   721→              <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider font-medium">Task Types:</span>
+   722→              {(['Preventive', 'Corrective', 'Predictive', 'Emergency'] as TaskType[]).map((type) => (
+   723→                <div key={type} className="flex items-center gap-1.5">
+   724→                  <span className={`size-2 rounded-full ${calendarDotColor[type]}`} />
+   725→                  <span className="text-[11px] text-muted-foreground">{type}</span>
+   726→                </div>
+   727→              ))}
+   728→            </div>
+   729→          </CardContent>
+   730→        </Card>
+   731→      )}
+   732→    </div>
+   733→  )
+   734→}
+   735→

@@ -1,0 +1,612 @@
+   300→   300→  const { machines, lastUpdate } = useIIoTStore()
+   301→   301→  const [lastUpdatedText, setLastUpdatedText] = useState('—')
+   302→   302→
+   303→   303→  useEffect(() => {
+   304→   304→    function update() {
+   305→   305→      if (lastUpdate) {
+   306→   306→        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+   307→   307→      }
+   308→   308→    }
+   309→   309→    update()
+   310→   310→    const interval = setInterval(update, 10000)
+   311→   311→    return () => clearInterval(interval)
+   312→   312→  }, [lastUpdate])
+   313→   313→
+   314→   314→  const machineData = useMemo(
+   315→   315→    () => (machines.length > 0 ? machines : DEFAULT_MACHINES),
+   316→   316→    [machines]
+   317→   317→  )
+   318→   318→
+   319→   319→  // ── Overall OEE ───────────────────────────────────────────────────────────
+   320→   320→  const displayOEE = useMemo(
+   321→   321→    () => machineData.reduce((sum, m) => sum + m.oee, 0) / machineData.length,
+   322→   322→    [machineData]
+   323→   323→  )
+   324→   324→
+   325→   325→  const overallA = useMemo(
+   326→   326→    () => machineData.reduce((sum, m) => sum + m.availability, 0) / machineData.length,
+   327→   327→    [machineData]
+   328→   328→  )
+   329→   329→
+   330→   330→  const overallP = useMemo(
+   331→   331→    () => machineData.reduce((sum, m) => sum + m.performance, 0) / machineData.length,
+   332→   332→    [machineData]
+   333→   333→  )
+   334→   334→
+   335→   335→  const overallQ = useMemo(
+   336→   336→    () => machineData.reduce((sum, m) => sum + m.quality, 0) / machineData.length,
+   337→   337→    [machineData]
+   338→   338→  )
+   339→   339→
+   340→   340→  // ── 24h OEE trend data ──────────────────────────────────────────────────
+   341→   341→  const oeeTrend24h = useMemo(() => {
+   342→   342→    const data: Array<{ hour: string; OEE: number }> = []
+   343→   343→    let val = displayOEE
+   344→   344→    for (let i = 0; i < 24; i++) {
+   345→   345→      val = Math.max(65, Math.min(95, val + (Math.random() - 0.45) * 6))
+   346→   346→      data.push({
+   347→   347→        hour: `${String(i).padStart(2, '0')}:00`,
+   348→   348→        OEE: Math.round(val * 10) / 10,
+   349→   349→      })
+   350→   350→    }
+   351→   351→    return data
+   352→   352→  }, [displayOEE])
+   353→   353→
+   354→   354→  // ── 30-day OEE trend data ─────────────────────────────────────────────────
+   355→   355→  const trendData = useMemo(() => {
+   356→   356→    const data: Array<{
+   357→   357→      day: string
+   358→   358→      Availability: number
+   359→   359→      Performance: number
+   360→   360→      Quality: number
+   361→   361→    }> = []
+   362→   362→    for (let i = 29; i >= 0; i--) {
+   363→   363→      data.push({
+   364→   364→        day: `D-${i}`,
+   365→   365→        Availability: Math.min(100, overallA + (Math.random() - 0.5) * 6),
+   366→   366→        Performance: Math.min(100, overallP + (Math.random() - 0.5) * 4),
+   367→   367→        Quality: Math.min(100, overallQ + (Math.random() - 0.5) * 1.5),
+   368→   368→      })
+   369→   369→    }
+   370→   370→    return data
+   371→   371→  }, [overallA, overallP, overallQ])
+   372→   372→
+   373→   373→  // ── Loss analysis data ────────────────────────────────────────────────────
+   374→   374→  const lossData = useMemo(
+   375→   375→    () =>
+   376→   376→      machineData.map((m) => ({
+   377→   377→        name: m.name.replace(/ #\d+/, ''),
+   378→   378→        'Avail. Loss': Math.round((100 - m.availability) * 10) / 10,
+   379→   379→        'Perf. Loss': Math.round((100 - m.performance) * 10) / 10,
+   380→   380→        'Quality Loss': Math.round((100 - m.quality) * 10) / 10,
+   381→   381→      })),
+   382→   382→    [machineData]
+   383→   383→  )
+   384→   384→
+   385→   385→  // ── Target vs Actual ──────────────────────────────────────────────────────
+   386→   386→  const targetVsActual = useMemo(
+   387→   387→    () =>
+   388→   388→      machineData.map((m) => ({
+   389→   389→        name: m.name.replace(/ #\d+/, ''),
+   390→   390→        Target: OEE_TARGET,
+   391→   391→        Actual: m.oee,
+   392→   392→      })),
+   393→   393→    [machineData]
+   394→   394→  )
+   395→   395→
+   396→   396→  // ── Loss analysis table data (6 machines) ─────────────────────────────────
+   397→   397→  const lossTableData = useMemo(() => {
+   398→   398→    if (machines.length > 0) {
+   399→   399→      return machines.slice(0, 6).map((m) => {
+   400→   400→        const aLoss = Math.round((100 - m.availability) * 10) / 10
+   401→   401→        const pLoss = Math.round((100 - m.performance) * 10) / 10
+   402→   402→        const qLoss = Math.round((100 - m.quality) * 10) / 10
+   403→   403→        let biggestLoss = 'Availability'
+   404→   404→        if (pLoss >= aLoss && pLoss >= qLoss) biggestLoss = 'Performance'
+   405→   405→        else if (qLoss >= aLoss && qLoss >= pLoss) biggestLoss = 'Quality'
+   406→   406→        return { ...m, aLoss, pLoss, qLoss, biggestLoss }
+   407→   407→      })
+   408→   408→    }
+   409→   409→    return FALLBACK_LOSS_MACHINES.map((m) => {
+   410→   410→      const aLoss = Math.round((100 - m.availability) * 10) / 10
+   411→   411→      const pLoss = Math.round((100 - m.performance) * 10) / 10
+   412→   412→      const qLoss = Math.round((100 - m.quality) * 10) / 10
+   413→   413→      let biggestLoss = 'Availability'
+   414→   414→      if (pLoss >= aLoss && pLoss >= qLoss) biggestLoss = 'Performance'
+   415→   415→      else if (qLoss >= aLoss && qLoss >= pLoss) biggestLoss = 'Quality'
+   416→   416→      return { ...m, aLoss, pLoss, qLoss, biggestLoss }
+   417→   417→    })
+   418→   418→  }, [machines])
+   419→   419→
+   420→   420→  // ── Overall loss proportions for stacked bar ──────────────────────────────
+   421→   421→  const overallLoss = useMemo(() => {
+   422→   422→    const n = lossTableData.length
+   423→   423→    const aLoss = lossTableData.reduce((s, m) => s + m.aLoss, 0) / n
+   424→   424→    const pLoss = lossTableData.reduce((s, m) => s + m.pLoss, 0) / n
+   425→   425→    const qLoss = lossTableData.reduce((s, m) => s + m.qLoss, 0) / n
+   426→   426→    const total = aLoss + pLoss + qLoss
+   427→   427→    return { aLoss, pLoss, qLoss, total, aPct: (aLoss / total) * 100, pPct: (pLoss / total) * 100, qPct: (qLoss / total) * 100 }
+   428→   428→  }, [lossTableData])
+   429→   429→
+   430→   430→  return (
+   431→   431→    <div className="space-y-6">
+   432→   432→      <PageHeader
+   433→   433→        icon={Gauge}
+   434→   434→        title="OEE Analysis"
+   435→   435→        description="Overall Equipment Effectiveness breakdown"
+   436→   436→        lastUpdated={lastUpdatedText}
+   437→   437→      />
+   438→   438→
+   439→   439→      {/* OEE Gauge */}
+   440→   440→      <Card className="chart-container-glass hover:border-border/60 transition-colors duration-300 animate-slide-up">
+   441→   441→        <CardContent className="pt-6 flex flex-col items-center px-5 pb-5">
+   442→   442→          <OEEGauge value={displayOEE} />
+   443→   443→          <div className="flex items-center gap-2 mt-2">
+   444→   444→            <Target className="h-3.5 w-3.5 text-muted-foreground" />
+   445→   445→            <span className="text-xs text-muted-foreground">
+   446→   446→              Target: {OEE_TARGET}%{' '}
+   447→   447→              {displayOEE >= OEE_TARGET ? (
+   448→   448→                <span className="text-emerald-400 font-medium">
+   449→   449→                  <ArrowUpRight className="inline h-3 w-3" /> On Track
+   450→   450→                </span>
+   451→   451→              ) : (
+   452→   452→                <span className="text-red-400 font-medium">
+   453→   453→                  <ArrowDownRight className="inline h-3 w-3" /> Below Target
+   454→   454→                </span>
+   455→   455→              )}
+   456→   456→            </span>
+   457→   457→          </div>
+   458→   458→        </CardContent>
+   459→   459→      </Card>
+   460→   460→
+   461→   461→      {/* OEE Trend (24h) */}
+   462→   462→      <ChartCard
+   463→   463→        title="OEE Trend (24h)"
+   464→   464→        description="Hourly OEE percentage over the last 24 hours"
+   465→   465→        icon={TrendingUp}
+   466→   466→        className="chart-container-glass animate-slide-up stagger-1"
+   467→   467→      >
+   468→   468→        <div className="h-[250px] w-full">
+   469→   469→          <ResponsiveContainer width="100%" height="100%">
+   470→   470→            <AreaChart data={oeeTrend24h}>
+   471→   471→              <defs>
+   472→   472→                <linearGradient id="oeeTrendGrad" x1="0" y1="0" x2="0" y2="1">
+   473→   473→                  <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.35} />
+   474→   474→                  <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
+   475→   475→                </linearGradient>
+   476→   476→              </defs>
+   477→   477→              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   478→   478→              <XAxis dataKey="hour" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} interval={3} />
+   479→   479→              <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[60, 100]} width={35} />
+   480→   480→              <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+   481→   481→              <Area
+   482→   482→                type="monotone"
+   483→   483→                dataKey="OEE"
+   484→   484→                stroke={C_GREEN}
+   485→   485→                fill="url(#oeeTrendGrad)"
+   486→   486→                strokeWidth={2}
+   487→   487→                dot={false}
+   488→   488→              />
+   489→   489→            </AreaChart>
+   490→   490→          </ResponsiveContainer>
+   491→   491→        </div>
+   492→   492→      </ChartCard>
+   493→   493→
+   494→   494→      {/* A × P × Q = OEE Breakdown */}
+   495→   495→      <div className="animate-slide-up stagger-2">
+   496→   496→        <p className="text-xs text-muted-foreground mb-3 text-center">
+   497→   497→          OEE = Availability × Performance × Quality
+   498→   498→        </p>
+   499→   499→        <div className="flex flex-wrap items-center justify-center gap-2">
+   500→   500→          <OEEComponentCard
+   501→   501→            label="Availability"
+   502→   502→            value={overallA}
+   503→   503→            icon={() => <span className="text-lg font-mono" style={{ color: C_GREEN }}>A</span>}
+   504→   504→            color={C_GREEN}
+   505→   505→          />
+   506→   506→          <span className="text-2xl font-bold text-muted-foreground shrink-0">×</span>
+   507→   507→          <OEEComponentCard
+   508→   508→            label="Performance"
+   509→   509→            value={overallP}
+   510→   510→            icon={() => <span className="text-lg font-mono" style={{ color: C_CYAN }}>P</span>}
+   511→   511→            color={C_CYAN}
+   512→   512→          />
+   513→   513→          <span className="text-2xl font-bold text-muted-foreground shrink-0">×</span>
+   514→   514→          <OEEComponentCard
+   515→   515→            label="Quality"
+   516→   516→            value={overallQ}
+   517→   517→            icon={() => <span className="text-lg font-mono" style={{ color: C_ORANGE }}>Q</span>}
+   518→   518→            color={C_ORANGE}
+   519→   519→          />
+   520→   520→          <span className="text-2xl font-bold text-muted-foreground shrink-0">=</span>
+   521→   521→          <OEEComponentCard
+   522→   522→            label="OEE Result"
+   523→   523→            value={displayOEE}
+   524→   524→            icon={() => <span className="text-lg font-mono" style={{ color: C_YELLOW }}>OEE</span>}
+   525→   525→            color={C_YELLOW}
+   526→   526→          />
+   527→   527→        </div>
+   528→   528→      </div>
+   529→   529→
+   530→   530→      {/* A×P×Q Sub-Metrics Panel */}
+   531→   531→      <div className="animate-slide-up stagger-3">
+   532→   532→        <p className="text-xs text-muted-foreground mb-3">Sub-Metric Health</p>
+   533→   533→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   534→   534→          {[
+   535→   535→            { label: 'Availability (A)', value: overallA, Icon: Clock, loss: Math.round((100 - overallA) * 10) / 10 },
+   536→   536→            { label: 'Performance (P)', value: overallP, Icon: Gauge, loss: Math.round((100 - overallP) * 10) / 10 },
+   537→   537→            { label: 'Quality (Q)', value: overallQ, Icon: ShieldCheck, loss: Math.round((100 - overallQ) * 10) / 10 },
+   538→   538→          ].map(({ label, value, Icon, loss }) => {
+   539→   539→            const sm = subMetricColor(value)
+   540→   540→            return (
+   541→   541→              <Card key={label} className="glass-card kpi-card-hover">
+   542→   542→                <CardContent className="p-5">
+   543→   543→                  <div className="flex items-center justify-between mb-3">
+   544→   544→                    <div className="flex items-center gap-2">
+   545→   545→                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${sm.bgClass}`}>
+   546→   546→                        <Icon className="h-4 w-4" style={{ color: sm.color }} />
+   547→   547→                      </div>
+   548→   548→                      <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">{label}</span>
+   549→   549→                    </div>
+   550→   550→                    <Badge className={`text-[10px] border-0 ${
+   551→   551→                      value >= 90 ? 'bg-emerald-500/15 text-emerald-400'
+   552→   552→                        : value >= 80 ? 'bg-amber-500/15 text-amber-400'
+   553→   553→                        : 'bg-red-500/15 text-red-400'
+   554→   554→                    }`}>
+   555→   555→                      {sm.label}
+   556→   556→                    </Badge>
+   557→   557→                  </div>
+   558→   558→                  <p className="text-2xl font-extrabold metric-value" style={{ color: sm.color }}>
+   559→   559→                    {value.toFixed(1)}%
+   560→   560→                  </p>
+   561→   561→                  <div className="mt-3">
+   562→   562→                    <Progress value={value} className={`h-2 ${sm.indicatorClass}`} />
+   563→   563→                  </div>
+   564→   564→                  <div className="card-divider" />
+   565→   565→                  <p className="kpi-subtext text-[11px]">
+   566→   566→                    OEE Loss Contribution: <span className="font-semibold text-red-400">-{loss.toFixed(1)}%</span>
+   567→   567→                  </p>
+   568→   568→                </CardContent>
+   569→   569→              </Card>
+   570→   570→            )
+   571→   571→          })}
+   572→   572→        </div>
+   573→   573→      </div>
+   574→   574→
+   575→   575→      {/* OEE Loss Analysis Section */}
+   576→   576→      <div className="animate-slide-up stagger-4">
+   577→   577→        <Card className="chart-container-glass hover:border-border/60 transition-colors duration-300">
+   578→   578→          <CardHeader className="pb-2 pt-5 px-5">
+   579→   579→            <div className="flex items-center justify-between">
+   580→   580→              <div>
+   581→   581→                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   582→   582→                  <Layers className="size-4 text-red-400" />
+   583→   583→                  OEE Loss Analysis
+   584→   584→                </CardTitle>
+   585→   585→                <CardDescription className="mt-0.5 text-xs">
+   586→   586→                  Proportional loss breakdown across {lossTableData.length} machines
+   587→   587→                </CardDescription>
+   588→   588→              </div>
+   589→   589→            </div>
+   590→   590→          </CardHeader>
+   591→   591→          <CardContent className="px-5 pb-5 space-y-5">
+   592→   592→            {/* Horizontal stacked loss bar */}
+   593→   593→            <div>
+   594→   594→              <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider mb-2">Overall Loss Distribution</p>
+   595→   595→              <div className="h-7 w-full rounded-md overflow-hidden flex">
+   596→   596→                <div
+   597→   597→                  className="loss-bar-availability flex items-center justify-center"
+   598→   598→                  style={{ width: `${overallLoss.aPct}%` }}
+   599→   599→                  title={`Availability Loss: ${overallLoss.aLoss.toFixed(1)}%`}
+   600→   600→                >
+   601→   601→                  {overallLoss.aPct > 12 && (
+   602→   602→                    <span className="text-[10px] font-semibold text-white drop-shadow">{overallLoss.aLoss.toFixed(1)}%</span>
+   603→   603→                  )}
+   604→   604→                </div>
+   605→   605→                <div
+   606→   606→                  className="loss-bar-performance flex items-center justify-center"
+   607→   607→                  style={{ width: `${overallLoss.pPct}%` }}
+   608→   608→                  title={`Performance Loss: ${overallLoss.pLoss.toFixed(1)}%`}
+   609→   609→                >
+   610→   610→                  {overallLoss.pPct > 12 && (
+   611→   611→                    <span className="text-[10px] font-semibold text-white drop-shadow">{overallLoss.pLoss.toFixed(1)}%</span>
+   612→   612→                  )}
+   613→   613→                </div>
+   614→   614→                <div
+   615→   615→                  className="loss-bar-quality flex items-center justify-center"
+   616→   616→                  style={{ width: `${overallLoss.qPct}%` }}
+   617→   617→                  title={`Quality Loss: ${overallLoss.qLoss.toFixed(1)}%`}
+   618→   618→                >
+   619→   619→                  {overallLoss.qPct > 12 && (
+   620→   620→                    <span className="text-[10px] font-semibold text-white drop-shadow">{overallLoss.qLoss.toFixed(1)}%</span>
+   621→   621→                  )}
+   622→   622→                </div>
+   623→   623→              </div>
+   624→   624→              <div className="flex justify-between mt-2">
+   625→   625→                <div className="flex items-center gap-1.5">
+   626→   626→                  <div className="h-2.5 w-2.5 rounded-sm loss-bar-availability" />
+   627→   627→                  <span className="text-[10px] text-muted-foreground">Avail. {overallLoss.aLoss.toFixed(1)}%</span>
+   628→   628→                </div>
+   629→   629→                <div className="flex items-center gap-1.5">
+   630→   630→                  <div className="h-2.5 w-2.5 rounded-sm loss-bar-performance" />
+   631→   631→                  <span className="text-[10px] text-muted-foreground">Perf. {overallLoss.pLoss.toFixed(1)}%</span>
+   632→   632→                </div>
+   633→   633→                <div className="flex items-center gap-1.5">
+   634→   634→                  <div className="h-2.5 w-2.5 rounded-sm loss-bar-quality" />
+   635→   635→                  <span className="text-[10px] text-muted-foreground">Quality {overallLoss.qLoss.toFixed(1)}%</span>
+   636→   636→                </div>
+   637→   637→                <span className="text-[10px] text-muted-foreground font-mono">Total: {overallLoss.total.toFixed(1)}%</span>
+   638→   638→              </div>
+   639→   639→            </div>
+   640→   640→
+   641→   641→            <div className="card-divider" />
+   642→   642→
+   643→   643→            {/* Machine loss table */}
+   644→   644→            <div>
+   645→   645→              <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider mb-2">Per-Machine Loss Breakdown</p>
+   646→   646→              <div className="rounded-md border border-border/30 overflow-hidden">
+   647→   647→                <Table>
+   648→   648→                  <TableHeader>
+   649→   649→                    <TableRow className="border-border/30 hover:bg-transparent">
+   650→   650→                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Machine</TableHead>
+   651→   651→                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Avail. %</TableHead>
+   652→   652→                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Perf. %</TableHead>
+   653→   653→                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Quality %</TableHead>
+   654→   654→                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">OEE %</TableHead>
+   655→   655→                      <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60 text-center">Loss Type</TableHead>
+   656→   656→                    </TableRow>
+   657→   657→                  </TableHeader>
+   658→   658→                  <TableBody>
+   659→   659→                    {lossTableData.map((m, idx) => {
+   660→   660→                      const oeeClr = oeeColor(m.oee)
+   661→   661→                      const lossBadge =
+   662→   662→                        m.biggestLoss === 'Availability'
+   663→   663→                          ? 'bg-red-500/15 text-red-400'
+   664→   664→                          : m.biggestLoss === 'Performance'
+   665→   665→                            ? 'bg-amber-500/15 text-amber-400'
+   666→   666→                            : 'bg-orange-500/15 text-orange-400'
+   667→   667→                      return (
+   668→   668→                        <TableRow key={m.name} className={`transition-colors hover:bg-muted/20 ${idx % 2 === 1 ? 'bg-muted/[0.03]' : ''}`}>
+   669→   669→                          <TableCell className="text-xs font-medium">{m.name}</TableCell>
+   670→   670→                          <TableCell className="text-xs font-mono">{m.availability.toFixed(1)}%</TableCell>
+   671→   671→                          <TableCell className="text-xs font-mono">{m.performance.toFixed(1)}%</TableCell>
+   672→   672→                          <TableCell className="text-xs font-mono">{m.quality.toFixed(1)}%</TableCell>
+   673→   673→                          <TableCell className="text-xs font-bold font-mono" style={{ color: oeeClr }}>{m.oee.toFixed(1)}%</TableCell>
+   674→   674→                          <TableCell className="text-xs text-center">
+   675→   675→                            <Badge className={`text-[10px] border-0 ${lossBadge}`}>{m.biggestLoss}</Badge>
+   676→   676→                          </TableCell>
+   677→   677→                        </TableRow>
+   678→   678→                      )
+   679→   679→                    })}
+   680→   680→                  </TableBody>
+   681→   681→                </Table>
+   682→   682→              </div>
+   683→   683→            </div>
+   684→   684→          </CardContent>
+   685→   685→        </Card>
+   686→   686→      </div>
+   687→   687→
+   688→   688→      {/* Tabs for detailed views */}
+   689→   689→      <Tabs defaultValue="per-machine">
+   690→   690→        <TabsList className="h-9">
+   691→   691→          <TabsTrigger value="per-machine" className="text-xs px-3">
+   692→   692→            Per-Machine OEE
+   693→   693→          </TabsTrigger>
+   694→   694→          <TabsTrigger value="trends" className="text-xs px-3">
+   695→   695→            OEE Trends
+   696→   696→          </TabsTrigger>
+   697→   697→          <TabsTrigger value="loss" className="text-xs px-3">
+   698→   698→            Loss Analysis
+   699→   699→          </TabsTrigger>
+   700→   700→          <TabsTrigger value="target" className="text-xs px-3">
+   701→   701→            Target vs Actual
+   702→   702→          </TabsTrigger>
+   703→   703→        </TabsList>
+   704→   704→
+   705→   705→        {/* Per-Machine OEE Table with inline bars */}
+   706→   706→        <TabsContent value="per-machine" className="mt-4 animate-slide-up">
+   707→   707→          <ChartCard
+   708→   708→            title="Per-Machine OEE Breakdown"
+   709→   709→            description="Each factor shown with inline bar visualization"
+   710→   710→            icon={BarChart3}
+   711→   711→            className="chart-container-glass"
+   712→   712→          >
+   713→   713→            <div className="max-h-[400px] overflow-y-auto rounded-md border border-border/30">
+   714→   714→              <Table>
+   715→   715→                <TableHeader>
+   716→   716→                  <TableRow className="border-border/30 hover:bg-transparent">
+   717→   717→                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Machine</TableHead>
+   718→   718→                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Availability</TableHead>
+   719→   719→                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Performance</TableHead>
+   720→   720→                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">Quality</TableHead>
+   721→   721→                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60">OEE</TableHead>
+   722→   722→                    <TableHead className="uppercase tracking-wider text-[11px] text-muted-foreground/60 text-center">Status</TableHead>
+   723→   723→                  </TableRow>
+   724→   724→                </TableHeader>
+   725→   725→                <TableBody>
+   726→   726→                  {machineData.map((m) => {
+   727→   727→                    const mOeeColor = oeeColor(m.oee)
+   728→   728→                    return (
+   729→   729→                      <TableRow key={m.name} className="transition-colors hover:bg-muted/20">
+   730→   730→                        <TableCell className="text-xs font-medium">
+   731→   731→                          {m.name}
+   732→   732→                        </TableCell>
+   733→   733→                        <TableCell className="text-xs py-2">
+   734→   734→                          <div className="flex items-center gap-2">
+   735→   735→                            <span className="font-mono w-10 text-right">
+   736→   736→                              {m.availability}%
+   737→   737→                            </span>
+   738→   738→                            <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
+   739→   739→                              <div
+   740→   740→                                className="h-full rounded-full"
+   741→   741→                                style={{ width: `${m.availability}%`, backgroundColor: C_GREEN }}
+   742→   742→                              />
+   743→   743→                            </div>
+   744→   744→                          </div>
+   745→   745→                        </TableCell>
+   746→   746→                        <TableCell className="text-xs py-2">
+   747→   747→                          <div className="flex items-center gap-2">
+   748→   748→                            <span className="font-mono w-10 text-right">
+   749→   749→                              {m.performance}%
+   750→   750→                            </span>
+   751→   751→                            <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
+   752→   752→                              <div
+   753→   753→                                className="h-full rounded-full"
+   754→   754→                                style={{ width: `${m.performance}%`, backgroundColor: C_CYAN }}
+   755→   755→                              />
+   756→   756→                            </div>
+   757→   757→                          </div>
+   758→   758→                        </TableCell>
+   759→   759→                        <TableCell className="text-xs py-2">
+   760→   760→                          <div className="flex items-center gap-2">
+   761→   761→                            <span className="font-mono w-10 text-right">
+   762→   762→                              {m.quality}%
+   763→   763→                            </span>
+   764→   764→                            <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
+   765→   765→                              <div
+   766→   766→                                className="h-full rounded-full"
+   767→   767→                                style={{ width: `${m.quality}%`, backgroundColor: C_ORANGE }}
+   768→   768→                              />
+   769→   769→                            </div>
+   770→   770→                          </div>
+   771→   771→                        </TableCell>
+   772→   772→                        <TableCell className="text-xs font-bold font-mono" style={{ color: mOeeColor }}>
+   773→   773→                          {m.oee}%
+   774→   774→                        </TableCell>
+   775→   775→                        <TableCell className="text-xs text-center">
+   776→   776→                          <Badge
+   777→   777→                            className={`text-[10px] border-0 ${
+   778→   778→                              m.oee >= 85
+   779→   779→                                ? 'bg-emerald-500/15 text-emerald-400'
+   780→   780→                                : m.oee >= 70
+   781→   781→                                  ? 'bg-amber-500/15 text-amber-400'
+   782→   782→                                  : 'bg-red-500/15 text-red-400'
+   783→   783→                            }`}
+   784→   784→                          >
+   785→   785→                            {m.oee >= 85
+   786→   786→                              ? 'Excellent'
+   787→   787→                              : m.oee >= 70
+   788→   788→                                ? 'Acceptable'
+   789→   789→                                : 'Needs Attention'}
+   790→   790→                          </Badge>
+   791→   791→                        </TableCell>
+   792→   792→                      </TableRow>
+   793→   793→                    )
+   794→   794→                  })}
+   795→   795→                </TableBody>
+   796→   796→              </Table>
+   797→   797→            </div>
+   798→   798→          </ChartCard>
+   799→   799→        </TabsContent>
+   800→   800→
+   801→   801→        {/* OEE Trend — AreaChart with A, P, Q */}
+   802→   802→        <TabsContent value="trends" className="mt-4 animate-slide-up">
+   803→   803→          <ChartCard
+   804→   804→            title="OEE Component Trends — 30 Days"
+   805→   805→            description="Availability, Performance, and Quality over time"
+   806→   806→            icon={TrendingUp}
+   807→   807→            className="chart-container-glass"
+   808→   808→          >
+   809→   809→            <div className="h-[350px] w-full">
+   810→   810→              <ResponsiveContainer width="100%" height="100%">
+   811→   811→                <AreaChart data={trendData}>
+   812→   812→                  <defs>
+   813→   813→                    <linearGradient id="availGrad" x1="0" y1="0" x2="0" y2="1">
+   814→   814→                      <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.3} />
+   815→   815→                      <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
+   816→   816→                    </linearGradient>
+   817→   817→                    <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
+   818→   818→                      <stop offset="0%" stopColor={C_CYAN} stopOpacity={0.3} />
+   819→   819→                      <stop offset="100%" stopColor={C_CYAN} stopOpacity={0.02} />
+   820→   820→                    </linearGradient>
+   821→   821→                    <linearGradient id="qualGrad" x1="0" y1="0" x2="0" y2="1">
+   822→   822→                      <stop offset="0%" stopColor={C_ORANGE} stopOpacity={0.3} />
+   823→   823→                      <stop offset="100%" stopColor={C_ORANGE} stopOpacity={0.02} />
+   824→   824→                    </linearGradient>
+   825→   825→                  </defs>
+   826→   826→                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   827→   827→                  <XAxis dataKey="day" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} interval={4} />
+   828→   828→                  <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[70, 100]} width={35} />
+   829→   829→                  <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+   830→   830→                  <Legend wrapperStyle={LEGEND_STYLE} />
+   831→   831→                  <Area type="monotone" dataKey="Availability" stroke={C_GREEN} fill="url(#availGrad)" strokeWidth={2} />
+   832→   832→                  <Area type="monotone" dataKey="Performance" stroke={C_CYAN} fill="url(#perfGrad)" strokeWidth={2} />
+   833→   833→                  <Area type="monotone" dataKey="Quality" stroke={C_ORANGE} fill="url(#qualGrad)" strokeWidth={2} />
+   834→   834→                </AreaChart>
+   835→   835→              </ResponsiveContainer>
+   836→   836→            </div>
+   837→   837→          </ChartCard>
+   838→   838→        </TabsContent>
+   839→   839→
+   840→   840→        {/* Loss Analysis — Stacked BarChart */}
+   841→   841→        <TabsContent value="loss" className="mt-4 animate-slide-up">
+   842→   842→          <ChartCard
+   843→   843→            title="Loss Analysis by Machine"
+   844→   844→            description="Breakdown of Availability, Performance, and Quality losses"
+   845→   845→            icon={Layers}
+   846→   846→            className="chart-container-glass"
+   847→   847→          >
+   848→   848→            <div className="h-[350px] w-full">
+   849→   849→              <ResponsiveContainer width="100%" height="100%">
+   850→   850→                <BarChart data={lossData}>
+   851→   851→                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   852→   852→                  <XAxis dataKey="name" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
+   853→   853→                  <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} width={40} />
+   854→   854→                  <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+   855→   855→                  <Legend wrapperStyle={LEGEND_STYLE} />
+   856→   856→                  <Bar dataKey="Avail. Loss" stackId="loss" fill={C_RED} radius={[0, 0, 0, 0]} barSize={30}>
+   857→   857→                    <LabelList dataKey="Avail. Loss" position="center" style={{ fontSize: 10, fontWeight: 500, fill: '#fff' }} />
+   858→   858→                  </Bar>
+   859→   859→                  <Bar dataKey="Perf. Loss" stackId="loss" fill={C_ORANGE} barSize={30}>
+   860→   860→                    <LabelList dataKey="Perf. Loss" position="center" style={{ fontSize: 10, fontWeight: 500, fill: '#fff' }} />
+   861→   861→                  </Bar>
+   862→   862→                  <Bar dataKey="Quality Loss" stackId="loss" fill={C_YELLOW} radius={[3, 3, 0, 0]} barSize={30}>
+   863→   863→                    <LabelList dataKey="Quality Loss" position="center" style={{ fontSize: 10, fontWeight: 500, fill: '#fff' }} />
+   864→   864→                  </Bar>
+   865→   865→                </BarChart>
+   866→   866→              </ResponsiveContainer>
+   867→   867→            </div>
+   868→   868→          </ChartCard>
+   869→   869→        </TabsContent>
+   870→   870→
+   871→   871→        {/* Target vs Actual */}
+   872→   872→        <TabsContent value="target" className="mt-4 animate-slide-up">
+   873→   873→          <ChartCard
+   874→   874→            title="Target vs Actual OEE"
+   875→   875→            description={`Comparing each machine against the ${OEE_TARGET}% OEE target`}
+   876→   876→            icon={Crosshair}
+   877→   877→            className="chart-container-glass"
+   878→   878→          >
+   879→   879→            <div className="h-[350px] w-full">
+   880→   880→              <ResponsiveContainer width="100%" height="100%">
+   881→   881→                <BarChart data={targetVsActual} barGap={2} barCategoryGap="20%">
+   882→   882→                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+   883→   883→                  <XAxis dataKey="name" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} />
+   884→   884→                  <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[0, 100]} width={35} />
+   885→   885→                  <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+   886→   886→                  <Legend wrapperStyle={LEGEND_STYLE} />
+   887→   887→                  <Bar dataKey="Target" fill="rgba(255,255,255,0.12)" radius={[2, 2, 0, 0]} barSize={16} />
+   888→   888→                  <Bar dataKey="Actual" radius={[2, 2, 0, 0]} barSize={16}>
+   889→   889→                    {targetVsActual.map((entry, idx) => (
+   890→   890→                      <Cell
+   891→   891→                        key={idx}
+   892→   892→                        fill={
+   893→   893→                          entry.Actual >= OEE_TARGET
+   894→   894→                            ? C_GREEN
+   895→   895→                            : entry.Actual >= 70
+   896→   896→                              ? C_YELLOW
+   897→   897→                              : C_RED
+   898→   898→                        }
+   899→   899→                      />
+   900→   900→                    ))}
+   901→   901→                  </Bar>
+   902→   902→                </BarChart>
+   903→   903→              </ResponsiveContainer>
+   904→   904→            </div>
+   905→   905→          </ChartCard>
+   906→   906→        </TabsContent>
+   907→   907→      </Tabs>
+   908→   908→    </div>
+   909→   909→  )
+   910→   910→}
+   911→   911→

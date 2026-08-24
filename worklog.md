@@ -1475,3 +1475,202 @@ Stage Summary:
 6. **LOW**: Add keyboard shortcuts page
 7. **LOW**: Mobile responsive testing on 768px tablet breakpoint
 8. **LOW**: Add data pagination improvements (server-side pagination pattern)
+---
+Task ID: 10-b
+Agent: oee-target-enhancer
+Task: Enhance OEE Target vs Actual chart with ReferenceLine and improve visualization
+
+Work Log:
+- Added `ReferenceLine` import from recharts to oee-page.tsx
+- Added `ReferenceLine` at y=OEE_TARGET (85) with amber dashed stroke (`#f59e0b`, `strokeDasharray="6 3"`) and "Target 85%" label
+- Changed Target bar from faint white (`rgba(255,255,255,0.12)`) to subtle amber (`fill="rgba(245,158,11,0.15)"`, `stroke={C_YELLOW}`, `strokeDasharray="4 2"`)
+- Added `LabelList` to Actual bars with custom `content` renderer showing percentage on top, dynamically colored: green (>=85%), yellow (>=70%), red (<70%)
+- Applied `table-row-hover-accent` class to Per-Machine OEE TableRow elements (replacing `transition-colors hover:bg-muted/20`)
+- Replaced `text-[11px] text-muted-foreground/70 uppercase tracking-wider` with `section-title-accent` on "Overall Loss Distribution" and "Per-Machine Loss Breakdown" labels
+- Ran `bun run lint` — 0 errors, 0 warnings
+
+Stage Summary:
+- Target vs Actual chart now has amber dashed ReferenceLine at 85% with label
+- Target bars use dashed amber outline style instead of faint white fill
+- Actual bars display percentage labels on top with dynamic color coding
+- Per-Machine OEE table has improved hover effect with left accent border
+- Loss section labels use consistent `section-title-accent` styling with green left bar
+---
+Task ID: 10-c
+Agent: export-dialog-builder
+Task: Create reusable Data Export Dialog and integrate into Maintenance + Audit Log
+
+Work Log:
+- Created `/src/shared/components/export-dialog.tsx` — reusable ExportDialog component with CSV/JSON format selector, filename input, row count display, and browser download via Blob + URL.createObjectURL
+- CSV export uses proper escaping with double quotes around fields containing commas, quotes, or newlines; JSON export uses 2-space indent pretty-printing
+- Format selector uses `export-option` / `export-option.selected` CSS classes with FileSpreadsheet (CSV) and FileJson (JSON) lucide icons
+- Dialog uses `glass-card`-style DialogContent, `kpi-subtext` for secondary labels, and shows toast on successful export via `useToast`
+- Integrated into Maintenance page: added `Download` icon import, `exportOpen` state, Export button next to Add Task in PageHeader actions, ExportDialog rendered with 7 columns (Task ID, Title, Machine, Type, Priority, Status, Due Date) mapping `filtered` task data, filename 'maintenance-tasks'
+- Integrated into Audit Log page: imported ExportDialog, added `exportOpen` state, wired existing Export Log button's onClick to open dialog, ExportDialog rendered with 6 columns (Timestamp, User, Action, Resource, IP Address, Details) mapping `filtered` audit data, filename 'audit-log'
+- Ran `bun run lint` — 0 errors, 0 warnings
+
+Stage Summary:
+- Reusable ExportDialog component created at `src/shared/components/export-dialog.tsx`
+- Maintenance page now has Export button opening the dialog with filtered task data
+- Audit Log page's existing Export Log button now opens the dialog with filtered audit data
+- Both CSV and JSON export formats supported with proper formatting
+- Lint: 0 errors, 0 warnings
+---
+Task ID: 10-d
+Agent: notif-pref-enhancer
+Task: Enhance Platform Settings notification preferences with severity rules, sound config, quiet hours
+
+Work Log:
+- Added `Speaker` icon import from lucide-react
+- Added 7 new state fields to settings object: `notifCritical`, `notifWarning`, `notifInfo`, `soundVolume`, `quietHours`, `quietStart`, `quietEnd`
+- Added `previewSound` function using Web Audio API (AudioContext → OscillatorNode → GainNode, 880Hz, 0.15s duration, volume based on `soundVolume` state)
+- Enhanced Notifications card with 3 new sections after existing toggle switches:
+  - **Alarm Severity Rules**: 3 rows (Critical/Warning/Info) using `notif-pref-card` with `notif-pref-critical/warning/info` CSS classes, color-coded labels and descriptions, Switch toggles
+  - **Sound Configuration** (conditionally rendered when `soundAlerts` is true): volume range slider with `accent-emerald-500`, percentage display using `kpi-subtext`, Preview Sound button with Speaker icon, 5 `sound-wave-bar` animated divs with staggered delays
+  - **Quiet Hours**: enable toggle switch, conditionally rendered time inputs (type='time') for start/end with `kpi-subtext` labels
+- All new sections use `section-title-accent` class for consistent styling
+- Existing toggle switches and state fields left untouched
+- Ran `bun run lint` — 0 errors, 0 warnings
+
+Stage Summary:
+- Notifications card now has 3 enhanced sub-sections: severity rules, sound config, quiet hours
+- Severity rules allow per-severity notification filtering (Critical/Warning/Info)
+- Sound configuration provides volume slider and Web Audio API preview beep
+- Quiet hours with configurable start/end times to suppress notifications
+- Lint: 0 errors, 0 warnings
+---
+Task ID: 10-main
+Agent: main
+Task: Round 10 - Styling Polish, OEE Target Markers, Export Dialog, Notification Preferences
+
+Work Log:
+
+### Pre-Development Assessment
+- Read worklog.md (1540 lines) for full project history through Round 9
+- Checked dev.log: 0 errors, clean compile
+- Started WebSocket mini-service on port 3002 (was not running)
+- Lint: 0 errors, 0 warnings
+
+### VLM QA-Driven Assessment (3 pages scored)
+1. **Dashboard**: 7.5/10 — Empty charts (agent-browser WS limitation), status cluster wrapping
+2. **OEE**: 8.5/10 — Excellent visualization, minor subtext contrast
+3. **Maintenance**: 8.5/10 — Production-ready, VLM noted status badge dot consistency (actually already consistent)
+
+**Cross-page issues (VLM flagged):**
+- Status cluster wrapping in topbar at smaller viewports
+- Subtext contrast in chart descriptions
+
+### Bug Fixes (1)
+1. **[HIGH] WebSocket service not running** — Started mini-services/iiot-ws/index.ts on port 3002. Same root cause as Round 9 (service doesn't persist across sessions).
+
+### Styling Improvements (Round 10)
+2. **Topbar status cluster refinement** — Added `flex-shrink-0` to topbar right container, `whitespace-nowrap` to status badges, `hidden xl:block` to separator between sync and connection status, `flex-shrink-0` on RefreshCw icon. Prevents wrapping at smaller viewports.
+3. **170+ lines of new CSS utilities in globals.css**:
+   - `table-row-hover-accent` — table row hover with emerald left border accent
+   - `section-title-accent` — section titles with left emerald bar + uppercase tracking
+   - `glass-card-accent` (4 variants: emerald/amber/red/cyan) — glass cards with colored top border
+   - `target-line-label` — style for OEE target reference line labels
+   - `status-badge` (11 status variants) — unified badges with dot indicators via CSS pseudo-elements
+   - `notif-pref-card` (3 severity variants) — notification preference cards with colored left bars
+   - `export-option` / `export-option.selected` — format option cards for export dialog
+   - `shimmer-loading` — animated gradient shimmer for loading states
+   - `topbar-status-cluster` — flex container for status indicators
+   - `sound-wave-bar` (5 bars with staggered delays) — animated sound wave visualization
+
+### New Features (3 major, delegated to subagents)
+4. **OEE Target vs Actual Chart Enhancement** (Task ID: 10-b)
+   - ReferenceLine at y=85 with amber dashed stroke and 'Target 85%' label
+   - Target bars restyled with amber dashed pattern (stroke + strokeDasharray + fill)
+   - LabelList on Actual bars with dynamic color (green ≥85%, yellow ≥70%, red <70%)
+   - Per-Machine OEE table rows now use `table-row-hover-accent` class
+   - Loss Analysis section titles use `section-title-accent` class
+
+5. **Reusable Data Export Dialog** (Task ID: 10-c)
+   - New component: `/src/shared/components/export-dialog.tsx`
+   - Props: open, onOpenChange, title, data, columns, filename
+   - CSV/JSON format selector with `export-option` styled cards
+   - CSV export with proper double-quote escaping
+   - JSON export with 2-space indent pretty-printing
+   - Browser download via Blob + URL.createObjectURL
+   - Toast notification on success
+   - Integrated into Maintenance page (7 columns, filename 'maintenance-tasks')
+   - Integrated into Audit Log page (6 columns, filename 'audit-log')
+
+6. **Enhanced Notification Preferences** (Task ID: 10-d)
+   - Alarm Severity Rules: Critical (red), Warning (amber), Info (cyan) with `notif-pref-card` CSS
+   - Sound Configuration: volume slider (0-100), Web Audio API preview beep at 880Hz
+   - Animated sound wave bars (5 bars with staggered animation delays)
+   - Quiet Hours: toggle + conditional time inputs for start/end
+   - All conditionally rendered (sound config only when Sound Alerts enabled, etc.)
+
+### VLM Quality Scores (Round 10)
+| Page | Round 9 | Round 10 | Change |
+|------|---------|---------|--------|
+| Dashboard | 8/10 | N/A | Not re-scored (agent-browser WS limitation) |
+| OEE Target Chart | N/A | 8/10 | NEW - ReferenceLine confirmed, target bars confirmed |
+| OEE (full) | ~9/10 | N/A | Loss section titles confirmed |
+| Maintenance | 8.9/10 | 9/10 | +0.1 Export button confirmed |
+| Settings (Notifications) | N/A | 8/10 | NEW - Severity rules confirmed, sound config partial |
+
+Stage Summary:
+- 1 bug fix (WS service restart)
+- 2 styling improvements (topbar refinement, 170+ lines CSS utilities)
+- 3 new features (OEE target markers, Export Dialog, Notification Preferences)
+- 3 subagents completed successfully (oee-target-enhancer, export-dialog-builder, notif-pref-enhancer)
+- Lint: 0 errors, 0 warnings
+- Platform version: v2.4.0 (unchanged)
+- Total pages: 22 (unchanged)
+
+## Current Project Status (Post Round 10)
+
+### Platform Overview
+- **22 pages** across 6 menu groups
+- Real-time WebSocket data simulation (port 3002) — **RUNNING**
+- Dark industrial theme with emerald green primary
+- Machine Health Score rings on Live Monitoring
+- Activity Feed panel in topbar with auto-generating events
+- Maintenance Schedule with table + calendar view + interactive KPI filtering
+- System Diagnostics with threshold alerting and live event feed
+- Reports page with report generation simulation and preview
+- Audit Log with comprehensive filtering, expandable rows, and activity timeline
+- Command Palette (Cmd+K) with Recent Pages tracking
+- OEE Loss Analysis with A×P×Q breakdown and per-machine table
+- Dashboard Machine Status Summary widget and Production Order list
+- Reactive footer status synchronized with WebSocket connection state
+- **NEW: OEE Target vs Actual chart with ReferenceLine at 85% and labeled bars**
+- **NEW: Reusable Export Dialog (CSV/JSON) integrated into Maintenance + Audit Log**
+- **NEW: Enhanced Notification Preferences with severity rules, sound config, quiet hours**
+
+### VLM Quality Scores (Round 10 Final)
+| Page | Score | Notes |
+|------|-------|-------|
+| OEE Target Chart | 8/10 | ReferenceLine + target bars + labeled actuals confirmed |
+| Maintenance | 9/10 | Export button confirmed, consistent status badges |
+| Settings Notifications | 8/10 | Severity rules confirmed, sound config conditionally rendered |
+
+### Bug Fixes This Round (1 total)
+1. WebSocket mini-service not running → all pages showed disconnected state (HIGH)
+
+### New Features This Round
+1. OEE Target vs Actual ReferenceLine — amber dashed target line at 85% with label
+2. OEE Target bar restyling — dashed amber pattern, labeled actual bars with dynamic color
+3. Reusable Export Dialog — CSV/JSON download with proper formatting
+4. Export integration — Maintenance page (7 columns) + Audit Log page (6 columns)
+5. Notification Severity Rules — Critical/Warning/Info toggles with colored indicators
+6. Sound Configuration — Volume slider + Web Audio API preview beep + animated wave
+7. Quiet Hours — Toggle + conditional time inputs for notification suppression
+
+### Unresolved Issues / Risks
+1. **LOW**: agent-browser cannot scroll overflow-auto containers (known tool limitation, not a bug)
+2. **LOW**: Energy chart spike at end of timeline (pre-existing)
+3. **LOW**: Mobile responsive testing at 768px tablet breakpoint (pre-existing)
+4. **INFO**: VLM noted underperforming OEE bars (yellow) vs target line (also yellow) could use more contrast — consider using orange for underperforming bars
+
+### Priority Recommendations for Next Phase
+1. **HIGH**: Add Reports page data visualization enhancement (pie charts, heatmaps)
+2. **MEDIUM**: Add keyboard shortcuts page (Ctrl+K already works, document all shortcuts)
+3. **MEDIUM**: Add data export to more pages (Alarms, Analytics, OEE tables)
+4. **MEDIUM**: Mobile responsive testing on 768px tablet breakpoint
+5. **LOW**: Improve OEE underperforming bar color distinction (orange vs yellow)
+6. **LOW**: Add server-side pagination pattern for large tables
+7. **LOW**: Add data export dialog PDF option (currently CSV/JSON only)

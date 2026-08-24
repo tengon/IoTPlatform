@@ -133,7 +133,7 @@ export function AppTopbar() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
         {/* Search Bar */}
         <div className={`hidden md:flex relative transition-all duration-200 search-bar-topbar ${searchFocused ? 'w-80' : 'w-64'}`}>
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60" />
@@ -149,16 +149,16 @@ export function AppTopbar() {
         </div>
 
         {/* Last Synced */}
-        <div className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] transition-colors ${isConnected ? 'text-muted-foreground/80 bg-muted/30' : 'text-destructive bg-destructive/5'}`}>
-          <RefreshCw className={`size-3 ${isConnected ? 'animate-spin' : ''} style={isConnected ? { animationDuration: '3s' } : {}}`} />
+        <div className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] transition-colors whitespace-nowrap ${isConnected ? 'text-muted-foreground/80 bg-muted/30' : 'text-destructive bg-destructive/5'}`}>
+          <RefreshCw className={`size-3 flex-shrink-0 ${isConnected ? 'animate-spin' : ''} style={isConnected ? { animationDuration: '3s' } : {}}`} />
           <span className="font-medium">{isConnected ? lastSyncText : 'Reconnecting...'}</span>
         </div>
 
-        <Separator orientation="vertical" className="h-5 opacity-30 mx-0.5" />
+        <Separator orientation="vertical" className="h-5 opacity-30 mx-0.5 hidden xl:block" />
 
         {/* Connection Status */}
         <div
-          className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-all duration-300 ${
+          className={`topbar-status-cluster flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-all duration-300 whitespace-nowrap ${
             isConnected
               ? 'text-emerald-400 bg-emerald-500/5'
               : 'text-red-400 bg-red-500/5'

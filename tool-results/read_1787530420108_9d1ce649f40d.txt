@@ -1,0 +1,863 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import {
+     5→  ScrollText,
+     6→  Activity,
+     7→  UserCog,
+     8→  Shield,
+     9→  Search,
+    10→  ChevronDown,
+    11→  ChevronRight,
+    12→  TrendingUp,
+    13→  Download,
+    14→  Clock,
+    15→} from 'lucide-react'
+    16→import {
+    17→  BarChart,
+    18→  Bar,
+    19→  XAxis,
+    20→  YAxis,
+    21→  CartesianGrid,
+    22→  Tooltip,
+    23→  ResponsiveContainer,
+    24→} from 'recharts'
+    25→import { format, subHours, subMinutes } from 'date-fns'
+    26→import { formatDistanceToNow } from 'date-fns'
+    27→import { useIIoTStore } from '@/store/iiot'
+    28→import { PageHeader } from '@/shared/components/page-header'
+    29→import {
+    30→  ChartTooltip,
+    31→  AXIS_TICK_SM,
+    32→  AXIS_LINE,
+    33→  GRID_STROKE,
+    34→  C_GREEN,
+    35→  C_CYAN,
+    36→  C_ORANGE,
+    37→  C_RED,
+    38→} from '@/shared/components/chart-utils'
+    39→import {
+    40→  Card,
+    41→  CardContent,
+    42→} from '@/components/ui/card'
+    43→import { Badge } from '@/components/ui/badge'
+    44→import { Button } from '@/components/ui/button'
+    45→import { Input } from '@/components/ui/input'
+    46→import {
+    47→  Select,
+    48→  SelectContent,
+    49→  SelectItem,
+    50→  SelectTrigger,
+    51→  SelectValue,
+    52→} from '@/components/ui/select'
+    53→import {
+    54→  Table,
+    55→  TableBody,
+    56→  TableCell,
+    57→  TableHead,
+    58→  TableHeader,
+    59→  TableRow,
+    60→} from '@/components/ui/table'
+    61→import {
+    62→  Collapsible,
+    63→  CollapsibleContent,
+    64→  CollapsibleTrigger,
+    65→} from '@/components/ui/collapsible'
+    66→import {
+    67→  DropdownMenu,
+    68→  DropdownMenuContent,
+    69→  DropdownMenuItem,
+    70→  DropdownMenuTrigger,
+    71→} from '@/components/ui/dropdown-menu'
+    72→import { cn } from '@/lib/utils'
+    73→
+    74→// ─── Types ──────────────────────────────────────────────────────────────
+    75→type ActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'READ' | 'LOGIN' | 'EXPORT'
+    76→type Category = 'User Action' | 'System' | 'Security' | 'Configuration' | 'Data Export'
+    77→type DateRange = '1h' | '24h' | '7d' | '30d'
+    78→
+    79→type CategoryFilter = 'all' | Category
+    80→
+    81→interface AuditEntry {
+    82→  id: string
+    83→  timestamp: string
+    84→  user: string
+    85→  actionType: ActionType
+    86→  category: Category
+    87→  resource: string
+    88→  details: string
+    89→  detailsJson: string
+    90→  ipAddress: string
+    91→}
+    92→
+    93→// ─── Mock Data ──────────────────────────────────────────────────────────
+    94→const now = Date.now()
+    95→
+    96→const MOCK_AUDIT_LOG: AuditEntry[] = [
+    97→  {
+    98→    id: 'AUD-001',
+    99→    timestamp: subMinutes(new Date(now), 5).toISOString(),
+   100→    user: 'James Wilson',
+   101→    actionType: 'LOGIN',
+   102→    category: 'Security',
+   103→    resource: 'User Session',
+   104→    details: 'Successful login from Chrome on Windows',
+   105→    detailsJson: JSON.stringify({ browser: 'Chrome 121', os: 'Windows 11', sessionId: 'sess_9a3f2e', mfaVerified: true }, null, 2),
+   106→    ipAddress: '192.168.1.45',
+   107→  },
+   108→  {
+   109→    id: 'AUD-002',
+   110→    timestamp: subMinutes(new Date(now), 12).toISOString(),
+   111→    user: 'Sarah Chen',
+   112→    actionType: 'UPDATE',
+   113→    category: 'Configuration',
+   114→    resource: 'CNC Machine A1',
+   115→    details: 'Updated spindle speed threshold from 8000 to 8500 RPM',
+   116→    detailsJson: JSON.stringify({ deviceId: 'DEV-CNC-A1', parameter: 'spindle_speed_max', oldValue: 8000, newValue: 8500, unit: 'RPM' }, null, 2),
+   117→    ipAddress: '192.168.1.102',
+   118→  },
+   119→  {
+   120→    id: 'AUD-003',
+   121→    timestamp: subMinutes(new Date(now), 18).toISOString(),
+   122→    user: 'Michael Park',
+   123→    actionType: 'READ',
+   124→    category: 'User Action',
+   125→    resource: 'Alarm Report Q4',
+   126→    details: 'Viewed quarterly alarm summary report',
+   127→    detailsJson: JSON.stringify({ reportId: 'RPT-2024-Q4-ALM', pages: 24, duration: '3m 42s' }, null, 2),
+   128→    ipAddress: '192.168.1.78',
+   129→  },
+   130→  {
+   131→    id: 'AUD-004',
+   132→    timestamp: subMinutes(new Date(now), 25).toISOString(),
+   133→    user: 'James Wilson',
+   134→    actionType: 'UPDATE',
+   135→    category: 'Security',
+   136→    resource: 'User Role: Emily Rodriguez',
+   137→    details: 'Changed role from Operator to Engineer',
+   138→    detailsJson: JSON.stringify({ targetUserId: 'USR-004', oldRole: 'Operator', newRole: 'Engineer', reason: 'Certification completed' }, null, 2),
+   139→    ipAddress: '192.168.1.45',
+   140→  },
+   141→  {
+   142→    id: 'AUD-005',
+   143→    timestamp: subMinutes(new Date(now), 33).toISOString(),
+   144→    user: 'Emily Rodriguez',
+   145→    actionType: 'CREATE',
+   146→    category: 'Configuration',
+   147→    resource: 'Alert Rule: High Vibration',
+   148→    details: 'Created new alert rule for vibration monitoring on Robot Arm R1',
+   149→    detailsJson: JSON.stringify({ ruleId: 'ALR-NEW-011', metric: 'vibration_mm_s', threshold: 12.5, severity: 'warning', device: 'Robot Arm R1' }, null, 2),
+   150→    ipAddress: '192.168.1.88',
+   151→  },
+   152→  {
+   153→    id: 'AUD-006',
+   154→    timestamp: subMinutes(new Date(now), 42).toISOString(),
+   155→    user: 'System',
+   156→    actionType: 'UPDATE',
+   157→    category: 'System',
+   158→    resource: 'Firmware: Gateway EG-02',
+   159→    details: 'Firmware update applied v2.3.1 → v2.4.0',
+   160→    detailsJson: JSON.stringify({ deviceId: 'GW-EG02', oldVersion: 'v2.3.1', newVersion: 'v2.4.0', status: 'success', duration: '4m 12s' }, null, 2),
+   161→    ipAddress: '10.0.0.1',
+   162→  },
+   163→  {
+   164→    id: 'AUD-007',
+   165→    timestamp: subMinutes(new Date(now), 55).toISOString(),
+   166→    user: 'David Kim',
+   167→    actionType: 'EXPORT',
+   168→    category: 'Data Export',
+   169→    resource: 'Production Data (Jan 2024)',
+   170→    details: 'Exported 14,230 production records as CSV',
+   171→    detailsJson: JSON.stringify({ format: 'CSV', recordCount: 14230, dateRange: '2024-01-01 to 2024-01-31', fileSize: '4.7 MB' }, null, 2),
+   172→    ipAddress: '192.168.1.156',
+   173→  },
+   174→  {
+   175→    id: 'AUD-008',
+   176→    timestamp: subMinutes(new Date(now), 68).toISOString(),
+   177→    user: 'Sarah Chen',
+   178→    actionType: 'UPDATE',
+   179→    category: 'Configuration',
+   180→    resource: 'Alert Rule: Temp Threshold',
+   181→    details: 'Modified critical temperature threshold from 90°C to 95°C',
+   182→    detailsJson: JSON.stringify({ ruleId: 'ALR-003', parameter: 'temperature_critical', oldValue: 90, newValue: 95, unit: '°C' }, null, 2),
+   183→    ipAddress: '192.168.1.102',
+   184→  },
+   185→  {
+   186→    id: 'AUD-009',
+   187→    timestamp: subMinutes(new Date(now), 75).toISOString(),
+   188→    user: 'Lisa Thompson',
+   189→    actionType: 'READ',
+   190→    category: 'User Action',
+   191→    resource: 'Dashboard: Live Monitoring',
+   192→    details: 'Accessed live monitoring dashboard',
+   193→    detailsJson: JSON.stringify({ page: 'live-monitoring', sessionDuration: '12m 05s', widgetsViewed: 6 }, null, 2),
+   194→    ipAddress: '192.168.1.201',
+   195→  },
+   196→  {
+   197→    id: 'AUD-010',
+   198→    timestamp: subMinutes(new Date(now), 88).toISOString(),
+   199→    user: 'System',
+   200→    actionType: 'DELETE',
+   201→    category: 'System',
+   202→    resource: 'Telemetry Buffer',
+   203→    details: 'Purged 1.2M expired telemetry records (retention: 30d)',
+   204→    detailsJson: JSON.stringify({ operation: 'data_retention_purge', recordsDeleted: 1200000, freedSpace: '2.3 GB', retentionDays: 30 }, null, 2),
+   205→    ipAddress: '10.0.0.1',
+   206→  },
+   207→  {
+   208→    id: 'AUD-011',
+   209→    timestamp: subMinutes(new Date(now), 95).toISOString(),
+   210→    user: 'Michael Park',
+   211→    actionType: 'UPDATE',
+   212→    category: 'User Action',
+   213→    resource: 'Alarm: ALM-2024-022',
+   214→    details: 'Acknowledged critical I/O communication loss alarm',
+   215→    detailsJson: JSON.stringify({ alarmId: 'ALM-2024-022', severity: 'critical', source: 'PLC Controller', acknowledgeNote: 'Investigating cable connection' }, null, 2),
+   216→    ipAddress: '192.168.1.78',
+   217→  },
+   218→  {
+   219→    id: 'AUD-012',
+   220→    timestamp: subMinutes(new Date(now), 110).toISOString(),
+   221→    user: 'James Wilson',
+   222→    actionType: 'CREATE',
+   223→    category: 'Configuration',
+   224→    resource: 'User: Robert Zhang',
+   225→    details: 'Created new operator account with default permissions',
+   226→    detailsJson: JSON.stringify({ userId: 'USR-010', name: 'Robert Zhang', role: 'Operator', site: 'Plant A', email: 'robert.zhang@factory.io' }, null, 2),
+   227→    ipAddress: '192.168.1.45',
+   228→  },
+   229→  {
+   230→    id: 'AUD-013',
+   231→    timestamp: subMinutes(new Date(now), 128).toISOString(),
+   232→    user: 'Anna Müller',
+   233→    actionType: 'EXPORT',
+   234→    category: 'Data Export',
+   235→    resource: 'OEE Analysis Report',
+   236→    details: 'Generated and downloaded OEE analysis for all machines (Q4 2024)',
+   237→    detailsJson: JSON.stringify({ format: 'PDF', reportType: 'OEE Analysis', period: 'Q4 2024', machinesIncluded: 13, fileSize: '2.1 MB' }, null, 2),
+   238→    ipAddress: '192.168.1.134',
+   239→  },
+   240→  {
+   241→    id: 'AUD-014',
+   242→    timestamp: subMinutes(new Date(now), 145).toISOString(),
+   243→    user: 'System',
+   244→    actionType: 'UPDATE',
+   245→    category: 'System',
+   246→    resource: 'Data Pipeline',
+   247→    details: 'Auto-scaling: increased telemetry ingestion workers from 4 to 8',
+   248→    detailsJson: JSON.stringify({ component: 'data_pipeline', configKey: 'ingestion_workers', oldValue: 4, newValue: 8, trigger: 'queue_depth > 10000' }, null, 2),
+   249→    ipAddress: '10.0.0.1',
+   250→  },
+   251→  {
+   252→    id: 'AUD-015',
+   253→    timestamp: subMinutes(new Date(now), 162).toISOString(),
+   254→    user: 'Emily Rodriguez',
+   255→    actionType: 'UPDATE',
+   256→    category: 'Configuration',
+   257→    resource: 'Device: Conveyor Belt B3',
+   258→    details: 'Updated Modbus TCP polling interval from 1000ms to 500ms',
+   259→    detailsJson: JSON.stringify({ deviceId: 'DEV-CNV-B3', protocol: 'Modbus TCP', parameter: 'polling_interval_ms', oldValue: 1000, newValue: 500 }, null, 2),
+   260→    ipAddress: '192.168.1.88',
+   261→  },
+   262→  {
+   263→    id: 'AUD-016',
+   264→    timestamp: subMinutes(new Date(now), 180).toISOString(),
+   265→    user: 'David Kim',
+   266→    actionType: 'DELETE',
+   267→    category: 'Configuration',
+   268→    resource: 'Alert Rule: Legacy Pressure',
+   269→    details: 'Removed deprecated pressure alert rule (replaced by ALR-018)',
+   270→    detailsJson: JSON.stringify({ ruleId: 'ALR-007', name: 'Legacy Pressure Monitor', replacementRule: 'ALR-018', deletedBy: 'David Kim' }, null, 2),
+   271→    ipAddress: '192.168.1.156',
+   272→  },
+   273→  {
+   274→    id: 'AUD-017',
+   275→    timestamp: subMinutes(new Date(now), 198).toISOString(),
+   276→    user: 'Sarah Chen',
+   277→    actionType: 'LOGIN',
+   278→    category: 'Security',
+   279→    resource: 'User Session',
+   280→    details: 'Successful login via SSO from Firefox on macOS',
+   281→    detailsJson: JSON.stringify({ browser: 'Firefox 122', os: 'macOS 14', authMethod: 'SSO', sessionId: 'sess_b7c1d4', mfaVerified: true }, null, 2),
+   282→    ipAddress: '192.168.1.102',
+   283→  },
+   284→  {
+   285→    id: 'AUD-018',
+   286→    timestamp: subMinutes(new Date(now), 215).toISOString(),
+   287→    user: 'System',
+   288→    actionType: 'CREATE',
+   289→    category: 'System',
+   290→    resource: 'Automated Backup',
+   291→    details: 'Scheduled daily database backup completed successfully',
+   292→    detailsJson: JSON.stringify({ backupId: 'BKP-2024-0115', type: 'automated_daily', size: '48.3 MB', duration: '1m 23s', checksum: 'sha256:a3f2...e8d1' }, null, 2),
+   293→    ipAddress: '10.0.0.1',
+   294→  },
+   295→  {
+   296→    id: 'AUD-019',
+   297→    timestamp: subMinutes(new Date(now), 235).toISOString(),
+   298→    user: 'James Wilson',
+   299→    actionType: 'UPDATE',
+   300→    category: 'Security',
+   301→    resource: 'Platform Settings',
+   302→    details: 'Enabled mandatory 2FA for all Admin and Manager roles',
+   303→    detailsJson: JSON.stringify({ setting: 'mfa_required_roles', roles: ['Admin', 'Manager'], previousState: false, newState: true }, null, 2),
+   304→    ipAddress: '192.168.1.45',
+   305→  },
+   306→  {
+   307→    id: 'AUD-020',
+   308→    timestamp: subMinutes(new Date(now), 252).toISOString(),
+   309→    user: 'Lisa Thompson',
+   310→    actionType: 'READ',
+   311→    category: 'User Action',
+   312→    resource: 'Energy Monitoring',
+   313→    details: 'Viewed real-time energy consumption for Plant A',
+   314→    detailsJson: JSON.stringify({ page: 'energy-monitoring', site: 'Plant A', timeRange: 'Last 24h', metrics: ['kWh', 'voltage', 'power_factor'] }, null, 2),
+   315→    ipAddress: '192.168.1.201',
+   316→  },
+   317→  {
+   318→    id: 'AUD-021',
+   319→    timestamp: subMinutes(new Date(now), 270).toISOString(),
+   320→    user: 'System',
+   321→    actionType: 'UPDATE',
+   322→    category: 'System',
+   323→    resource: 'MQTT Broker',
+   324→    details: 'Reconnected to MQTT broker after brief network interruption',
+   325→    detailsJson: JSON.stringify({ component: 'mqtt_client', broker: 'mqtt://edge-gw-01:1883', downtime: '12s', autoRecovery: true }, null, 2),
+   326→    ipAddress: '10.0.0.1',
+   327→  },
+   328→  {
+   329→    id: 'AUD-022',
+   330→    timestamp: subMinutes(new Date(now), 288).toISOString(),
+   331→    user: 'Michael Park',
+   332→    actionType: 'EXPORT',
+   333→    category: 'Data Export',
+   334→    resource: 'Alarm History (Last 7 Days)',
+   335→    details: 'Exported alarm history with full details as Excel',
+   336→    detailsJson: JSON.stringify({ format: 'XLSX', recordCount: 87, dateRange: '2024-01-08 to 2024-01-15', columns: 12, fileSize: '1.8 MB' }, null, 2),
+   337→    ipAddress: '192.168.1.78',
+   338→  },
+   339→  {
+   340→    id: 'AUD-023',
+   341→    timestamp: subMinutes(new Date(now), 310).toISOString(),
+   342→    user: 'Anna Müller',
+   343→    actionType: 'CREATE',
+   344→    category: 'Configuration',
+   345→    resource: 'Production Order: PO-2024-0187',
+   346→    details: 'Created new production order for Widget Assembly (batch 500)',
+   347→    detailsJson: JSON.stringify({ orderId: 'PO-2024-0187', product: 'Widget Assembly', quantity: 500, targetMachine: 'CNC Machine A2', deadline: '2024-01-22' }, null, 2),
+   348→    ipAddress: '192.168.1.134',
+   349→  },
+   350→  {
+   351→    id: 'AUD-024',
+   352→    timestamp: subMinutes(new Date(now), 335).toISOString(),
+   353→    user: 'System',
+   354→    actionType: 'DELETE',
+   355→    category: 'System',
+   356→    resource: 'Expired Sessions',
+   357→    details: 'Cleaned up 47 expired user sessions',
+   358→    detailsJson: JSON.stringify({ operation: 'session_cleanup', sessionsRemoved: 47, oldestExpired: '2024-01-13T08:00:00Z' }, null, 2),
+   359→    ipAddress: '10.0.0.1',
+   360→  },
+   361→  {
+   362→    id: 'AUD-025',
+   363→    timestamp: subMinutes(new Date(now), 355).toISOString(),
+   364→    user: 'Carlos Silva',
+   365→    actionType: 'LOGIN',
+   366→    category: 'Security',
+   367→    resource: 'User Session',
+   368→    details: 'Failed login attempt — incorrect password (attempt 2/5)',
+   369→    detailsJson: JSON.stringify({ browser: 'Edge 120', os: 'Windows 10', attempt: 2, maxAttempts: 5, lockoutThreshold: 5 }, null, 2),
+   370→    ipAddress: '192.168.2.50',
+   371→  },
+   372→]
+   373→
+   374→// ─── Action Type Colors ─────────────────────────────────────────────────
+   375→const ACTION_CONFIG: Record<ActionType, { className: string; label: string }> = {
+   376→  CREATE: { className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', label: 'CREATE' },
+   377→  UPDATE: { className: 'bg-amber-500/15 text-amber-400 border-amber-500/30', label: 'UPDATE' },
+   378→  DELETE: { className: 'bg-red-500/15 text-red-400 border-red-500/30', label: 'DELETE' },
+   379→  READ: { className: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30', label: 'READ' },
+   380→  LOGIN: { className: 'bg-violet-500/15 text-violet-400 border-violet-500/30', label: 'LOGIN' },
+   381→  EXPORT: { className: 'bg-blue-500/15 text-blue-400 border-blue-500/30', label: 'EXPORT' },
+   382→}
+   383→
+   384→const CATEGORY_CONFIG: Record<Category, { className: string; label: string }> = {
+   385→  'User Action': { className: 'bg-primary/10 text-primary border-primary/25', label: 'User Action' },
+   386→  'System': { className: 'bg-muted/80 text-muted-foreground border-muted-foreground/30', label: 'System' },
+   387→  'Security': { className: 'bg-red-500/10 text-red-400 border-red-500/25', label: 'Security' },
+   388→  'Configuration': { className: 'bg-amber-500/10 text-amber-400 border-amber-500/25', label: 'Configuration' },
+   389→  'Data Export': { className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/25', label: 'Data Export' },
+   390→}
+   391→
+   392→// ─── Generate hourly chart data ─────────────────────────────────────────
+   393→function generateHourlyData() {
+   394→  const data: { hour: string; events: number }[] = []
+   395→  const now = new Date()
+   396→  for (let i = 23; i >= 0; i--) {
+   397→    const hour = subHours(now, i)
+   398→    // Simulate realistic activity pattern: low at night, peaks during work hours
+   399→    const h = hour.getHours()
+   400→    let base: number
+   401→    if (h >= 0 && h < 6) base = 2 + Math.random() * 3
+   402→    else if (h >= 6 && h < 8) base = 5 + Math.random() * 6
+   403→    else if (h >= 8 && h < 12) base = 10 + Math.random() * 8
+   404→    else if (h >= 12 && h < 14) base = 7 + Math.random() * 5
+   405→    else if (h >= 14 && h < 18) base = 10 + Math.random() * 8
+   406→    else if (h >= 18 && h < 21) base = 5 + Math.random() * 4
+   407→    else base = 3 + Math.random() * 3
+   408→    data.push({
+   409→      hour: format(hour, 'HH:00'),
+   410→      events: Math.round(base),
+   411→    })
+   412→  }
+   413→  return data
+   414→}
+   415→
+   416→// ─── KPI Card ────────────────────────────────────────────────────────────
+   417→function KPICard({
+   418→  icon: Icon,
+   419→  label,
+   420→  value,
+   421→  unit,
+   422→  trend,
+   423→  trendValue,
+   424→  color,
+   425→  index,
+   426→}: {
+   427→  icon: React.ElementType
+   428→  label: string
+   429→  value: string | number
+   430→  unit: string
+   431→  trend: 'up' | 'down' | 'stable'
+   432→  trendValue: string
+   433→  color?: string
+   434→  index?: number
+   435→}) {
+   436→  return (
+   437→    <Card
+   438→      className={`relative overflow-hidden transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 group kpi-card-hover animate-slide-up stagger-${Math.min((index ?? 0) + 1, 6)}`}
+   439→    >
+   440→      <div
+   441→        className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"
+   442→        style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }}
+   443→      />
+   444→      <CardContent className="flex items-start justify-between p-5">
+   445→        <div className="flex items-start gap-3.5 min-w-0">
+   446→          <div
+   447→            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 transition-all duration-300 group-hover:scale-105"
+   448→            style={{
+   449→              backgroundColor: `${color}18`,
+   450→              ['--tw-ring-color' as string]: `${color}25`,
+   451→            }}
+   452→          >
+   453→            <Icon className="size-5" style={{ color }} />
+   454→          </div>
+   455→          <div className="min-w-0">
+   456→            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+   457→              {label}
+   458→            </p>
+   459→            <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-foreground metric-value">
+   460→              {value}
+   461→              <span className="text-xs font-normal text-muted-foreground/60 ml-1.5">{unit}</span>
+   462→            </p>
+   463→            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+   464→              {trend === 'up' && (
+   465→                <span className="flex items-center gap-0.5 text-emerald-400">
+   466→                  <TrendingUp className="size-3" />
+   467→                </span>
+   468→              )}
+   469→              <span className="text-muted-foreground/60">{trendValue}</span>
+   470→            </div>
+   471→          </div>
+   472→        </div>
+   473→      </CardContent>
+   474→    </Card>
+   475→  )
+   476→}
+   477→
+   478→// ─── Component ──────────────────────────────────────────────────────────
+   479→export function AuditLogPage() {
+   480→  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
+   481→  const [dateRange, setDateRange] = useState<DateRange>('24h')
+   482→  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
+   483→  const [userFilter, setUserFilter] = useState('all')
+   484→  const [search, setSearch] = useState('')
+   485→  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+   486→  const [page, setPage] = useState(1)
+   487→  const perPage = 10
+   488→
+   489→  // Unique users from log
+   490→  const uniqueUsers = useMemo(() => {
+   491→    const users = new Set(MOCK_AUDIT_LOG.map((e) => e.user))
+   492→    return Array.from(users).sort()
+   493→  }, [])
+   494→
+   495→  // Filtered data
+   496→  const filtered = useMemo(() => {
+   497→    return MOCK_AUDIT_LOG.filter((entry) => {
+   498→      const matchSearch =
+   499→        !search ||
+   500→        entry.user.toLowerCase().includes(search.toLowerCase()) ||
+   501→        entry.resource.toLowerCase().includes(search.toLowerCase()) ||
+   502→        entry.details.toLowerCase().includes(search.toLowerCase())
+   503→      const matchCategory = categoryFilter === 'all' || entry.category === categoryFilter
+   504→      const matchUser = userFilter === 'all' || entry.user === userFilter
+   505→      return matchSearch && matchCategory && matchUser
+   506→    })
+   507→  }, [search, categoryFilter, userFilter])
+   508→
+   509→  // KPI counts
+   510→  const kpis = useMemo(() => {
+   511→    const total = filtered.length
+   512→    const userActions = filtered.filter((e) => e.category === 'User Action' || e.category === 'Security').length
+   513→    const systemEvents = filtered.filter((e) => e.category === 'System').length
+   514→    const securityEvents = filtered.filter((e) => e.category === 'Security').length
+   515→    return { total, userActions, systemEvents, securityEvents }
+   516→  }, [filtered])
+   517→
+   518→  // Pagination
+   519→  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
+   520→  const paginatedEntries = filtered.slice((page - 1) * perPage, page * perPage)
+   521→
+   522→  // Reset page when filters change
+   523→  const handleSearchChange = (v: string) => { setSearch(v); setPage(1) }
+   524→  const handleCategoryChange = (v: string) => { setCategoryFilter(v as CategoryFilter); setPage(1) }
+   525→  const handleUserChange = (v: string) => { setUserFilter(v); setPage(1) }
+   526→  const handleDateRangeChange = (v: string) => { setDateRange(v as DateRange); setPage(1) }
+   527→
+   528→  const toggleRow = (id: string) => {
+   529→    setExpandedRows((prev) => {
+   530→      const next = new Set(prev)
+   531→      if (next.has(id)) next.delete(id)
+   532→      else next.add(id)
+   533→      return next
+   534→    })
+   535→  }
+   536→
+   537→  const hourlyData = useMemo(() => generateHourlyData(), [])
+   538→
+   539→  return (
+   540→    <div className="space-y-6">
+   541→      <PageHeader
+   542→        icon={ScrollText}
+   543→        title="Audit Log"
+   544→        description="Track all platform activity, user actions, and system events"
+   545→        lastUpdated={lastUpdate ? formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }) : undefined}
+   546→        badge={`${filtered.length} events`}
+   547→        actions={
+   548→          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+   549→            <Download className="size-3.5" />
+   550→            Export Log
+   551→          </Button>
+   552→        }
+   553→      />
+   554→
+   555→      {/* ── KPI Cards ─────────────────────────────────────────────── */}
+   556→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   557→        <KPICard
+   558→          icon={Activity}
+   559→          label="Total Events (24h)"
+   560→          value={kpis.total}
+   561→          unit="events"
+   562→          trend="up"
+   563→          trendValue="+12% vs yesterday"
+   564→          color={C_GREEN}
+   565→          index={0}
+   566→        />
+   567→        <KPICard
+   568→          icon={UserCog}
+   569→          label="User Actions"
+   570→          value={kpis.userActions}
+   571→          unit="events"
+   572→          trend="up"
+   573→          trendValue={`${Math.round((kpis.userActions / Math.max(kpis.total, 1)) * 100)}% of total`}
+   574→          color={C_CYAN}
+   575→          index={1}
+   576→        />
+   577→        <KPICard
+   578→          icon={Clock}
+   579→          label="System Events"
+   580→          value={kpis.systemEvents}
+   581→          unit="events"
+   582→          trend="stable"
+   583→          trendValue="Automated processes"
+   584→          color={C_ORANGE}
+   585→          index={2}
+   586→        />
+   587→        <KPICard
+   588→          icon={Shield}
+   589→          label="Security Events"
+   590→          value={kpis.securityEvents}
+   591→          unit="events"
+   592→          trend={kpis.securityEvents > 3 ? 'up' : 'stable'}
+   593→          trendValue={kpis.securityEvents > 3 ? 'Elevated activity' : 'Normal'}
+   594→          color={C_RED}
+   595→          index={3}
+   596→        />
+   597→      </div>
+   598→
+   599→      {/* ── Activity Timeline Chart ────────────────────────────────── */}
+   600→      <Card className="border-border/40 stagger-2 animate-slide-up">
+   601→        <CardContent className="p-4">
+   602→          <div className="flex items-center justify-between mb-3">
+   603→            <h3 className="text-sm font-semibold">Activity Timeline</h3>
+   604→            <span className="text-[11px] text-muted-foreground/60 uppercase tracking-wider">Events per hour (24h)</span>
+   605→          </div>
+   606→          <div className="chart-container-glass h-48">
+   607→            <ResponsiveContainer width="100%" height="100%">
+   608→              <BarChart data={hourlyData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+   609→                <CartesianGrid stroke={GRID_STROKE} vertical={false} />
+   610→                <XAxis
+   611→                  dataKey="hour"
+   612→                  tick={AXIS_TICK_SM}
+   613→                  axisLine={AXIS_LINE}
+   614→                  tickLine={false}
+   615→                  interval={2}
+   616→                />
+   617→                <YAxis
+   618→                  tick={AXIS_TICK_SM}
+   619→                  axisLine={AXIS_LINE}
+   620→                  tickLine={false}
+   621→                  allowDecimals={false}
+   622→                />
+   623→                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+   624→                <Bar
+   625→                  dataKey="events"
+   626→                  fill={C_GREEN}
+   627→                  radius={[3, 3, 0, 0]}
+   628→                  fillOpacity={0.8}
+   629→                />
+   630→              </BarChart>
+   631→            </ResponsiveContainer>
+   632→          </div>
+   633→        </CardContent>
+   634→      </Card>
+   635→
+   636→      {/* ── Filter Bar + Table ─────────────────────────────────────── */}
+   637→      <Card className="border-border/40 stagger-3 animate-slide-up">
+   638→        <CardContent className="p-4 space-y-4">
+   639→          {/* Filter Bar */}
+   640→          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+   641→            {/* Date Range Quick Select */}
+   642→            <DropdownMenu>
+   643→              <DropdownMenuTrigger asChild>
+   644→                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+   645→                  <Clock className="size-3.5" />
+   646→                  Last {dateRange}
+   647→                  <ChevronDown className="size-3" />
+   648→                </Button>
+   649→              </DropdownMenuTrigger>
+   650→              <DropdownMenuContent align="start">
+   651→                <DropdownMenuItem onClick={() => handleDateRangeChange('1h')}>Last 1h</DropdownMenuItem>
+   652→                <DropdownMenuItem onClick={() => handleDateRangeChange('24h')}>Last 24h</DropdownMenuItem>
+   653→                <DropdownMenuItem onClick={() => handleDateRangeChange('7d')}>Last 7 days</DropdownMenuItem>
+   654→                <DropdownMenuItem onClick={() => handleDateRangeChange('30d')}>Last 30 days</DropdownMenuItem>
+   655→              </DropdownMenuContent>
+   656→            </DropdownMenu>
+   657→
+   658→            {/* Category Filter */}
+   659→            <Select value={categoryFilter} onValueChange={handleCategoryChange}>
+   660→              <SelectTrigger className="w-[150px] h-8 text-xs">
+   661→                <SelectValue placeholder="All Categories" />
+   662→              </SelectTrigger>
+   663→              <SelectContent>
+   664→                <SelectItem value="all">All Categories</SelectItem>
+   665→                <SelectItem value="User Action">User Action</SelectItem>
+   666→                <SelectItem value="System">System</SelectItem>
+   667→                <SelectItem value="Security">Security</SelectItem>
+   668→                <SelectItem value="Configuration">Configuration</SelectItem>
+   669→                <SelectItem value="Data Export">Data Export</SelectItem>
+   670→              </SelectContent>
+   671→            </Select>
+   672→
+   673→            {/* User Filter */}
+   674→            <Select value={userFilter} onValueChange={handleUserChange}>
+   675→              <SelectTrigger className="w-[150px] h-8 text-xs">
+   676→                <SelectValue placeholder="All Users" />
+   677→              </SelectTrigger>
+   678→              <SelectContent>
+   679→                <SelectItem value="all">All Users</SelectItem>
+   680→                {uniqueUsers.map((u) => (
+   681→                  <SelectItem key={u} value={u}>{u}</SelectItem>
+   682→                ))}
+   683→              </SelectContent>
+   684→            </Select>
+   685→
+   686→            {/* Search */}
+   687→            <div className="relative flex-1 min-w-[180px]">
+   688→              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+   689→              <Input
+   690→                placeholder="Search logs..."
+   691→                className="h-8 pl-8 text-xs border-border/50"
+   692→                value={search}
+   693→                onChange={(e) => handleSearchChange(e.target.value)}
+   694→              />
+   695→            </div>
+   696→          </div>
+   697→
+   698→          {/* Table */}
+   699→          <div className="max-h-[calc(100vh-620px)] min-h-[400px] overflow-y-auto rounded-lg border border-border/40">
+   700→            <Table>
+   701→              <TableHeader>
+   702→                <TableRow className="hover:bg-transparent border-border/30">
+   703→                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 w-8" />
+   704→                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Timestamp</TableHead>
+   705→                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">User</TableHead>
+   706→                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3">Action</TableHead>
+   707→                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden lg:table-cell">Category</TableHead>
+   708→                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden md:table-cell">Resource</TableHead>
+   709→                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden xl:table-cell">Details</TableHead>
+   710→                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 py-3 hidden lg:table-cell">IP Address</TableHead>
+   711→                </TableRow>
+   712→              </TableHeader>
+   713→              <TableBody>
+   714→                {paginatedEntries.length === 0 ? (
+   715→                  <TableRow>
+   716→                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+   717→                      <div className="flex flex-col items-center gap-2">
+   718→                        <ScrollText className="size-8 text-muted-foreground/30" />
+   719→                        <p className="text-sm font-medium">No audit events found</p>
+   720→                        <p className="text-xs text-muted-foreground/60">Try adjusting your search or filter criteria</p>
+   721→                      </div>
+   722→                    </TableCell>
+   723→                  </TableRow>
+   724→                ) : (
+   725→                  paginatedEntries.map((entry, idx) => {
+   726→                    const isExpanded = expandedRows.has(entry.id)
+   727→                    const actionCfg = ACTION_CONFIG[entry.actionType]
+   728→                    const catCfg = CATEGORY_CONFIG[entry.category]
+   729→                    return (
+   730→                      <Collapsible
+   731→                        key={entry.id}
+   732→                        open={isExpanded}
+   733→                        onOpenChange={() => toggleRow(entry.id)}
+   734→                      >
+   735→                        <CollapsibleTrigger asChild>
+   736→                          <TableRow
+   737→                            className={cn(
+   738→                              'cursor-pointer hover:bg-muted/20 transition-colors duration-150 table-row-interactive zebra-row',
+   739→                              isExpanded && 'bg-muted/10'
+   740→                            )}
+   741→                          >
+   742→                            <TableCell className="py-3 w-8">
+   743→                              {isExpanded
+   744→                                ? <ChevronDown className="size-3.5 text-muted-foreground" />
+   745→                                : <ChevronRight className="size-3.5 text-muted-foreground" />
+   746→                              }
+   747→                            </TableCell>
+   748→                            <TableCell className="py-3 whitespace-nowrap">
+   749→                              <span className="text-xs text-muted-foreground">
+   750→                                {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
+   751→                              </span>
+   752→                            </TableCell>
+   753→                            <TableCell className="py-3">
+   754→                              <span className={cn('text-sm font-medium', entry.user === 'System' ? 'text-muted-foreground/70' : 'text-foreground')}>{entry.user}</span>
+   755→                            </TableCell>
+   756→                            <TableCell className="py-3">
+   757→                              <Badge variant="outline" className={cn('text-[10px] font-semibold px-2 py-0.5 badge-sharp', actionCfg.className)}>
+   758→                                {actionCfg.label}
+   759→                              </Badge>
+   760→                            </TableCell>
+   761→                            <TableCell className="py-3 hidden lg:table-cell">
+   762→                              <Badge variant="outline" className={cn('text-[10px] px-2 py-0.5', catCfg.className)}>
+   763→                                {catCfg.label}
+   764→                              </Badge>
+   765→                            </TableCell>
+   766→                            <TableCell className="py-3 hidden md:table-cell">
+   767→                              <span className="text-sm text-muted-foreground/80 max-w-[200px] truncate block">
+   768→                                {entry.resource}
+   769→                              </span>
+   770→                            </TableCell>
+   771→                            <TableCell className="py-3 hidden xl:table-cell">
+   772→                              <span className="text-xs text-muted-foreground/60 max-w-[240px] truncate block">
+   773→                                {entry.details}
+   774→                              </span>
+   775→                            </TableCell>
+   776→                            <TableCell className="py-3 hidden lg:table-cell">
+   777→                              <code className="text-[11px] text-muted-foreground/50 font-mono bg-muted/50 px-1.5 py-0.5 rounded">
+   778→                                {entry.ipAddress}
+   779→                              </code>
+   780→                            </TableCell>
+   781→                          </TableRow>
+   782→                        </CollapsibleTrigger>
+   783→                        <CollapsibleContent>
+   784→                          <TableRow className="bg-muted/5 hover:bg-muted/5">
+   785→                            <TableCell colSpan={8} className="py-0">
+   786→                              <div className="px-4 py-3 animate-slide-up">
+   787→                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2 font-semibold">Full Details</p>
+   788→                                <pre className="text-xs text-muted-foreground/80 bg-muted/40 rounded-lg p-3 overflow-x-auto font-mono leading-relaxed border border-border/30">
+   789→                                  {entry.detailsJson}
+   790→                                </pre>
+   791→                              </div>
+   792→                            </TableCell>
+   793→                          </TableRow>
+   794→                        </CollapsibleContent>
+   795→                      </Collapsible>
+   796→                    )
+   797→                  })
+   798→                )}
+   799→              </TableBody>
+   800→            </Table>
+   801→          </div>
+   802→
+   803→          {/* Pagination */}
+   804→          <div className="flex items-center justify-between">
+   805→            <p className="text-xs text-muted-foreground">
+   806→              Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length} events
+   807→            </p>
+   808→            <div className="flex items-center gap-1">
+   809→              <Button
+   810→                variant="outline"
+   811→                size="sm"
+   812→                className="h-7 w-7 p-0 text-xs"
+   813→                disabled={page <= 1}
+   814→                onClick={() => setPage(1)}
+   815→              >
+   816→                «
+   817→              </Button>
+   818→              <Button
+   819→                variant="outline"
+   820→                size="sm"
+   821→                className="h-7 w-7 p-0 text-xs"
+   822→                disabled={page <= 1}
+   823→                onClick={() => setPage((p) => p - 1)}
+   824→              >
+   825→                ‹
+   826→              </Button>
+   827→              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+   828→                <Button
+   829→                  key={p}
+   830→                  variant={p === page ? 'default' : 'outline'}
+   831→                  size="sm"
+   832→                  className="h-7 w-7 p-0 text-xs"
+   833→                  onClick={() => setPage(p)}
+   834→                >
+   835→                  {p}
+   836→                </Button>
+   837→              ))}
+   838→              <Button
+   839→                variant="outline"
+   840→                size="sm"
+   841→                className="h-7 w-7 p-0 text-xs"
+   842→                disabled={page >= totalPages}
+   843→                onClick={() => setPage((p) => p + 1)}
+   844→              >
+   845→                ›
+   846→              </Button>
+   847→              <Button
+   848→                variant="outline"
+   849→                size="sm"
+   850→                className="h-7 w-7 p-0 text-xs"
+   851→                disabled={page >= totalPages}
+   852→                onClick={() => setPage(totalPages)}
+   853→              >
+   854→                »
+   855→              </Button>
+   856→            </div>
+   857→          </div>
+   858→        </CardContent>
+   859→      </Card>
+   860→    </div>
+   861→  )
+   862→}
+   863→

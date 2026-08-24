@@ -1,0 +1,632 @@
+   140→  Low: { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', ring: 'ring-emerald-400/20' },
+   141→}
+   142→
+   143→const statusChipClass: Record<TaskStatus, string> = {
+   144→  Overdue: 'maintenance-chip-overdue',
+   145→  Scheduled: 'maintenance-chip-scheduled',
+   146→  Completed: 'maintenance-chip-completed',
+   147→  'In Progress': 'maintenance-chip-upcoming',
+   148→  Skipped: 'maintenance-chip-overdue',
+   149→}
+   150→
+   151→const statusDotColor: Record<TaskStatus, string> = {
+   152→  Scheduled: 'bg-cyan-400',
+   153→  'In Progress': 'bg-amber-400',
+   154→  Completed: 'bg-emerald-400',
+   155→  Overdue: 'bg-red-400',
+   156→  Skipped: 'bg-zinc-500',
+   157→}
+   158→
+   159→const calendarDotColor: Record<TaskType, string> = {
+   160→  Preventive: 'bg-cyan-400',
+   161→  Corrective: 'bg-amber-400',
+   162→  Predictive: 'bg-violet-400',
+   163→  Emergency: 'bg-red-400',
+   164→}
+   165→
+   166→// ─── Component ───────────────────────────────────────────────────────────────
+   167→
+   168→export function MaintenancePage() {
+   169→  const storeMachines = useIIoTStore((s) => s.machines)
+   170→  const machineNames = useMemo(() => {
+   171→    if (storeMachines.length > 0) {
+   172→      return storeMachines.map((m) => m.name)
+   173→    }
+   174→    return MACHINE_NAMES
+   175→  }, [storeMachines])
+   176→
+   177→  const [tasks, setTasks] = useState<MaintenanceTask[]>(mockTasks)
+   178→  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table')
+   179→  const [dialogOpen, setDialogOpen] = useState(false)
+   180→  const [exportOpen, setExportOpen] = useState(false)
+   181→
+   182→  // Filter state
+   183→  const [filterStatus, setFilterStatus] = useState<string>('all')
+   184→  const [filterPriority, setFilterPriority] = useState<string>('all')
+   185→  const [filterType, setFilterType] = useState<string>('all')
+   186→  const [filterMachine, setFilterMachine] = useState<string>('all')
+   187→
+   188→  // Calendar state
+   189→  const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); d.setDate(1); d.setMonth(new Date().getMonth()); return d })
+   190→
+   191→  // Add task form state
+   192→  const [formMachine, setFormMachine] = useState('')
+   193→  const [formType, setFormType] = useState<TaskType>('Preventive')
+   194→  const [formPriority, setFormPriority] = useState<Priority>('Medium')
+   195→  const [formDate, setFormDate] = useState('')
+   196→  const [formTechnician, setFormTechnician] = useState('')
+   197→  const [formDuration, setFormDuration] = useState('')
+   198→  const [formDescription, setFormDescription] = useState('')
+   199→
+   200→  // ─── Computed values ─────────────────────────────────────────────────────
+   201→
+   202→  const stats = useMemo(() => {
+   203→    const now = startOfDay(getToday())
+   204→    const weekLater = addDays(getToday(), 7)
+   205→    const monthStart = startOfMonth(getToday())
+   206→    const monthEnd = endOfMonth(getToday())
+   207→
+   208→    const upcoming = tasks.filter(
+   209→      (t) =>
+   210→        (t.status === 'Scheduled' || t.status === 'In Progress') &&
+   211→        !isBefore(new Date(t.scheduledDate), now) &&
+   212→        !isBefore(weekLater, new Date(t.scheduledDate))
+   213→    ).length
+   214→
+   215→    const overdue = tasks.filter((t) => t.status === 'Overdue').length
+   216→
+   217→    const completedThisMonth = tasks.filter(
+   218→      (t) =>
+   219→        t.status === 'Completed' &&
+   220→        !isBefore(new Date(t.scheduledDate), monthStart) &&
+   221→        !isBefore(monthEnd, new Date(t.scheduledDate))
+   222→    ).length
+   223→
+   224→    const totalScheduled = tasks.filter((t) => t.status !== 'Skipped').length
+   225→    const totalCompleted = tasks.filter((t) => t.status === 'Completed').length
+   226→    const avgRate = totalScheduled > 0 ? ((totalCompleted / totalScheduled) * 100).toFixed(1) : '0.0'
+   227→
+   228→    return { upcoming, overdue, completedThisMonth, avgRate }
+   229→  }, [tasks])
+   230→
+   231→  const filtered = useMemo(() => {
+   232→    return tasks.filter((t) => {
+   233→      if (filterStatus !== 'all' && t.status !== filterStatus) return false
+   234→      if (filterPriority !== 'all' && t.priority !== filterPriority) return false
+   235→      if (filterType !== 'all' && t.taskType !== filterType) return false
+   236→      if (filterMachine !== 'all' && t.machine !== filterMachine) return false
+   237→      return true
+   238→    })
+   239→  }, [tasks, filterStatus, filterPriority, filterType, filterMachine])
+   240→
+   241→  const hasActiveFilters = filterStatus !== 'all' || filterPriority !== 'all' || filterType !== 'all' || filterMachine !== 'all'
+   242→
+   243→  const clearFilters = useCallback(() => {
+   244→    setFilterStatus('all')
+   245→    setFilterPriority('all')
+   246→    setFilterType('all')
+   247→    setFilterMachine('all')
+   248→  }, [])
+   249→
+   250→  // ─── Calendar helpers ────────────────────────────────────────────────────
+   251→
+   252→  const calendarDays = useMemo(() => {
+   253→    const monthStart = startOfMonth(calendarMonth)
+   254→    const monthEnd = endOfMonth(calendarMonth)
+   255→    const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+   256→    const startDay = getDay(monthStart) // 0=Sun
+   257→    return { days, startDay }
+   258→  }, [calendarMonth])
+   259→
+   260→  const getTasksForDay = useCallback(
+   261→    (day: Date) => tasks.filter((t) => isSameDay(new Date(t.scheduledDate), day)),
+   262→    [tasks]
+   263→  )
+   264→
+   265→  // ─── Add task handler ────────────────────────────────────────────────────
+   266→
+   267→  const handleAddTask = useCallback(() => {
+   268→    if (!formMachine || !formDate || !formTechnician || !formDuration) return
+   269→    const newId = `MT-${2415 + tasks.length}`
+   270→    const newTask: MaintenanceTask = {
+   271→      id: newId,
+   272→      machine: formMachine,
+   273→      taskType: formType,
+   274→      priority: formPriority,
+   275→      scheduledDate: formDate,
+   276→      status: 'Scheduled',
+   277→      assignedTo: formTechnician,
+   278→      estimatedDuration: formDuration,
+   279→      description: formDescription,
+   280→    }
+   281→    setTasks((prev) => [newTask, ...prev])
+   282→    setDialogOpen(false)
+   283→    // Reset form
+   284→    setFormMachine('')
+   285→    setFormType('Preventive')
+   286→    setFormPriority('Medium')
+   287→    setFormDate(format(new Date(), 'yyyy-MM-dd'))
+   288→    setFormTechnician('')
+   289→    setFormDuration('')
+   290→    setFormDescription('')
+   291→  }, [formMachine, formDate, formTechnician, formDuration, formType, formPriority, formDescription, tasks.length])
+   292→
+   293→  // ─── Render ──────────────────────────────────────────────────────────────
+   294→
+   295→  return (
+   296→    <div className="space-y-6 animate-slide-up">
+   297→      <PageHeader
+   298→        icon={Wrench}
+   299→        title="Maintenance Schedule"
+   300→        description="Plan and track equipment maintenance tasks"
+   301→        actions={
+   302→          <div className="flex items-center gap-2">
+   303→            <Button
+   304→              variant={viewMode === 'table' ? 'default' : 'outline'}
+   305→              size="sm"
+   306→              className="gap-2"
+   307→              onClick={() => setViewMode('table')}
+   308→            >
+   309→              <LayoutList className="size-4" />
+   310→              <span className="hidden sm:inline">Table</span>
+   311→            </Button>
+   312→            <Button
+   313→              variant={viewMode === 'calendar' ? 'default' : 'outline'}
+   314→              size="sm"
+   315→              className="gap-2"
+   316→              onClick={() => setViewMode('calendar')}
+   317→            >
+   318→              <CalendarDays className="size-4" />
+   319→              <span className="hidden sm:inline">Calendar</span>
+   320→            </Button>
+   321→            <Button
+   322→              variant="outline"
+   323→              size="sm"
+   324→              className="gap-2"
+   325→              onClick={() => setExportOpen(true)}
+   326→            >
+   327→              <Download className="size-4" />
+   328→              <span className="hidden sm:inline">Export</span>
+   329→            </Button>
+   330→            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   331→              <DialogTrigger asChild>
+   332→                <Button size="sm" className="gap-2">
+   333→                  <Plus className="size-4" />
+   334→                  <span className="hidden sm:inline">Add Task</span>
+   335→                </Button>
+   336→              </DialogTrigger>
+   337→              <DialogContent className="sm:max-w-[520px] bg-card border-border/60">
+   338→                <DialogHeader>
+   339→                  <DialogTitle className="text-base">Add Maintenance Task</DialogTitle>
+   340→                  <DialogDescription className="text-xs text-muted-foreground">
+   341→                    Schedule a new maintenance task for equipment.
+   342→                  </DialogDescription>
+   343→                </DialogHeader>
+   344→                <div className="grid gap-4 py-4">
+   345→                  <div className="grid gap-2">
+   346→                    <Label className="text-xs">Machine / Asset</Label>
+   347→                    <Select value={formMachine} onValueChange={setFormMachine}>
+   348→                      <SelectTrigger className="h-9 text-sm">
+   349→                        <SelectValue placeholder="Select machine..." />
+   350→                      </SelectTrigger>
+   351→                      <SelectContent>
+   352→                        {machineNames.map((name) => (
+   353→                          <SelectItem key={name} value={name} className="text-sm">
+   354→                            {name}
+   355→                          </SelectItem>
+   356→                        ))}
+   357→                      </SelectContent>
+   358→                    </Select>
+   359→                  </div>
+   360→                  <div className="grid grid-cols-2 gap-4">
+   361→                    <div className="grid gap-2">
+   362→                      <Label className="text-xs">Task Type</Label>
+   363→                      <Select value={formType} onValueChange={(v) => setFormType(v as TaskType)}>
+   364→                        <SelectTrigger className="h-9 text-sm">
+   365→                          <SelectValue />
+   366→                        </SelectTrigger>
+   367→                        <SelectContent>
+   368→                          <SelectItem value="Preventive" className="text-sm">Preventive</SelectItem>
+   369→                          <SelectItem value="Corrective" className="text-sm">Corrective</SelectItem>
+   370→                          <SelectItem value="Predictive" className="text-sm">Predictive</SelectItem>
+   371→                          <SelectItem value="Emergency" className="text-sm">Emergency</SelectItem>
+   372→                        </SelectContent>
+   373→                      </Select>
+   374→                    </div>
+   375→                    <div className="grid gap-2">
+   376→                      <Label className="text-xs">Priority</Label>
+   377→                      <Select value={formPriority} onValueChange={(v) => setFormPriority(v as Priority)}>
+   378→                        <SelectTrigger className="h-9 text-sm">
+   379→                          <SelectValue />
+   380→                        </SelectTrigger>
+   381→                        <SelectContent>
+   382→                          <SelectItem value="Critical" className="text-sm">Critical</SelectItem>
+   383→                          <SelectItem value="High" className="text-sm">High</SelectItem>
+   384→                          <SelectItem value="Medium" className="text-sm">Medium</SelectItem>
+   385→                          <SelectItem value="Low" className="text-sm">Low</SelectItem>
+   386→                        </SelectContent>
+   387→                      </Select>
+   388→                    </div>
+   389→                  </div>
+   390→                  <div className="grid grid-cols-2 gap-4">
+   391→                    <div className="grid gap-2">
+   392→                      <Label className="text-xs">Scheduled Date</Label>
+   393→                      <Input
+   394→                        type="date"
+   395→                        className="h-9 text-sm"
+   396→                        value={formDate}
+   397→                        onChange={(e) => setFormDate(e.target.value)}
+   398→                      />
+   399→                    </div>
+   400→                    <div className="grid gap-2">
+   401→                      <Label className="text-xs">Estimated Duration</Label>
+   402→                      <Input
+   403→                        type="text"
+   404→                        className="h-9 text-sm"
+   405→                        placeholder="e.g. 2h, 30min"
+   406→                        value={formDuration}
+   407→                        onChange={(e) => setFormDuration(e.target.value)}
+   408→                      />
+   409→                    </div>
+   410→                  </div>
+   411→                  <div className="grid gap-2">
+   412→                    <Label className="text-xs">Assigned Technician</Label>
+   413→                    <Select value={formTechnician} onValueChange={setFormTechnician}>
+   414→                      <SelectTrigger className="h-9 text-sm">
+   415→                        <SelectValue placeholder="Select technician..." />
+   416→                      </SelectTrigger>
+   417→                      <SelectContent>
+   418→                        {TECHNICIANS.map((name) => (
+   419→                          <SelectItem key={name} value={name} className="text-sm">
+   420→                            {name}
+   421→                          </SelectItem>
+   422→                        ))}
+   423→                      </SelectContent>
+   424→                    </Select>
+   425→                  </div>
+   426→                  <div className="grid gap-2">
+   427→                    <Label className="text-xs">Description</Label>
+   428→                    <Textarea
+   429→                      className="text-sm min-h-[80px] resize-none"
+   430→                      placeholder="Describe the maintenance task..."
+   431→                      value={formDescription}
+   432→                      onChange={(e) => setFormDescription(e.target.value)}
+   433→                    />
+   434→                  </div>
+   435→                </div>
+   436→                <DialogFooter>
+   437→                  <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
+   438→                    Cancel
+   439→                  </Button>
+   440→                  <Button size="sm" onClick={handleAddTask}>
+   441→                    Create Task
+   442→                  </Button>
+   443→                </DialogFooter>
+   444→              </DialogContent>
+   445→            </Dialog>
+   446→          </div>
+   447→        }
+   448→      />
+   449→
+   450→      {/* ─── KPI Summary Row ──────────────────────────────────────────── */}
+   451→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up stagger-1">
+   452→        <Card className="border-border/50 kpi-card-hover">
+   453→          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
+   454→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10">
+   455→              <Clock className="size-5 text-cyan-400" />
+   456→            </div>
+   457→            <div>
+   458→              <p className="text-xs text-muted-foreground metric-label">Upcoming Tasks</p>
+   459→              <p className="text-2xl font-bold text-cyan-400 metric-value">{stats.upcoming}</p>
+   460→              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Next 7 days</p>
+   461→            </div>
+   462→          </CardContent>
+   463→        </Card>
+   464→        <Card className="border-red-500/20 kpi-card-hover cursor-pointer" onClick={() => { setFilterStatus(filterStatus === 'Overdue' ? 'all' : 'Overdue') }}>
+   465→          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
+   466→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10">
+   467→              <AlertTriangle className="size-5 text-red-400" />
+   468→            </div>
+   469→            <div>
+   470→              <p className="text-xs text-muted-foreground metric-label">Overdue Tasks {filterStatus === 'Overdue' ? '(filtered)' : ''}</p>
+   471→              <p className="text-2xl font-bold text-red-400 metric-value">{stats.overdue}</p>
+   472→              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Click to filter</p>
+   473→            </div>
+   474→          </CardContent>
+   475→        </Card>
+   476→        <Card className="border-emerald-500/20 kpi-card-hover cursor-pointer" onClick={() => { setFilterStatus(filterStatus === 'Completed' ? 'all' : 'Completed') }}>
+   477→          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
+   478→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
+   479→              <CheckCircle2 className="size-5 text-emerald-400" />
+   480→            </div>
+   481→            <div>
+   482→              <p className="text-xs text-muted-foreground metric-label">Completed This Month {filterStatus === 'Completed' ? '(filtered)' : ''}</p>
+   483→              <p className="text-2xl font-bold text-emerald-400 metric-value">{stats.completedThisMonth}</p>
+   484→              <p className="text-[10px] text-muted-foreground/60 mt-0.5">On schedule</p>
+   485→            </div>
+   486→          </CardContent>
+   487→        </Card>
+   488→        <Card className="border-border/50 kpi-card-hover">
+   489→          <CardContent className="pt-5 px-5 pb-5 flex items-center gap-3">
+   490→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+   491→              <TrendingUp className="size-5 text-primary" />
+   492→            </div>
+   493→            <div>
+   494→              <p className="text-xs text-muted-foreground metric-label">Avg Completion Rate</p>
+   495→              <p className="text-2xl font-bold text-primary metric-value">{stats.avgRate}%</p>
+   496→              <p className="text-[10px] text-emerald-400/80 mt-0.5">+2.3% from last month</p>
+   497→            </div>
+   498→          </CardContent>
+   499→        </Card>
+   500→      </div>
+   501→
+   502→      {/* ─── Filter Bar ──────────────────────────────────────────────── */}
+   503→      <Card className="border-border/50 animate-slide-up stagger-2">
+   504→        <CardContent className="pt-4 px-5 pb-4">
+   505→          <div className="flex items-center gap-2 flex-wrap">
+   506→            <Filter className="size-4 text-muted-foreground shrink-0" />
+   507→            <Select value={filterStatus} onValueChange={setFilterStatus}>
+   508→              <SelectTrigger className="h-8 w-[130px] text-xs">
+   509→                <SelectValue placeholder="Status" />
+   510→              </SelectTrigger>
+   511→              <SelectContent>
+   512→                <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
+   513→                <SelectItem value="Scheduled" className="text-xs">Scheduled</SelectItem>
+   514→                <SelectItem value="In Progress" className="text-xs">In Progress</SelectItem>
+   515→                <SelectItem value="Completed" className="text-xs">Completed</SelectItem>
+   516→                <SelectItem value="Overdue" className="text-xs">Overdue</SelectItem>
+   517→                <SelectItem value="Skipped" className="text-xs">Skipped</SelectItem>
+   518→              </SelectContent>
+   519→            </Select>
+   520→            <Select value={filterPriority} onValueChange={setFilterPriority}>
+   521→              <SelectTrigger className="h-8 w-[120px] text-xs">
+   522→                <SelectValue placeholder="Priority" />
+   523→              </SelectTrigger>
+   524→              <SelectContent>
+   525→                <SelectItem value="all" className="text-xs">All Priorities</SelectItem>
+   526→                <SelectItem value="Critical" className="text-xs">Critical</SelectItem>
+   527→                <SelectItem value="High" className="text-xs">High</SelectItem>
+   528→                <SelectItem value="Medium" className="text-xs">Medium</SelectItem>
+   529→                <SelectItem value="Low" className="text-xs">Low</SelectItem>
+   530→              </SelectContent>
+   531→            </Select>
+   532→            <Select value={filterType} onValueChange={setFilterType}>
+   533→              <SelectTrigger className="h-8 w-[130px] text-xs">
+   534→                <SelectValue placeholder="Task Type" />
+   535→              </SelectTrigger>
+   536→              <SelectContent>
+   537→                <SelectItem value="all" className="text-xs">All Types</SelectItem>
+   538→                <SelectItem value="Preventive" className="text-xs">Preventive</SelectItem>
+   539→                <SelectItem value="Corrective" className="text-xs">Corrective</SelectItem>
+   540→                <SelectItem value="Predictive" className="text-xs">Predictive</SelectItem>
+   541→                <SelectItem value="Emergency" className="text-xs">Emergency</SelectItem>
+   542→              </SelectContent>
+   543→            </Select>
+   544→            <Select value={filterMachine} onValueChange={setFilterMachine}>
+   545→              <SelectTrigger className="h-8 w-[160px] text-xs">
+   546→                <SelectValue placeholder="Machine" />
+   547→              </SelectTrigger>
+   548→              <SelectContent>
+   549→                <SelectItem value="all" className="text-xs">All Machines</SelectItem>
+   550→                {machineNames.map((name) => (
+   551→                  <SelectItem key={name} value={name} className="text-xs">
+   552→                    {name}
+   553→                  </SelectItem>
+   554→                ))}
+   555→              </SelectContent>
+   556→            </Select>
+   557→            {hasActiveFilters && (
+   558→              <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
+   559→                <X className="size-3" />
+   560→                Clear
+   561→              </Button>
+   562→            )}
+   563→          </div>
+   564→        </CardContent>
+   565→      </Card>
+   566→
+   567→      {/* ─── Table View ──────────────────────────────────────────────── */}
+   568→      {viewMode === 'table' && (
+   569→        <Card className="border-border/50 animate-slide-up stagger-3">
+   570→          <CardContent className="pt-5 px-5 pb-5">
+   571→            <div className="max-h-[calc(100vh-420px)] overflow-y-auto rounded-lg border border-border/40 overflow-hidden">
+   572→              <Table>
+   573→                <TableHeader>
+   574→                  <TableRow className="hover:bg-transparent border-border/30">
+   575→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Task ID</TableHead>
+   576→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Machine</TableHead>
+   577→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden md:table-cell">Type</TableHead>
+   578→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden sm:table-cell">Priority</TableHead>
+   579→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Date</TableHead>
+   580→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
+   581→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden lg:table-cell">Technician</TableHead>
+   582→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hidden xl:table-cell">Duration</TableHead>
+   583→                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right">Actions</TableHead>
+   584→                  </TableRow>
+   585→                </TableHeader>
+   586→                <TableBody>
+   587→                  {filtered.length === 0 ? (
+   588→                    <TableRow>
+   589→                      <TableCell colSpan={9} className="py-16 text-center">
+   590→                        <div className="flex flex-col items-center gap-2">
+   591→                          <Inbox className="size-8 text-muted-foreground/30" />
+   592→                          <p className="text-sm font-medium text-muted-foreground">No maintenance tasks found</p>
+   593→                          <p className="text-xs text-muted-foreground/50">Try adjusting your filter criteria.</p>
+   594→                        </div>
+   595→                      </TableCell>
+   596→                    </TableRow>
+   597→                  ) : (
+   598→                    filtered.map((task, idx) => {
+   599→                      const tc = taskTypeConfig[task.taskType]
+   600→                      const pc = priorityConfig[task.priority]
+   601→                      const chipClass = statusChipClass[task.status]
+   602→                      const dotColor = statusDotColor[task.status]
+   603→                      return (
+   604→                        <TableRow key={task.id} className={`table-row-severity zebra-row ${idx % 2 === 0 ? '' : 'bg-muted/[0.02]'}`}>
+   605→                          <TableCell className="font-mono text-xs font-medium py-3">{task.id}</TableCell>
+   606→                          <TableCell className="py-3">
+   607→                            <div className="font-medium text-sm">{task.machine}</div>
+   608→                          </TableCell>
+   609→                          <TableCell className="hidden md:table-cell py-3">
+   610→                            <Badge
+   611→                              variant="outline"
+   612→                              className={`${tc.bg} ${tc.color} ${tc.border} ring-2 ${tc.ring} text-xs`}
+   613→                              style={{ boxShadow: 'none' }}
+   614→                            >
+   615→                              {task.taskType}
+   616→                            </Badge>
+   617→                          </TableCell>
+   618→                          <TableCell className="hidden sm:table-cell py-3">
+   619→                            <Badge
+   620→                              variant="outline"
+   621→                              className={`${pc.bg} ${pc.color} ${pc.border} ring-2 ${pc.ring} text-xs`}
+   622→                              style={{ boxShadow: 'none' }}
+   623→                            >
+   624→                              {task.priority}
+   625→                            </Badge>
+   626→                          </TableCell>
+   627→                          <TableCell className="py-3 text-sm text-muted-foreground">
+   628→                            {format(new Date(task.scheduledDate), 'MMM dd')}
+   629→                          </TableCell>
+   630→                          <TableCell className="py-3">
+   631→                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${chipClass}`}>
+   632→                              <span className={`size-1.5 rounded-full ${dotColor}`} />
+   633→                              {task.status}
+   634→                            </span>
+   635→                          </TableCell>
+   636→                          <TableCell className="hidden lg:table-cell py-3 text-sm text-muted-foreground">
+   637→                            {task.assignedTo}
+   638→                          </TableCell>
+   639→                          <TableCell className="hidden xl:table-cell py-3 text-sm text-muted-foreground metric-value">
+   640→                            {task.estimatedDuration}
+   641→                          </TableCell>
+   642→                          <TableCell className="text-right py-3">
+   643→                            <div className="flex items-center justify-end gap-1">
+   644→                              <button className="ghost-action-btn" title="View details">
+   645→                                <Eye className="size-4" />
+   646→                              </button>
+   647→                              <button className="ghost-action-btn" title="Edit task">
+   648→                                <Pencil className="size-4" />
+   649→                              </button>
+   650→                            </div>
+   651→                          </TableCell>
+   652→                        </TableRow>
+   653→                      )
+   654→                    })
+   655→                  )}
+   656→                </TableBody>
+   657→              </Table>
+   658→            </div>
+   659→            <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
+   660→              <span>Showing {filtered.length} of {tasks.length} tasks</span>
+   661→            </div>
+   662→          </CardContent>
+   663→        </Card>
+   664→      )}
+   665→
+   666→      {/* ─── Calendar View ───────────────────────────────────────────── */}
+   667→      {viewMode === 'calendar' && (
+   668→        <Card className="border-border/50 animate-slide-up stagger-3 glass-card">
+   669→          <CardContent className="pt-5 px-5 pb-5">
+   670→            {/* Calendar header with navigation */}
+   671→            <div className="flex items-center justify-between mb-4">
+   672→              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>
+   673→                <ChevronLeft className="size-4" />
+   674→              </Button>
+   675→              <h3 className="text-sm font-semibold tracking-tight">
+   676→                {format(calendarMonth, 'MMMM yyyy')}
+   677→              </h3>
+   678→              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>
+   679→                <ChevronRight className="size-4" />
+   680→              </Button>
+   681→            </div>
+   682→
+   683→            {/* Day headers */}
+   684→            <div className="grid grid-cols-7 mb-1">
+   685→              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+   686→                <div key={day} className="text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 py-2">
+   687→                  {day}
+   688→                </div>
+   689→              ))}
+   690→            </div>
+   691→
+   692→            {/* Calendar grid */}
+   693→            <div className="grid grid-cols-7 gap-px bg-border/20 rounded-lg overflow-hidden">
+   694→              {/* Empty cells for offset */}
+   695→              {Array.from({ length: calendarDays.startDay }).map((_, i) => (
+   696→                <div key={`empty-${i}`} className="bg-card/50 min-h-[72px] sm:min-h-[88px] p-1.5" />
+   697→              ))}
+   698→
+   699→              {/* Day cells */}
+   700→              {calendarDays.days.map((day) => {
+   701→                const dayTasks = getTasksForDay(day)
+   702→                const todayFlag = isToday(day)
+   703→                return (
+   704→                  <div
+   705→                    key={day.toISOString()}
+   706→                    className={`bg-card/50 min-h-[72px] sm:min-h-[88px] p-1.5 transition-colors hover:bg-muted/20 ${todayFlag ? 'ring-1 ring-primary/30' : ''}`}
+   707→                  >
+   708→                    <div className={`text-[11px] font-medium mb-1 ${todayFlag ? 'text-primary' : 'text-muted-foreground'}`}>
+   709→                      {format(day, 'd')}
+   710→                    </div>
+   711→                    <div className="flex flex-wrap gap-0.5">
+   712→                      {dayTasks.slice(0, 3).map((task) => (
+   713→                        <div
+   714→                          key={task.id}
+   715→                          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight max-w-full truncate"
+   716→                          title={`${task.id} - ${task.taskType}: ${task.description}`}
+   717→                        >
+   718→                          <span className={`size-1.5 rounded-full shrink-0 ${calendarDotColor[task.taskType]}`} />
+   719→                          <span className="truncate text-muted-foreground/80">{task.id}</span>
+   720→                        </div>
+   721→                      ))}
+   722→                      {dayTasks.length > 3 && (
+   723→                        <span className="text-[9px] text-muted-foreground/50 px-1">+{dayTasks.length - 3} more</span>
+   724→                      )}
+   725→                    </div>
+   726→                  </div>
+   727→                )
+   728→              })}
+   729→            </div>
+   730→
+   731→            {/* Calendar legend */}
+   732→            <div className="flex items-center gap-4 mt-4 flex-wrap">
+   733→              <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider font-medium">Task Types:</span>
+   734→              {(['Preventive', 'Corrective', 'Predictive', 'Emergency'] as TaskType[]).map((type) => (
+   735→                <div key={type} className="flex items-center gap-1.5">
+   736→                  <span className={`size-2 rounded-full ${calendarDotColor[type]}`} />
+   737→                  <span className="text-[11px] text-muted-foreground">{type}</span>
+   738→                </div>
+   739→              ))}
+   740→            </div>
+   741→          </CardContent>
+   742→        </Card>
+   743→      )}
+   744→      <ExportDialog
+   745→        open={exportOpen}
+   746→        onOpenChange={setExportOpen}
+   747→        title="Export Maintenance Tasks"
+   748→        data={filtered.map((t) => ({
+   749→          id: t.id,
+   750→          title: t.description,
+   751→          machine: t.machine,
+   752→          type: t.taskType,
+   753→          priority: t.priority,
+   754→          status: t.status,
+   755→          dueDate: t.scheduledDate,
+   756→        }))}
+   757→        columns={[
+   758→          { key: 'id', label: 'Task ID' },
+   759→          { key: 'title', label: 'Title' },
+   760→          { key: 'machine', label: 'Machine' },
+   761→          { key: 'type', label: 'Type' },
+   762→          { key: 'priority', label: 'Priority' },
+   763→          { key: 'status', label: 'Status' },
+   764→          { key: 'dueDate', label: 'Due Date' },
+   765→        ]}
+   766→        filename="maintenance-tasks"
+   767→      />
+   768→    </div>
+   769→  )
+   770→}
+   771→

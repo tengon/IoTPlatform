@@ -76,7 +76,7 @@ export default function Home() {
               <div className="flex items-center gap-3">
                 <span className="font-semibold text-muted-foreground">IIoT Platform</span>
                 <span className="text-muted-foreground/30">|</span>
-                <span>v2.4.0</span>
+                <span>v2.5.0</span>
               </div>
               <div className="flex items-center gap-4">
                 <span className={`flex items-center gap-1.5 transition-colors ${isConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
@@ -89,7 +89,7 @@ export default function Home() {
                   {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
                 </span>
                 <span className="text-muted-foreground/30 hidden sm:inline">|</span>
-                <span className="hidden sm:inline">v2.4.0</span>
+                <span className="hidden sm:inline">v2.5.0</span>
               </div>
             </div>
           </footer>

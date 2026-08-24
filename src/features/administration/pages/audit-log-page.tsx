@@ -26,6 +26,7 @@ import { format, subHours, subMinutes } from 'date-fns'
 import { formatDistanceToNow } from 'date-fns'
 import { useIIoTStore } from '@/store/iiot'
 import { PageHeader } from '@/shared/components/page-header'
+import { ExportDialog } from '@/shared/components/export-dialog'
 import {
   ChartTooltip,
   AXIS_TICK_SM,
@@ -483,6 +484,7 @@ export function AuditLogPage() {
   const [userFilter, setUserFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [exportOpen, setExportOpen] = useState(false)
   const [page, setPage] = useState(1)
   const perPage = 10
 
@@ -545,7 +547,7 @@ export function AuditLogPage() {
         lastUpdated={lastUpdate ? formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }) : undefined}
         badge={`${filtered.length} events`}
         actions={
-          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setExportOpen(true)}>
             <Download className="size-3.5" />
             Export Log
           </Button>
@@ -857,6 +859,28 @@ export function AuditLogPage() {
           </div>
         </CardContent>
       </Card>
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Export Audit Log"
+        data={filtered.map((e) => ({
+          timestamp: e.timestamp,
+          user: e.user,
+          action: e.actionType,
+          resource: e.resource,
+          ipAddress: e.ipAddress,
+          details: e.details,
+        }))}
+        columns={[
+          { key: 'timestamp', label: 'Timestamp' },
+          { key: 'user', label: 'User' },
+          { key: 'action', label: 'Action' },
+          { key: 'resource', label: 'Resource' },
+          { key: 'ipAddress', label: 'IP Address' },
+          { key: 'details', label: 'Details' },
+        ]}
+        filename="audit-log"
+      />
     </div>
   )
 }

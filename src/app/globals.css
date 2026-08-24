@@ -929,3 +929,180 @@ a:focus-visible,
 .machine-status-dot-idle::before { background: oklch(0.8 0.18 65); }
 .machine-status-dot-error::before { background: oklch(0.65 0.22 25); }
 .machine-status-dot-maintenance::before { background: oklch(0.6 0.12 200); }
+
+/* ============================================
+   ROUND 10 - ADVANCED POLISH & NEW COMPONENTS
+   ============================================ */
+
+/* Table row hover with subtle left accent border */
+.table-row-hover-accent {
+  transition: all 0.15s ease;
+  border-left: 3px solid transparent;
+}
+.table-row-hover-accent:hover {
+  background: oklch(0.22 0.006 155 / 50%);
+  border-left-color: oklch(0.65 0.17 155 / 60%);
+}
+
+/* Improved card section title with left accent */
+.section-title-accent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: oklch(0.72 0.008 155);
+}
+.section-title-accent::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: oklch(0.65 0.17 155);
+  flex-shrink: 0;
+}
+
+/* Glass card variant with top accent border */
+.glass-card-accent {
+  border-top: 2px solid oklch(0.65 0.17 155 / 40%);
+}
+.glass-card-accent-amber {
+  border-top: 2px solid oklch(0.8 0.18 65 / 40%);
+}
+.glass-card-accent-red {
+  border-top: 2px solid oklch(0.65 0.22 25 / 40%);
+}
+.glass-card-accent-cyan {
+  border-top: 2px solid oklch(0.6 0.12 200 / 40%);
+}
+
+/* Target reference line style for charts */
+.target-line-label {
+  font-size: 10px;
+  font-weight: 600;
+  fill: oklch(0.8 0.18 65);
+}
+
+/* Status badge unified with dot indicator */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 2px 8px 2px 6px;
+  border-radius: 9999px;
+  border: none;
+  line-height: 1.4;
+}
+.status-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-badge-running { background: oklch(0.65 0.17 155 / 12%); color: oklch(0.7 0.17 155); }
+.status-badge-running::before { background: oklch(0.65 0.17 155); }
+.status-badge-idle { background: oklch(0.8 0.18 65 / 12%); color: oklch(0.85 0.16 65); }
+.status-badge-idle::before { background: oklch(0.8 0.18 65); }
+.status-badge-error { background: oklch(0.65 0.22 25 / 12%); color: oklch(0.7 0.2 25); }
+.status-badge-error::before { background: oklch(0.65 0.22 25); }
+.status-badge-warning { background: oklch(0.8 0.18 65 / 12%); color: oklch(0.85 0.16 65); }
+.status-badge-warning::before { background: oklch(0.8 0.18 65); }
+.status-badge-success { background: oklch(0.65 0.17 155 / 12%); color: oklch(0.7 0.17 155); }
+.status-badge-success::before { background: oklch(0.65 0.17 155); }
+.status-badge-info { background: oklch(0.6 0.12 200 / 12%); color: oklch(0.65 0.14 200); }
+.status-badge-info::before { background: oklch(0.6 0.12 200); }
+.status-badge-scheduled { background: oklch(0.6 0.12 200 / 12%); color: oklch(0.65 0.14 200); }
+.status-badge-scheduled::before { background: oklch(0.6 0.12 200); }
+.status-badge-overdue { background: oklch(0.65 0.22 25 / 12%); color: oklch(0.7 0.2 25); }
+.status-badge-overdue::before { background: oklch(0.65 0.22 25); }
+.status-badge-completed { background: oklch(0.65 0.17 155 / 12%); color: oklch(0.7 0.17 155); }
+.status-badge-completed::before { background: oklch(0.65 0.17 155); }
+.status-badge-in-progress { background: oklch(0.65 0.14 250 / 12%); color: oklch(0.7 0.14 250); }
+.status-badge-in-progress::before { background: oklch(0.65 0.14 250); }
+.status-badge-predictive { background: oklch(0.6 0.15 300 / 12%); color: oklch(0.65 0.15 300); }
+.status-badge-predictive::before { background: oklch(0.6 0.15 300); }
+.status-badge-emergency { background: oklch(0.65 0.22 25 / 15%); color: oklch(0.7 0.2 25); }
+.status-badge-emergency::before { background: oklch(0.65 0.22 25); }
+
+/* Notification preference card with severity color bar */
+.notif-pref-card {
+  position: relative;
+  padding-left: 16px;
+  overflow: hidden;
+}
+.notif-pref-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+}
+.notif-pref-critical::before { background: oklch(0.65 0.22 25); }
+.notif-pref-warning::before { background: oklch(0.8 0.18 65); }
+.notif-pref-info::before { background: oklch(0.6 0.12 200); }
+
+/* Export dialog format option card */
+.export-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border-radius: 12px;
+  border: 1px solid oklch(0.3 0.01 155 / 40%);
+  background: oklch(0.17 0.006 155 / 50%);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.export-option:hover {
+  border-color: oklch(0.65 0.17 155 / 40%);
+  background: oklch(0.2 0.006 155 / 60%);
+}
+.export-option.selected {
+  border-color: oklch(0.65 0.17 155 / 60%);
+  background: oklch(0.65 0.17 155 / 8%);
+  box-shadow: 0 0 0 1px oklch(0.65 0.17 155 / 20%);
+}
+
+/* Animated progress shimmer for loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-loading {
+  background: linear-gradient(90deg, oklch(0.22 0.006 155 / 30%) 25%, oklch(0.28 0.006 155 / 50%) 50%, oklch(0.22 0.006 155 / 30%) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+/* Subtle topbar status cluster refinement */
+.topbar-status-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: fit-content;
+}
+
+/* Sound wave animation for notification settings */
+@keyframes soundWave {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+.sound-wave-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: oklch(0.65 0.17 155);
+  animation: soundWave 0.8s ease-in-out infinite;
+}
+.sound-wave-bar:nth-child(2) { animation-delay: 0.1s; }
+.sound-wave-bar:nth-child(3) { animation-delay: 0.2s; }
+.sound-wave-bar:nth-child(4) { animation-delay: 0.3s; }
+.sound-wave-bar:nth-child(5) { animation-delay: 0.15s; }
