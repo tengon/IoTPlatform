@@ -1,0 +1,632 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useState, useMemo } from 'react'
+     4→import {
+     5→  LineChart,
+     6→  Line,
+     7→  ResponsiveContainer,
+     8→} from 'recharts'
+     9→import {
+    10→  Thermometer,
+    11→  RotateCw,
+    12→  Zap,
+    13→  Gauge,
+    14→  Signal,
+    15→  Activity,
+    16→  Wifi,
+    17→  WifiOff,
+    18→  AlertTriangle,
+    19→  TrendingUp,
+    20→  TrendingDown,
+    21→  Minus,
+    22→  Maximize2,
+    23→} from 'lucide-react'
+    24→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    25→import { Badge } from '@/components/ui/badge'
+    26→import {
+    27→  Table,
+    28→  TableBody,
+    29→  TableCell,
+    30→  TableHead,
+    31→  TableHeader,
+    32→  TableRow,
+    33→} from '@/components/ui/table'
+    34→import { ScrollArea } from '@/components/ui/scroll-area'
+    35→import { PageHeader } from '@/shared/components/page-header'
+    36→import { useIIoTStore, type MachineStatus, type DeviceStatus } from '@/store/iiot'
+    37→import { MachineDetailDialog } from '@/shared/components/machine-detail-dialog'
+    38→import { HealthScoreRing } from '@/shared/components/health-score-ring'
+    39→import { formatDistanceToNow } from 'date-fns'
+    40→
+    41→// ─── Status color maps ───────────────────────────────────────────────
+    42→
+    43→const machineStatusColors: Record<MachineStatus['status'], string> = {
+    44→  running: 'bg-emerald-500',
+    45→  idle: 'bg-amber-500',
+    46→  maintenance: 'bg-slate-400',
+    47→  error: 'bg-red-500',
+    48→}
+    49→
+    50→const machineStatusBorder: Record<MachineStatus['status'], string> = {
+    51→  running: 'border-emerald-500/30',
+    52→  idle: 'border-amber-500/20',
+    53→  maintenance: 'border-slate-500/20',
+    54→  error: 'border-red-500/30',
+    55→}
+    56→
+    57→const machineStatusGlow: Record<MachineStatus['status'], string> = {
+    58→  running: 'shadow-[0_0_20px_rgba(16,185,129,0.08)]',
+    59→  idle: '',
+    60→  maintenance: '',
+    61→  error: 'shadow-[0_0_20px_rgba(239,68,68,0.08)]',
+    62→}
+    63→
+    64→const machineStatusLabel: Record<MachineStatus['status'], string> = {
+    65→  running: 'Running',
+    66→  idle: 'Idle',
+    67→  maintenance: 'Maintenance',
+    68→  error: 'Error',
+    69→}
+    70→
+    71→const machineStatusBadgeClass: Record<MachineStatus['status'], string> = {
+    72→  running: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    73→  idle: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    74→  maintenance: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+    75→  error: 'bg-red-500/15 text-red-400 border-red-500/30',
+    76→}
+    77→
+    78→const deviceStatusColors: Record<DeviceStatus['status'], string> = {
+    79→  online: 'bg-emerald-500',
+    80→  offline: 'bg-slate-500',
+    81→  warning: 'bg-amber-500',
+    82→  error: 'bg-red-500',
+    83→}
+    84→
+    85→const deviceStatusBadgeClass: Record<DeviceStatus['status'], string> = {
+    86→  online: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    87→  offline: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+    88→  warning: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    89→  error: 'bg-red-500/15 text-red-400 border-red-500/30',
+    90→}
+    91→
+    92→// ─── Helper: OEE color ───────────────────────────────────────────────
+    93→
+    94→function oeeColor(oee: number): string {
+    95→  if (oee > 85) return 'text-emerald-400'
+    96→  if (oee > 70) return 'text-amber-400'
+    97→  return 'text-red-400'
+    98→}
+    99→
+   100→function oeeBarColor(oee: number): string {
+   101→  if (oee > 85) return 'bg-emerald-500'
+   102→  if (oee > 70) return 'bg-amber-500'
+   103→  return 'bg-red-500'
+   104→}
+   105→
+   106→// ─── TinySparkline Component ─────────────────────────────────────────
+   107→
+   108→function TinySparkline({ data, color, width = 60, height = 20 }: { data: number[]; color: string; width?: number; height?: number }) {
+   109→  if (data.length < 2) return null
+   110→
+   111→  const min = Math.min(...data)
+   112→  const max = Math.max(...data)
+   113→  const range = max - min || 1
+   114→  const padding = 1
+   115→
+   116→  const points = data.map((v, i) => {
+   117→    const x = padding + (i / (data.length - 1)) * (width - padding * 2)
+   118→    const y = height - padding - ((v - min) / range) * (height - padding * 2)
+   119→    return `${x},${y}`
+   120→  })
+   121→
+   122→  const lastX = padding + ((data.length - 1) / (data.length - 1)) * (width - padding * 2)
+   123→  const lastY = height - padding - ((data[data.length - 1] - min) / range) * (height - padding * 2)
+   124→
+   125→  const gradientId = `spark-${color.replace('#', '')}`
+   126→
+   127→  return (
+   128→    <svg viewBox={`0 0 ${width} ${height}`} className="inline-block ml-1.5 align-middle">
+   129→      <defs>
+   130→        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+   131→          <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+   132→          <stop offset="100%" stopColor={color} stopOpacity={0} />
+   133→        </linearGradient>
+   134→      </defs>
+   135→      <polyline
+   136→        points={points.join(' ')}
+   137→        stroke={color}
+   138→        strokeWidth={1.5}
+   139→        fill="none"
+   140→        strokeLinecap="round"
+   141→        strokeLinejoin="round"
+   142→      />
+   143→      <polygon
+   144→        points={`${points.join(' ')} ${lastX},${height} ${padding},${height}`}
+   145→        fill={`url(#${gradientId})`}
+   146→      />
+   147→      <circle cx={lastX} cy={lastY} r={2} fill={color} />
+   148→    </svg>
+   149→  )
+   150→}
+   151→
+   152→// ─── Helper: Temperature bar color ───────────────────────────────────
+   153→
+   154→function tempColor(temp: number): string {
+   155→  if (temp > 80) return 'bg-red-500'
+   156→  if (temp > 60) return 'bg-amber-500'
+   157→  return 'bg-emerald-500'
+   158→}
+   159→
+   160→function tempTextColor(temp: number): string {
+   161→  if (temp > 80) return 'text-red-400'
+   162→  if (temp > 60) return 'text-amber-400'
+   163→  return 'text-emerald-400'
+   164→}
+   165→
+   166→// ─── Trend Arrow ─────────────────────────────────────────────────────
+   167→
+   168→function TrendArrow({ value, prev }: { value: number; prev: number | undefined }) {
+   169→  if (prev === undefined) return <Minus className="size-3 text-muted-foreground" />
+   170→  const diff = value - prev
+   171→  if (Math.abs(diff) < 0.5) return <Minus className="size-3 text-muted-foreground" />
+   172→  if (diff > 0) return <TrendingUp className="size-3 text-emerald-400" />
+   173→  return <TrendingDown className="size-3 text-red-400" />
+   174→}
+   175→
+   176→// ─── Mini Sparkline (enhanced with gradient) ─────────────────────────
+   177→
+   178→function MiniChart({ data, color }: { data: { timestamp: number; value: number }[]; color: string }) {
+   179→  if (!data || data.length < 2) {
+   180→    return (
+   181→      <div className="h-16 w-full flex items-center justify-center text-muted-foreground text-xs">
+   182→        No data
+   183→      </div>
+   184→    )
+   185→  }
+   186→
+   187→  return (
+   188→    <ResponsiveContainer width="100%" height={64}>
+   189→      <LineChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+   190→        <Line
+   191→          type="monotone"
+   192→          dataKey="value"
+   193→          stroke={color}
+   194→          strokeWidth={1.5}
+   195→          dot={false}
+   196→          isAnimationActive={false}
+   197→          activeDot={{ r: 3, fill: color, strokeWidth: 0 }}
+   198→        />
+   199→      </LineChart>
+   200→    </ResponsiveContainer>
+   201→  )
+   202→}
+   203→
+   204→// ─── Machine Status Card (enhanced) ──────────────────────────────────
+   205→
+   206→function MachineCard({ machine, telemetry, onSelect }: {
+   207→  machine: MachineStatus
+   208→  telemetry: { timestamp: number; value: number }[]
+   209→  onSelect: () => void
+   210→}) {
+   211→  const isRunning = machine.status === 'running'
+   212→  const tempPct = Math.min(100, Math.max(0, ((machine.temperature - 20) / 80) * 100))
+   213→  const prevTemp = telemetry.length >= 2 ? telemetry[telemetry.length - 2].value : undefined
+   214→
+   215→  return (
+   216→    <Card
+   217→      className={`relative overflow-hidden border ${machineStatusBorder[machine.status]} ${machineStatusGlow[machine.status]} transition-all duration-300 hover:shadow-lg group cursor-pointer animate-slide-up`}
+   218→      onClick={onSelect}
+   219→    >
+   220→      {/* Running pulse bar */}
+   221→      {isRunning && (
+   222→        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-70 animate-pulse" />
+   223→      )}
+   224→
+   225→      <CardHeader className="pb-2 pt-4 px-4">
+   226→        <div className="flex items-start justify-between">
+   227→          <div className="flex items-center gap-2.5 min-w-0">
+   228→            <div className={`size-2.5 rounded-full shrink-0 ${machineStatusColors[machine.status]} ${isRunning ? 'animate-pulse-dot' : ''}`} />
+   229→            <div className="min-w-0">
+   230→              <CardTitle className="text-sm font-semibold truncate">{machine.name}</CardTitle>
+   231→              <p className="text-[11px] text-muted-foreground/70 mt-0.5">{machine.type}</p>
+   232→            </div>
+   233→          </div>
+   234→          <div className="flex items-center gap-2 shrink-0">
+   235→            <HealthScoreRing score={machine.healthScore ?? 85} size={40} strokeWidth={3} />
+   236→            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${machineStatusBadgeClass[machine.status]}`}>
+   237→              {machineStatusLabel[machine.status]}
+   238→            </Badge>
+   239→            <button
+   240→              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted/50"
+   241→              onClick={(e) => {
+   242→                e.stopPropagation()
+   243→                onSelect()
+   244→              }}
+   245→            >
+   246→              <Maximize2 className="size-3 text-muted-foreground" />
+   247→            </button>
+   248→          </div>
+   249→        </div>
+   250→      </CardHeader>
+   251→
+   252→      <CardContent className="px-4 pb-4 space-y-3.5">
+   253→        {/* Temperature Gauge */}
+   254→        <div className="space-y-1.5">
+   255→          <div className="flex items-center justify-between text-xs">
+   256→            <div className="flex items-center gap-1.5 text-muted-foreground">
+   257→              <Thermometer className={`size-3 ${tempTextColor(machine.temperature)}`} />
+   258→              <span>Temperature</span>
+   259→            </div>
+   260→            <div className="flex items-center gap-1">
+   261→              <span className={`font-mono text-sm font-bold metric-value ${tempTextColor(machine.temperature)}`}>
+   262→                {machine.temperature.toFixed(1)}°C
+   263→              </span>
+   264→              <TinySparkline
+   265→                data={telemetry.map((p) => p.value).slice(-30)}
+   266→                color={machine.temperature > 80 ? '#ef4444' : machine.temperature > 60 ? '#f59e0b' : '#10b981'}
+   267→              />
+   268→              <TrendArrow value={machine.temperature} prev={prevTemp} />
+   269→            </div>
+   270→          </div>
+   271→          <div className="h-2 w-full rounded-full bg-muted/40 overflow-hidden">
+   272→            <div
+   273→              className={`h-full rounded-full transition-all duration-700 ${tempColor(machine.temperature)}`}
+   274→              style={{ width: `${tempPct}%` }}
+   275→            />
+   276→          </div>
+   277→        </div>
+   278→
+   279→        {/* RPM & Power row */}
+   280→        <div className="grid grid-cols-2 gap-3">
+   281→          <div className="space-y-0.5">
+   282→            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+   283→              <RotateCw className="size-3 text-cyan-400" />
+   284→              <span>RPM</span>
+   285→            </div>
+   286→            <div className="flex items-center gap-1">
+   287→              <span className="text-base font-mono font-bold metric-value">{machine.rpm.toFixed(0)}</span>
+   288→              <TrendArrow value={machine.rpm} prev={undefined} />
+   289→            </div>
+   290→          </div>
+   291→          <div className="space-y-0.5">
+   292→            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+   293→              <Zap className="size-3 text-amber-400" />
+   294→              <span>Power</span>
+   295→            </div>
+   296→            <div className="flex items-center gap-1">
+   297→              <span className="text-base font-mono font-bold metric-value">{machine.power.toFixed(1)}</span>
+   298→              <span className="text-[11px] text-muted-foreground">kW</span>
+   299→            </div>
+   300→          </div>
+   301→        </div>
+   302→
+   303→        {/* OEE Solid Bar with Target Marker */}
+   304→        <div className="space-y-1.5">
+   305→          <div className="flex items-center justify-between text-xs">
+   306→            <div className="flex items-center gap-1.5 text-muted-foreground">
+   307→              <Gauge className={`size-3 ${oeeColor(machine.oee)}`} />
+   308→              <span>OEE</span>
+   309→            </div>
+   310→            <span className={`text-base font-mono font-bold metric-value ${oeeColor(machine.oee)}`}>
+   311→              {machine.oee.toFixed(1)}%
+   312→            </span>
+   313→          </div>
+   314→          <div className="relative h-2.5 w-full rounded-full bg-muted/40 overflow-hidden">
+   315→            <div
+   316→              className={`h-full rounded-full transition-all duration-700 ${oeeBarColor(machine.oee)}`}
+   317→              style={{ width: `${Math.min(100, machine.oee)}%` }}
+   318→            />
+   319→            {/* 85% Target marker */}
+   320→            <div
+   321→              className="absolute top-0 bottom-0 w-px bg-foreground/30"
+   322→              style={{ left: '85%' }}
+   323→              title="Target: 85%"
+   324→            />
+   325→          </div>
+   326→        </div>
+   327→
+   328→        {/* Mini Temperature Chart */}
+   329→        <div className="rounded-lg bg-muted/15 p-1.5">
+   330→          <MiniChart
+   331→            data={telemetry}
+   332→            color={
+   333→              machine.temperature > 80
+   334→                ? '#ef4444'
+   335→                : machine.temperature > 60
+   336→                  ? '#f59e0b'
+   337→                  : '#10b981'
+   338→            }
+   339→          />
+   340→        </div>
+   341→      </CardContent>
+   342→    </Card>
+   343→  )
+   344→}
+   345→
+   346→// ─── Telemetry Flash Value (enhanced) ────────────────────────────────
+   347→
+   348→function TelemetryValue({ label, value, unit, tick, index }: { label: string; value: number; unit?: string; tick: number; index: number }) {
+   349→  return (
+   350→    <div className={`flex items-center justify-between py-2 px-3 rounded-lg transition-colors duration-300 hover:bg-muted/30 ${index % 2 === 0 ? 'bg-muted/10' : ''}`}>
+   351→      <span className="text-xs text-muted-foreground truncate mr-2">{label}</span>
+   352→      <span
+   353→        key={`${tick}-${value}`}
+   354→        className="text-sm font-mono font-bold metric-value shrink-0 animate-[telemetryFlash_600ms_ease-out]"
+   355→      >
+   356→        {value.toFixed(2)}
+   357→        {unit && <span className="text-[11px] text-muted-foreground ml-1 font-normal">{unit}</span>}
+   358→      </span>
+   359→    </div>
+   360→  )
+   361→}
+   362→
+   363→// ─── Main Page ───────────────────────────────────────────────────────
+   364→
+   365→export function LiveMonitoringPage() {
+   366→  const isConnected = useIIoTStore((s) => s.isConnected)
+   367→  const lastUpdate = useIIoTStore((s) => s.lastUpdate)
+   368→  const machines = useIIoTStore((s) => s.machines)
+   369→  const devices = useIIoTStore((s) => s.devices)
+   370→  const liveTelemetry = useIIoTStore((s) => s.liveTelemetry)
+   371→
+   372→  // Force re-render every 2 seconds to pick up store changes
+   373→  const [tick, setTick] = useState(0)
+   374→  const [lastUpdatedText, setLastUpdatedText] = useState('—')
+   375→  const [selectedMachine, setSelectedMachine] = useState<MachineStatus | null>(null)
+   376→  const [detailOpen, setDetailOpen] = useState(false)
+   377→
+   378→  useEffect(() => {
+   379→    const interval = setInterval(() => setTick((k) => k + 1), 2000)
+   380→    return () => clearInterval(interval)
+   381→  }, [])
+   382→
+   383→  // Update last-updated text
+   384→  useEffect(() => {
+   385→    function update() {
+   386→      if (lastUpdate) {
+   387→        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+   388→      }
+   389→    }
+   390→    update()
+   391→    const interval = setInterval(update, 10000)
+   392→    return () => clearInterval(interval)
+   393→  }, [lastUpdate])
+   394→
+   395→  // Flatten all live telemetry into a displayable list
+   396→  const flatTelemetry = useMemo(() => {
+   397→    const entries: { key: string; label: string; value: number; unit?: string }[] = []
+   398→    // Device-level telemetry from WebSocket (temperature data)
+   399→    Object.entries(liveTelemetry).forEach(([id, points]) => {
+   400→      if (points.length > 0) {
+   401→        const latest = points[points.length - 1]
+   402→        const machine = machines.find((m) => m.id === id)
+   403→        const device = devices.find((d) => d.id === id)
+   404→        const label = machine?.name || device?.name || id
+   405→        entries.push({
+   406→          key: `${id}-temp`,
+   407→          label: `${label} (Temp)`,
+   408→          value: latest.value,
+   409→          unit: '°C',
+   410→        })
+   411→      }
+   412→    })
+   413→    // Machine-level metrics from store
+   414→    machines.forEach((m) => {
+   415→      entries.push(
+   416→        { key: `${m.id}-rpm`, label: `${m.name} (RPM)`, value: m.rpm, unit: 'rpm' },
+   417→        { key: `${m.id}-power`, label: `${m.name} (Power)`, value: m.power, unit: 'kW' },
+   418→        { key: `${m.id}-oee`, label: `${m.name} (OEE)`, value: m.oee, unit: '%' },
+   419→      )
+   420→    })
+   421→    return entries
+   422→  }, [liveTelemetry, machines, devices])
+   423→
+   424→  return (
+   425→    <div className="space-y-6">
+   426→      <PageHeader
+   427→        icon={Activity}
+   428→        title="Live Monitoring"
+   429→        description="Real-time machine and device telemetry"
+   430→        lastUpdated={lastUpdatedText}
+   431→        badge={isConnected ? 'STREAMING' : 'OFFLINE'}
+   432→      />
+   433→
+   434→      {/* Connection Status Bar */}
+   435→      <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-all duration-300 animate-fade-in ${
+   436→        isConnected
+   437→          ? 'border-emerald-500/20 bg-emerald-500/5'
+   438→          : 'border-red-500/20 bg-red-500/5'
+   439→      }`}>
+   440→        {isConnected ? (
+   441→          <Wifi className="size-4 text-emerald-400" />
+   442→        ) : (
+   443→          <WifiOff className="size-4 text-red-400" />
+   444→        )}
+   445→        <div className={`size-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse-dot' : 'bg-red-500'}`} />
+   446→        <span className="text-sm font-medium">
+   447→          {isConnected ? 'Connected to IIoT Gateway' : 'Disconnected — Reconnecting...'}
+   448→        </span>
+   449→        {isConnected ? (
+   450→          <span className="ml-auto text-xs text-muted-foreground/60 flex items-center gap-1.5">
+   451→            <span className="size-1 rounded-full bg-emerald-500 animate-pulse" />
+   452→            Streaming live data
+   453→          </span>
+   454→        ) : (
+   455→          <AlertTriangle className="ml-auto size-4 text-amber-400" />
+   456→        )}
+   457→      </div>
+   458→
+   459→      {/* Main content: Machines + Telemetry panel on desktop */}
+   460→      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
+   461→        {/* Left side: Machine Cards + Device Table */}
+   462→        <div className="space-y-6">
+   463→          {/* Machine Status Cards */}
+   464→          <section>
+   465→            <div className="flex items-center gap-2.5 mb-4">
+   466→              <Activity className="size-4 text-emerald-400" />
+   467→              <h2 className="text-base font-semibold">Machine Status</h2>
+   468→              <Badge variant="secondary" className="ml-auto text-[10px]">
+   469→                {machines.length} machines
+   470→              </Badge>
+   471→            </div>
+   472→            {machines.length === 0 ? (
+   473→              <Card className="py-12 flex flex-col items-center justify-center gap-2">
+   474→                <Activity className="size-8 text-muted-foreground/40" />
+   475→                <p className="text-sm text-muted-foreground">No machines connected</p>
+   476→              </Card>
+   477→            ) : (
+   478→              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   479→                {machines.map((machine, i) => (
+   480→                  <div key={machine.id} className={`animate-slide-up stagger-${Math.min(i + 1, 6)}`}>
+   481→                    <MachineCard
+   482→                      machine={machine}
+   483→                      telemetry={liveTelemetry[machine.id] || []}
+   484→                      onSelect={() => {
+   485→                        setSelectedMachine(machine)
+   486→                        setDetailOpen(true)
+   487→                      }}
+   488→                    />
+   489→                  </div>
+   490→                ))}
+   491→              </div>
+   492→            )}
+   493→          </section>
+   494→
+   495→          {/* Device Telemetry Table */}
+   496→          <section>
+   497→            <div className="flex items-center gap-2.5 mb-4">
+   498→              <Signal className="size-4 text-emerald-400" />
+   499→              <h2 className="text-base font-semibold">Device Telemetry</h2>
+   500→              <Badge variant="secondary" className="ml-auto text-[10px]">
+   501→                {devices.length} devices
+   502→              </Badge>
+   503→            </div>
+   504→            {devices.length === 0 ? (
+   505→              <Card className="py-12 flex flex-col items-center justify-center gap-2">
+   506→                <Signal className="size-8 text-muted-foreground/40" />
+   507→                <p className="text-sm text-muted-foreground">No devices detected</p>
+   508→              </Card>
+   509→            ) : (
+   510→              <Card className="py-0 gap-0 overflow-hidden">
+   511→                <div className="max-h-96 overflow-y-auto">
+   512→                  <Table>
+   513→                    <TableHeader>
+   514→                      <TableRow className="hover:bg-transparent border-border/30">
+   515→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Device</TableHead>
+   516→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Type</TableHead>
+   517→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Status</TableHead>
+   518→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">Last Metrics</TableHead>
+   519→                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 text-right">Signal</TableHead>
+   520→                      </TableRow>
+   521→                    </TableHeader>
+   522→                    <TableBody>
+   523→                      {devices.map((device) => {
+   524→                        const metricEntries = Object.entries(device.metrics)
+   525→                        return (
+   526→                          <TableRow key={device.id} className="border-border/20 transition-colors hover:bg-muted/20">
+   527→                            <TableCell className="font-medium text-sm py-3">{device.name}</TableCell>
+   528→                            <TableCell className="text-sm text-muted-foreground py-3">{device.type}</TableCell>
+   529→                            <TableCell className="py-3">
+   530→                              <div className="flex items-center gap-2">
+   531→                                <div className={`size-2 rounded-full ${deviceStatusColors[device.status]}`} />
+   532→                                <Badge
+   533→                                  variant="outline"
+   534→                                  className={`text-[10px] px-1.5 py-0 capitalize ${deviceStatusBadgeClass[device.status]}`}
+   535→                                >
+   536→                                  {device.status}
+   537→                                </Badge>
+   538→                              </div>
+   539→                            </TableCell>
+   540→                            <TableCell className="py-3">
+   541→                              <div className="flex flex-wrap gap-x-3 gap-y-1">
+   542→                                {metricEntries.length > 0 ? (
+   543→                                  metricEntries.map(([key, val]) => (
+   544→                                    <span key={key} className="text-xs font-mono text-muted-foreground">
+   545→                                      <span className="text-foreground/50 text-[11px]">{key}:</span>{' '}
+   546→                                      <span className="font-medium text-foreground/80">{typeof val === 'number' ? val.toFixed(1) : val}</span>
+   547→                                    </span>
+   548→                                  ))
+   549→                                ) : (
+   550→                                  <span className="text-xs text-muted-foreground">—</span>
+   551→                                )}
+   552→                              </div>
+   553→                            </TableCell>
+   554→                            <TableCell className="text-right py-3">
+   555→                              <div className="flex items-center justify-end gap-1.5">
+   556→                                <Signal className={`size-3.5 ${
+   557→                                  device.status === 'online'
+   558→                                    ? 'text-emerald-400'
+   559→                                    : device.status === 'warning'
+   560→                                      ? 'text-amber-400'
+   561→                                      : 'text-muted-foreground'
+   562→                                }`} />
+   563→                                <span className={`text-xs font-medium ${
+   564→                                  device.status === 'online'
+   565→                                    ? 'text-emerald-400'
+   566→                                    : device.status === 'warning'
+   567→                                      ? 'text-amber-400'
+   568→                                      : 'text-muted-foreground'
+   569→                                }`}>
+   570→                                  {device.status === 'online' ? 'Strong' : device.status === 'warning' ? 'Weak' : '—'}
+   571→                                </span>
+   572→                              </div>
+   573→                            </TableCell>
+   574→                          </TableRow>
+   575→                        )
+   576→                      })}
+   577→                    </TableBody>
+   578→                  </Table>
+   579→                </div>
+   580→              </Card>
+   581→            )}
+   582→          </section>
+   583→        </div>
+   584→
+   585→        {/* Real-time Telemetry Panel (right side, desktop only) */}
+   586→        <aside className="hidden xl:block animate-slide-right">
+   587→          <div className="sticky top-[72px] space-y-3">
+   588→            <div className="flex items-center gap-2.5">
+   589→              <Activity className="size-4 text-emerald-400" />
+   590→              <h2 className="text-base font-semibold">Live Telemetry</h2>
+   591→              <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10">
+   592→                <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+   593→                <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-medium">Live</span>
+   594→              </div>
+   595→            </div>
+   596→            <Card className="py-0 gap-0 overflow-hidden">
+   597→              <ScrollArea className="max-h-[calc(100vh-220px)]">
+   598→                <div className="p-1.5 space-y-0">
+   599→                  {flatTelemetry.length === 0 ? (
+   600→                    <div className="py-8 flex flex-col items-center justify-center gap-2">
+   601→                      <Activity className="size-6 text-muted-foreground/40" />
+   602→                      <p className="text-xs text-muted-foreground">Waiting for telemetry data...</p>
+   603→                    </div>
+   604→                  ) : (
+   605→                    flatTelemetry.map((entry, index) => (
+   606→                      <TelemetryValue
+   607→                        key={entry.key}
+   608→                        label={entry.label}
+   609→                        value={entry.value}
+   610→                        unit={entry.unit}
+   611→                        tick={tick}
+   612→                        index={index}
+   613→                      />
+   614→                    ))
+   615→                  )}
+   616→                </div>
+   617→              </ScrollArea>
+   618→            </Card>
+   619→          </div>
+   620→        </aside>
+   621→      </div>
+   622→
+   623→      {/* Machine Detail Dialog */}
+   624→      <MachineDetailDialog
+   625→        machine={selectedMachine}
+   626→        open={detailOpen}
+   627→        onOpenChange={setDetailOpen}
+   628→      />
+   629→    </div>
+   630→  )
+   631→}
+   632→

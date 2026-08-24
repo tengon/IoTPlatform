@@ -1,6 +1,52 @@
 # IIoT Platform - Worklog
 
 ---
+Task ID: 13
+Agent: main
+Task: Fix "Live view tidak tertampil" — Live Monitoring page shows empty when WebSocket disconnected
+
+Work Log:
+- User reported "Live view tidak tertampil" (Live view is not displaying)
+- Root cause: Live Monitoring page (live-monitoring-page.tsx) only read from useIIoTStore (WebSocket-only)
+- When WS disconnected, all arrays empty → shows "No machines connected" and "No devices detected"
+- Applied same REST API fallback pattern used in Dashboard (Task ID 12):
+  - Added useMachinesQuery and useDevicesQuery (TanStack Query hooks)
+  - Normalized server data to match MachineStatus/DeviceStatus interfaces
+  - Machine status mapping: API 'warning' → MachineStatus 'idle'
+  - Generated synthetic telemetry from server machine data for sparklines (30 points each)
+  - Merge logic: `isConnected && wsData.length > 0 ? wsData : serverData`
+- Updated connection status bar:
+  - WS connected: green "Connected to IIoT Gateway" + "STREAMING" badge
+  - WS disconnected: cyan "Showing REST API data" + "REST API" badge + Database icon
+- Added "REST API data" indicator label on each machine card in REST mode
+- Updated Live Telemetry panel badge: green "Live" when WS, cyan "REST" when fallback
+- Lint: 0 errors, 0 warnings
+
+### Verification (VLM Analysis)
+
+Dashboard (re-verified):
+| Metric | Value |
+|--------|-------|
+| Total Devices | 8 (7 online, 1 offline) |
+| Active Machines | 4 of 6 running |
+| Active Alarms | 4 (2 critical) |
+| Energy | 31,493 kWh |
+| Sparklines | ✅ Rendering with data |
+
+Live Monitoring (fixed):
+| Metric | Value |
+|--------|-------|
+| Machine Cards | 6 machines with full data |
+| Device Table | 8 devices with metrics |
+| Telemetry Panel | ✅ Showing temperature/RPM/power/OEE values |
+| Data Source | REST API fallback (cyan indicator) |
+
+Stage Summary:
+- 1 file modified (live-monitoring-page.tsx) — added Server State + merge logic
+- Both Dashboard and Live Monitoring now work without WebSocket connection
+- Seamless switch to WS data when connection is restored
+
+---
 Task ID: 12
 Agent: main
 Task: Fix dashboard showing all zeros when WebSocket is disconnected

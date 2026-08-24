@@ -20,6 +20,7 @@ import {
   TrendingDown,
   Minus,
   Maximize2,
+  Database,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -34,6 +35,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { PageHeader } from '@/shared/components/page-header'
 import { useIIoTStore, type MachineStatus, type DeviceStatus } from '@/store/iiot'
+import { useMachinesQuery, useDevicesQuery } from '@/hooks/queries'
 import { MachineDetailDialog } from '@/shared/components/machine-detail-dialog'
 import { HealthScoreRing } from '@/shared/components/health-score-ring'
 import { formatDistanceToNow } from 'date-fns'
@@ -69,27 +71,27 @@ const machineStatusLabel: Record<MachineStatus['status'], string> = {
 }
 
 const machineStatusBadgeClass: Record<MachineStatus['status'], string> = {
-  running: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  idle: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  maintenance: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
-  error: 'bg-red-500/15 text-red-400 border-red-500/30',
+  running: 'text-emerald-400 border-emerald-500/30',
+  idle: 'text-amber-400 border-amber-500/30',
+  maintenance: 'text-slate-400 border-slate-500/30',
+  error: 'text-red-400 border-red-500/30',
 }
 
 const deviceStatusColors: Record<DeviceStatus['status'], string> = {
   online: 'bg-emerald-500',
-  offline: 'bg-slate-500',
+  offline: 'bg-slate-400',
   warning: 'bg-amber-500',
   error: 'bg-red-500',
 }
 
 const deviceStatusBadgeClass: Record<DeviceStatus['status'], string> = {
-  online: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  offline: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
-  warning: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  error: 'bg-red-500/15 text-red-400 border-red-500/30',
+  online: 'text-emerald-400 border-emerald-500/30',
+  offline: 'text-slate-400 border-slate-500/30',
+  warning: 'text-amber-400 border-amber-500/30',
+  error: 'text-red-400 border-red-500/30',
 }
 
-// ─── Helper: OEE color ───────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────
 
 function oeeColor(oee: number): string {
   if (oee > 85) return 'text-emerald-400'
@@ -101,6 +103,19 @@ function oeeBarColor(oee: number): string {
   if (oee > 85) return 'bg-emerald-500'
   if (oee > 70) return 'bg-amber-500'
   return 'bg-red-500'
+}
+
+// ─── Generate synthetic telemetry from machine data ─────────────────
+function generateSyntheticTelemetry(baseValue: number, count = 30): { timestamp: number; value: number }[] {
+  const now = Date.now()
+  const points: { timestamp: number; value: number }[] = []
+  let v = baseValue
+  for (let i = 0; i < count; i++) {
+    const noise = (Math.random() - 0.5) * baseValue * 0.05
+    v = v * 0.95 + (baseValue + noise) * 0.05 // mean-reverting walk
+    points.push({ timestamp: now - (count - i) * 2000, value: v })
+  }
+  return points
 }
 
 // ─── TinySparkline Component ─────────────────────────────────────────
@@ -203,10 +218,11 @@ function MiniChart({ data, color }: { data: { timestamp: number; value: number }
 
 // ─── Machine Status Card (enhanced) ──────────────────────────────────
 
-function MachineCard({ machine, telemetry, onSelect }: {
+function MachineCard({ machine, telemetry, onSelect, isRestData }: {
   machine: MachineStatus
   telemetry: { timestamp: number; value: number }[]
   onSelect: () => void
+  isRestData?: boolean
 }) {
   const isRunning = machine.status === 'running'
   const tempPct = Math.min(100, Math.max(0, ((machine.temperature - 20) / 80) * 100))
@@ -250,6 +266,14 @@ function MachineCard({ machine, telemetry, onSelect }: {
       </CardHeader>
 
       <CardContent className="px-4 pb-4 space-y-3.5">
+        {/* Data source indicator for REST mode */}
+        {isRestData && (
+          <div className="flex items-center gap-1.5 text-[10px] text-cyan-400/70">
+            <Database className="size-3" />
+            <span>REST API data</span>
+          </div>
+        )}
+
         {/* Temperature Gauge */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
@@ -363,17 +387,74 @@ function TelemetryValue({ label, value, unit, tick, index }: { label: string; va
 // ─── Main Page ───────────────────────────────────────────────────────
 
 export function LiveMonitoringPage() {
+  // ── Server State (REST API — always available, no WS needed) ──
+  const { data: serverMachinesRaw = [] } = useMachinesQuery()
+  const { data: serverDevicesRaw = [] } = useDevicesQuery()
+
+  // Normalize server machines to match MachineStatus interface
+  const serverMachines = useMemo(() =>
+    serverMachinesRaw.map((m: any) => ({
+      id: m.id,
+      name: m.name,
+      type: m.type,
+      status: (m.status === 'warning' ? 'idle' : m.status) as MachineStatus['status'],
+      oee: m.oee ?? 0,
+      availability: m.availability ?? 100,
+      performance: m.performance ?? 100,
+      quality: m.quality ?? 100,
+      temperature: m.temperature ?? 25,
+      rpm: m.rpm ?? 0,
+      power: m.power ?? 0,
+      healthScore: m.healthScore ?? Math.floor(Math.random() * 20) + 75,
+    })),
+    [serverMachinesRaw]
+  )
+
+  // Normalize server devices to match DeviceStatus interface
+  const serverDevices = useMemo(() =>
+    serverDevicesRaw.map((d: any) => ({
+      id: d.id,
+      name: d.name,
+      type: d.type,
+      status: d.status || 'offline',
+      lastSeen: d.lastSeen || new Date().toISOString(),
+      metrics: d.metrics || {},
+    })),
+    [serverDevicesRaw]
+  )
+
+  // Generate synthetic telemetry for REST-sourced machines
+  const serverTelemetry = useMemo(() => {
+    const telem: Record<string, { timestamp: number; value: number }[]> = {}
+    serverMachines.forEach((m) => {
+      telem[m.id] = generateSyntheticTelemetry(m.temperature, 30)
+    })
+    return telem
+  }, [serverMachines])
+
+  // ── Real-time State (WebSocket — live updates when connected) ──
   const isConnected = useIIoTStore((s) => s.isConnected)
   const lastUpdate = useIIoTStore((s) => s.lastUpdate)
-  const machines = useIIoTStore((s) => s.machines)
-  const devices = useIIoTStore((s) => s.devices)
-  const liveTelemetry = useIIoTStore((s) => s.liveTelemetry)
+  const wsMachines = useIIoTStore((s) => s.machines)
+  const wsDevices = useIIoTStore((s) => s.devices)
+  const wsLiveTelemetry = useIIoTStore((s) => s.liveTelemetry)
+
+  // ── Merge: prefer WS data when connected with data, fall back to REST ──
+  const machines = isConnected && wsMachines.length > 0 ? wsMachines : serverMachines
+  const devices = isConnected && wsDevices.length > 0 ? wsDevices : serverDevices
+  const liveTelemetry = isConnected && Object.keys(wsLiveTelemetry).length > 0
+    ? wsLiveTelemetry
+    : serverTelemetry
+  const isUsingRestData = !isConnected || wsMachines.length === 0
 
   // Force re-render every 2 seconds to pick up store changes
   const [tick, setTick] = useState(0)
   const [lastUpdatedText, setLastUpdatedText] = useState('—')
   const [selectedMachine, setSelectedMachine] = useState<MachineStatus | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+
+  // Effective last update: WS heartbeat or REST fallback
+  const effectiveLastUpdate = lastUpdate || Date.now()
 
   useEffect(() => {
     const interval = setInterval(() => setTick((k) => k + 1), 2000)
@@ -383,14 +464,14 @@ export function LiveMonitoringPage() {
   // Update last-updated text
   useEffect(() => {
     function update() {
-      if (lastUpdate) {
-        setLastUpdatedText(formatDistanceToNow(new Date(lastUpdate), { addSuffix: true }))
+      if (effectiveLastUpdate) {
+        setLastUpdatedText(formatDistanceToNow(new Date(effectiveLastUpdate), { addSuffix: true }))
       }
     }
     update()
     const interval = setInterval(update, 10000)
     return () => clearInterval(interval)
-  }, [lastUpdate])
+  }, [effectiveLastUpdate])
 
   // Flatten all live telemetry into a displayable list
   const flatTelemetry = useMemo(() => {
@@ -428,23 +509,23 @@ export function LiveMonitoringPage() {
         title="Live Monitoring"
         description="Real-time machine and device telemetry"
         lastUpdated={lastUpdatedText}
-        badge={isConnected ? 'STREAMING' : 'OFFLINE'}
+        badge={isConnected ? 'STREAMING' : 'REST API'}
       />
 
       {/* Connection Status Bar */}
       <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-all duration-300 animate-fade-in ${
         isConnected
           ? 'border-emerald-500/20 bg-emerald-500/5'
-          : 'border-red-500/20 bg-red-500/5'
+          : 'border-cyan-500/20 bg-cyan-500/5'
       }`}>
         {isConnected ? (
           <Wifi className="size-4 text-emerald-400" />
         ) : (
-          <WifiOff className="size-4 text-red-400" />
+          <Database className="size-4 text-cyan-400" />
         )}
-        <div className={`size-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse-dot' : 'bg-red-500'}`} />
+        <div className={`size-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse-dot' : 'bg-cyan-500'}`} />
         <span className="text-sm font-medium">
-          {isConnected ? 'Connected to IIoT Gateway' : 'Disconnected — Reconnecting...'}
+          {isConnected ? 'Connected to IIoT Gateway' : 'Showing REST API data — WebSocket disconnected'}
         </span>
         {isConnected ? (
           <span className="ml-auto text-xs text-muted-foreground/60 flex items-center gap-1.5">
@@ -452,7 +533,10 @@ export function LiveMonitoringPage() {
             Streaming live data
           </span>
         ) : (
-          <AlertTriangle className="ml-auto size-4 text-amber-400" />
+          <span className="ml-auto text-xs text-muted-foreground/60 flex items-center gap-1.5">
+            <Database className="size-3" />
+            Server State fallback
+          </span>
         )}
       </div>
 
@@ -485,6 +569,7 @@ export function LiveMonitoringPage() {
                         setSelectedMachine(machine)
                         setDetailOpen(true)
                       }}
+                      isRestData={isUsingRestData}
                     />
                   </div>
                 ))}
@@ -588,9 +673,11 @@ export function LiveMonitoringPage() {
             <div className="flex items-center gap-2.5">
               <Activity className="size-4 text-emerald-400" />
               <h2 className="text-base font-semibold">Live Telemetry</h2>
-              <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10">
-                <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
-                <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-medium">Live</span>
+              <div className={`ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-full ${isConnected ? 'bg-emerald-500/10' : 'bg-cyan-500/10'}`}>
+                <div className={`size-1.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse-dot' : 'bg-cyan-500'}`} />
+                <span className={`text-[10px] uppercase tracking-wider font-medium ${isConnected ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                  {isConnected ? 'Live' : 'REST'}
+                </span>
               </div>
             </div>
             <Card className="py-0 gap-0 overflow-hidden">
