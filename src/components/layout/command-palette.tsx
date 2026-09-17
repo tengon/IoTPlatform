@@ -52,8 +52,8 @@ import { MachineDetailDialog } from '@/shared/components/machine-detail-dialog'
 // All 21 pages with their icons
 const PAGE_ITEMS: { id: PageId; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'availability', label: 'Availability', icon: CircleDot },
-  { id: 'performance', label: 'Performance', icon: TrendingUp },
+  { id: 'availability', label: 'Availability Mesin', icon: CircleDot },
+  { id: 'performance', label: 'Performance Mesin', icon: TrendingUp },
   { id: 'quality', label: 'Quality', icon: ShieldCheck },
   { id: 'live-monitoring', label: 'Live Monitoring', icon: Activity },
   { id: 'assets-machines', label: 'Assets & Machines', icon: Factory },

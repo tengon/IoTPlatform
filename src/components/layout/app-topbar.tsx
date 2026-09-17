@@ -43,8 +43,8 @@ import { formatDistanceToNow } from 'date-fns'
 
 const pageLabels: Record<string, string> = {
   dashboard: 'Dashboard',
-  availability: 'Availability',
-  performance: 'Performance',
+  availability: 'Availability Mesin',
+  performance: 'Performance Mesin',
   quality: 'Quality',
   'live-monitoring': 'Live Monitoring',
   'assets-machines': 'Assets & Machines',

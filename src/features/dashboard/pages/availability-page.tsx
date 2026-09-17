@@ -235,7 +235,7 @@ export function AvailabilityPage() {
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <PageHeader
         icon={CircleDot}
-        title="Availability"
+        title="Availability Mesin"
         description="OEE Availability: Run Time / Planned Production Time"
       />
 

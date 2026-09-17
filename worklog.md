@@ -1916,3 +1916,19 @@ Stage Summary:
 - All 3 pages fully functional with rich charts, tables, KPIs
 - Lint passes with zero errors, dev server compiles cleanly
 - 25 total PageIds now defined (22 original + 3 new)
+
+---
+Task ID: 15
+Agent: main
+Task: Update Dashboard sub-menu labels to "Availability Mesin" / "Performance Mesin" / "Quality"
+
+Work Log:
+- Updated sidebar sub-item labels: Availability → Availability Mesin, Performance → Performance Mesin
+- Updated command palette PAGE_ITEMS labels
+- Updated topbar breadcrumb pageLabels
+- Updated PageHeader title inside availability-page.tsx and performance-page.tsx
+- Verified all 3 pages render correctly with agent-browser
+
+Stage Summary:
+- Dashboard sub-menu now shows: Availability Mesin, Performance Mesin, Quality
+- All labels consistent across sidebar, command palette, breadcrumb, and page headers

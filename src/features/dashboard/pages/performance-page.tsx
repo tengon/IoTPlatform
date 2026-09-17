@@ -417,7 +417,7 @@ export function PerformancePage() {
       {/* ── Page Header ─────────────────────────────────────────────────────── */}
       <PageHeader
         icon={TrendingUp}
-        title="Performance"
+        title="Performance Mesin"
         description="OEE Performance: Actual Speed / Ideal Speed × 100%"
       />
 

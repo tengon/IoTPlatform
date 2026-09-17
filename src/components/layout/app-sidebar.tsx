@@ -76,8 +76,8 @@ const menuGroups: MenuGroup[] = [
         label: 'Dashboard',
         icon: LayoutDashboard,
         subItems: [
-          { id: 'availability', label: 'Availability', icon: CircleDot },
-          { id: 'performance', label: 'Performance', icon: TrendingUp },
+          { id: 'availability', label: 'Availability Mesin', icon: CircleDot },
+          { id: 'performance', label: 'Performance Mesin', icon: TrendingUp },
           { id: 'quality', label: 'Quality', icon: ShieldCheck },
         ],
       },
