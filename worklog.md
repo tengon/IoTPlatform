@@ -1889,3 +1889,30 @@ Stage Summary:
 5. **LOW**: Improve OEE underperforming bar color distinction (orange vs yellow)
 6. **LOW**: Add server-side pagination pattern for large tables
 7. **LOW**: Add data export dialog PDF option (currently CSV/JSON only)
+
+---
+Task ID: 14
+Agent: main
+Task: Add OEE sub-menus to Dashboard — Availability (Run/Stop/Fault/Downtime), Performance (Speed/Cycle Time/Output), Quality (Good Count/Reject Count)
+
+Work Log:
+- Added 3 new PageIds to navigation store: 'availability', 'performance', 'quality'
+- Updated sidebar (app-sidebar.tsx) with collapsible Dashboard menu:
+  - Dashboard now uses Collapsible + SidebarMenuSub for expandable sub-items
+  - ChevronRight icon rotates on expand/collapse
+  - 3 sub-items: Availability (CircleDot), Performance (TrendingUp), Quality (ShieldCheck)
+  - Dashboard highlights when any sub-item is active
+- Created 3 new page components:
+  - availability-page.tsx: 4 KPI cards (Run/Stop/Fault/Downtime), trend chart, machine table, pie chart, shift chart
+  - performance-page.tsx: 3 KPI cards (Speed/CycleTime/Output), speed vs ideal chart, cycle time histogram, machine table, output trend
+  - quality-page.tsx: 4 KPI cards (QualityRate/GoodCount/RejectCount/FirstPassYield), good vs reject trend, reject reasons, machine table, product pie, pareto chart
+- Updated page.tsx router with 3 new page imports and pageComponents entries
+- Updated command palette with 3 new page items and icons
+- Updated topbar breadcrumb with page labels and group labels (group: "Dashboard")
+- Verified all 3 pages render correctly with agent-browser
+
+Stage Summary:
+- Dashboard sidebar now has collapsible sub-menu with Availability, Performance, Quality
+- All 3 pages fully functional with rich charts, tables, KPIs
+- Lint passes with zero errors, dev server compiles cleanly
+- 25 total PageIds now defined (22 original + 3 new)

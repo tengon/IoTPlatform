@@ -6,6 +6,9 @@ import { AppTopbar } from '@/components/layout/app-topbar'
 import { WSInit } from '@/components/layout/ws-init'
 import { useNavigation, type PageId } from '@/store/navigation'
 import { DashboardPage } from '@/features/dashboard/pages/dashboard-page'
+import { AvailabilityPage } from '@/features/dashboard/pages/availability-page'
+import { PerformancePage } from '@/features/dashboard/pages/performance-page'
+import { QualityPage } from '@/features/dashboard/pages/quality-page'
 import { LiveMonitoringPage } from '@/features/machines/pages/live-monitoring-page'
 import { ActiveAlarmsPage } from '@/features/alerts/pages/active-alarms-page'
 import { AlarmHistoryPage } from '@/features/alerts/pages/alarm-history-page'
@@ -31,6 +34,9 @@ import { useIIoTStore } from '@/store/iiot'
 
 const pageComponents: Record<PageId, React.ComponentType> = {
   dashboard: DashboardPage,
+  availability: AvailabilityPage,
+  performance: PerformancePage,
+  quality: QualityPage,
   'live-monitoring': LiveMonitoringPage,
   'assets-machines': AssetsMachinesPage,
   production: ProductionPage,

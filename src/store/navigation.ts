@@ -2,6 +2,9 @@ import { create } from 'zustand'
 
 export type PageId =
   | 'dashboard'
+  | 'availability'
+  | 'performance'
+  | 'quality'
   | 'live-monitoring'
   | 'assets-machines'
   | 'production'

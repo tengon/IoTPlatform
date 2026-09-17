@@ -4,7 +4,7 @@ import {
   LayoutDashboard,
   Activity,
   Factory,
- Package,
+  Package,
   Clock,
   BarChart3,
   Zap,
@@ -23,6 +23,10 @@ import {
   HeartPulse,
   FileText,
   ScrollText,
+  ChevronRight,
+  CircleDot,
+  TrendingUp,
+  ShieldCheck,
 } from 'lucide-react'
 import { useNavigation, type PageId } from '@/store/navigation'
 import { useIIoTStore } from '@/store/iiot'
@@ -38,8 +42,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuBadge,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from '@/components/ui/sidebar'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 
 interface MenuItem {
   id: PageId
@@ -47,6 +59,7 @@ interface MenuItem {
   icon: React.ElementType
   badge?: number
   badgeVariant?: 'default' | 'destructive' | 'warning'
+  subItems?: { id: PageId; label: string; icon: React.ElementType }[]
 }
 
 interface MenuGroup {
@@ -58,7 +71,16 @@ const menuGroups: MenuGroup[] = [
   {
     label: 'OVERVIEW',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      {
+        id: 'dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        subItems: [
+          { id: 'availability', label: 'Availability', icon: CircleDot },
+          { id: 'performance', label: 'Performance', icon: TrendingUp },
+          { id: 'quality', label: 'Quality', icon: ShieldCheck },
+        ],
+      },
     ],
   },
   {
@@ -109,10 +131,16 @@ const menuGroups: MenuGroup[] = [
   },
 ]
 
+// Check if a pageId is a sub-item of Dashboard
+const DASHBOARD_SUB_IDS: PageId[] = ['availability', 'performance', 'quality']
+
 export function AppSidebar() {
   const { currentPage, setCurrentPage } = useNavigation()
   const alarms = useIIoTStore((s) => s.alarms)
   const activeAlarmCount = alarms.filter((a) => a.status === 'active').length
+
+  // Determine if the dashboard group should be open (any sub-item is active)
+  const isDashboardOpen = currentPage === 'dashboard' || DASHBOARD_SUB_IDS.includes(currentPage)
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -143,8 +171,57 @@ export function AppSidebar() {
                 {group.items.map((item) => {
                   const Icon = item.icon
                   const isActive = currentPage === item.id
+                  const isSubActive = item.subItems?.some((sub) => sub.id === currentPage)
                   let badgeCount = item.badge
                   if (item.id === 'active-alarms') badgeCount = activeAlarmCount
+
+                  // Items with sub-items: render as collapsible
+                  if (item.subItems && item.subItems.length > 0) {
+                    return (
+                      <Collapsible
+                        key={item.id}
+                        defaultOpen={isSubActive}
+                        className="group/collapsible"
+                      >
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton
+                              isActive={isActive || isSubActive}
+                              onClick={() => setCurrentPage(item.id)}
+                              tooltip={item.label}
+                              className={(isActive || isSubActive) ? 'border-l-2 border-l-primary' : ''}
+                            >
+                              <Icon className="size-4" />
+                              <span>{item.label}</span>
+                              <ChevronRight className="ml-auto size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {item.subItems.map((sub) => {
+                                const SubIcon = sub.icon
+                                const isSubItemActive = currentPage === sub.id
+                                return (
+                                  <SidebarMenuSubItem key={sub.id}>
+                                    <SidebarMenuSubButton
+                                      isActive={isSubItemActive}
+                                      onClick={() => setCurrentPage(sub.id)}
+                                      className={isSubItemActive ? 'font-semibold' : ''}
+                                    >
+                                      <SubIcon className="size-3.5" />
+                                      <span>{sub.label}</span>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                )
+                              })}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      </Collapsible>
+                    )
+                  }
+
+                  // Regular items without sub-items
                   return (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
