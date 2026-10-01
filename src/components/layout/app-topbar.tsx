@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Search,
   Wifi,
@@ -11,6 +12,7 @@ import {
   Sun,
   RefreshCw,
   Command,
+  LogOut,
 } from 'lucide-react'
 import { useNavigation } from '@/store/navigation'
 import { useIIoTStore } from '@/store/iiot'
@@ -101,9 +103,19 @@ export function AppTopbar() {
   const { currentPage } = useNavigation()
   const { isConnected, lastUpdate } = useIIoTStore()
   const { theme, setTheme } = useTheme()
+  const router = useRouter()
   const [lastSyncText, setLastSyncText] = useState('—')
   const [searchFocused, setSearchFocused] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isLoggingOut, startLogout] = useTransition()
+
+  function handleLogout() {
+    startLogout(async () => {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      router.push('/login')
+      router.refresh()
+    })
+  }
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- standard hydration guard pattern
   useEffect(() => { setMounted(true) }, [])
@@ -238,8 +250,13 @@ export function AppTopbar() {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-xs gap-2 text-destructive focus:bg-destructive/10">
-              Sign out
+            <DropdownMenuItem
+              className="text-xs gap-2 text-destructive focus:bg-destructive/10"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              <LogOut className="size-3.5" />
+              {isLoggingOut ? 'Signing out…' : 'Sign out'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
