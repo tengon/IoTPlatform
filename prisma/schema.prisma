@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Site {
@@ -38,7 +38,7 @@ model User {
 model Device {
   id            String   @id @default(uuid())
   name          String
-   deviceId      String   @unique
+  deviceId      String   @unique
   deviceType    String   @default("sensor")
   protocol      String   @default("MQTT")
   status        String   @default("offline")
@@ -92,6 +92,8 @@ model Machine {
   updatedAt     DateTime @updatedAt
 }
 
+/// TimescaleDB hypertable – time-series sensor data
+/// Converted to hypertable via migration SQL (see prisma/migrations/timescaledb.sql)
 model Telemetry {
   id            String   @id @default(uuid())
   deviceId      String
@@ -100,6 +102,7 @@ model Telemetry {
   value         Float
   unit          String?
   timestamp     DateTime @default(now())
+
   @@index([deviceId, timestamp])
 }
 
@@ -151,6 +154,8 @@ model Production {
   @@index([machineId, createdAt])
 }
 
+/// TimescaleDB hypertable – energy meter readings
+/// Converted to hypertable via migration SQL (see prisma/migrations/timescaledb.sql)
 model EnergyReading {
   id            String   @id @default(uuid())
   meterId       String
@@ -159,6 +164,7 @@ model EnergyReading {
   current       Float?
   powerFactor   Float?
   timestamp     DateTime @default(now())
+
   @@index([meterId, timestamp])
 }
 
