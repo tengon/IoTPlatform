@@ -1,0 +1,75 @@
+services:
+  # ── WebSocket / IIoT service ─────────────────────────────────────────────────
+  iiot-ws:
+    build:
+      context: ./mini-services/iiot-ws
+      dockerfile: Dockerfile
+    container_name: iiot-ws
+    restart: unless-stopped
+    environment:
+      PORT: 3002
+    networks:
+      - iot-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Next.js App ───────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SESSION_SECRET: ${SESSION_SECRET}
+        NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+        NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:81}
+        DATABASE_URL: ${DATABASE_URL:-file:/data/app.db}
+    container_name: iot-app
+    restart: unless-stopped
+    depends_on:
+      iiot-ws:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/data/app.db
+      SESSION_SECRET: ${SESSION_SECRET}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:81}
+      PORT: 3000
+    volumes:
+      - db_data:/data
+    networks:
+      - iot-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Caddy (reverse proxy) ─────────────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: iot-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "81:81"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - iot-net
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  iot-net:
+    driver: bridge

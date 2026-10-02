@@ -115,7 +115,8 @@ export function useIIoTWebSocket() {
         })
 
         socket.on('energy', (data: EnergyData) => {
-          store.setEnergyHistory((prev: EnergyData[]) => [...prev.slice(-119), data])
+          const prev = useIIoTStore.getState().energyHistory
+          store.setEnergyHistory([...prev.slice(-119), data])
         })
 
         socketRef.current = socket

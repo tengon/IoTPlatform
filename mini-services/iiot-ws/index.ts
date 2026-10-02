@@ -157,3 +157,12 @@ io.on('connection', (socket) => {
 })
 
 console.log('[IIoT WS] Service running on port 3002')
+
+// ── Health check HTTP server ─────────────────────────────────────────────────
+Bun.serve({
+  port: 3003,
+  fetch() {
+    return new Response('ok', { status: 200 })
+  },
+})
+console.log('[IIoT WS] Health endpoint on port 3003')

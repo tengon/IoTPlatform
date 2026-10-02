@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+
+# Next.js build output
+.next
+out
+
+# Dev/config files
+.env*
+.git
+.gitignore
+.kilo
+.zscripts
+agent-ctx
+tool-results
+tests
+examples
+download
+
+# Screenshots & logs
+*.png
+*.log
+worklog.md
+
+# Mini services (built separately)
+mini-services
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# DB
+prisma/dev.db
+prisma/migrations
+db/
