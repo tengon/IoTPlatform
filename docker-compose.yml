@@ -24,7 +24,7 @@ services:
       args:
         SESSION_SECRET: ${SESSION_SECRET}
         NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-        NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:81}
+        NEXTAUTH_URL: ${NEXTAUTH_URL:-https://iot.bitautomation.id}
         DATABASE_URL: ${DATABASE_URL:-file:/data/app.db}
     container_name: iot-app
     restart: unless-stopped
@@ -36,7 +36,7 @@ services:
       DATABASE_URL: file:/data/app.db
       SESSION_SECRET: ${SESSION_SECRET}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:81}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://iot.bitautomation.id}
       PORT: 3000
     volumes:
       - db_data:/data
@@ -57,7 +57,8 @@ services:
       app:
         condition: service_healthy
     ports:
-      - "81:81"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
