@@ -182,11 +182,10 @@ export function AppTopbar() {
 
         {/* Connection Status */}
         <div
-          className={`topbar-status-cluster flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-all duration-300 whitespace-nowrap ${
-            isConnected
+          className={`topbar-status-cluster flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-all duration-300 whitespace-nowrap ${isConnected
               ? 'text-emerald-400 bg-emerald-500/5'
               : 'text-red-400 bg-red-500/5'
-          }`}
+            }`}
         >
           {isConnected ? (
             <Wifi className="size-3.5" />
