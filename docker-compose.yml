@@ -16,6 +16,22 @@ services:
       timeout: 5s
       retries: 3
 
+  # ── TimescaleDB (PostgreSQL) ─────────────────────────────────────────────────
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: iiot-timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: iiot_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - iot-net
+
   # ── Next.js App ───────────────────────────────────────────────────────────────
   app:
     build:
@@ -24,19 +40,21 @@ services:
       args:
         SESSION_SECRET: ${SESSION_SECRET}
         NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-        NEXTAUTH_URL: ${NEXTAUTH_URL:-https://iot.bitautomation.id}
-        DATABASE_URL: ${DATABASE_URL:-file:/data/app.db}
+        NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:81}
+        DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@iiot-timescaledb:5432/iiot_db}
     container_name: iot-app
     restart: unless-stopped
     depends_on:
       iiot-ws:
         condition: service_healthy
+      timescaledb:
+        condition: service_started
     environment:
       NODE_ENV: production
-      DATABASE_URL: file:/data/app.db
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@iiot-timescaledb:5432/iiot_db}
       SESSION_SECRET: ${SESSION_SECRET}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://iot.bitautomation.id}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:81}
       PORT: 3000
     volumes:
       - db_data:/data
@@ -57,8 +75,7 @@ services:
       app:
         condition: service_healthy
     ports:
-      - "80:80"
-      - "443:443"
+      - "81:81"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -70,6 +87,9 @@ volumes:
   db_data:
   caddy_data:
   caddy_config:
+  pgdata:
+    external: true
+    name: iotplatform_pgdata
 
 networks:
   iot-net:

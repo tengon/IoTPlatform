@@ -41,9 +41,11 @@ export async function createSession(user: Omit<SessionPayload, 'expiresAt'>): Pr
   const session = await encrypt({ ...user, expiresAt })
   const cookieStore = await cookies()
 
+  const isSecure = process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_URL?.startsWith('http://')
+
   cookieStore.set('iiot-session', session, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecure,
     expires: expiresAt,
     sameSite: 'lax',
     path: '/',
@@ -66,9 +68,11 @@ export async function updateSession(): Promise<void> {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   const newSession = await encrypt({ ...payload, expiresAt })
 
+  const isSecure = process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_URL?.startsWith('http://')
+
   cookieStore.set('iiot-session', newSession, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecure,
     expires: expiresAt,
     sameSite: 'lax',
     path: '/',
