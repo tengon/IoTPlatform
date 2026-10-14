@@ -131,122 +131,119 @@ function ChartCard({
   )
 }
 
-// ─── SVG Semi-circle Gauge (enhanced with gradient + glow) ──────────────────
+// ─── SVG Semi-circle Gauge (pixel-perfect with stroke-dash alignment) ────────
 function OEEGauge({ value }: { value: number }) {
   const clamped = Math.max(0, Math.min(100, value))
   const color = clamped >= 85 ? C_GREEN : clamped >= 70 ? C_YELLOW : C_RED
-  const radius = 80
+
   const cx = 100
-  const cy = 95
-  // Semi-circle: from 180° to 0° (left to right)
-  const circumference = Math.PI * radius // half circle
-  const filled = (clamped / 100) * circumference
+  const cy = 100
+  const r = 72
+  const arcD = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`
+  const arcLength = Math.PI * r // ~226.19
+  const dashOffset = arcLength * (1 - clamped / 100)
 
   const gradId = `oee-gauge-grad-${color.replace('#', '')}`
   const glowId = `oee-gauge-glow-${color.replace('#', '')}`
 
-  // Build SVG arc path
-  const describeArc = (
-    x: number,
-    y: number,
-    r: number,
-    startAngle: number,
-    endAngle: number
-  ) => {
-    const start = {
-      x: x + r * Math.cos((startAngle * Math.PI) / 180),
-      y: y + r * Math.sin((startAngle * Math.PI) / 180),
-    }
-    const end = {
-      x: x + r * Math.cos((endAngle * Math.PI) / 180),
-      y: y + r * Math.sin((endAngle * Math.PI) / 180),
-    }
-    const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1'
-    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`
-  }
-
-  const bgPath = describeArc(cx, cy, radius, 180, 0)
-  const valueAngle = 180 - (clamped / 100) * 180
-  const valuePath = describeArc(cx, cy, radius, 180, valueAngle)
-
   return (
-    <div className="flex flex-col items-center">
-      <svg width="200" height="120" viewBox="0 0 200 120">
+    <div className="flex flex-col items-center select-none">
+      <svg width="200" height="126" viewBox="0 0 200 126" className="overflow-visible">
         <defs>
-          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={color} stopOpacity="0.6" />
-            <stop offset="50%" stopColor={color} stopOpacity="1" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.7" />
+          <linearGradient id={gradId} x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={color} stopOpacity="0.5" />
+            <stop offset="60%" stopColor={color} stopOpacity="0.9" />
+            <stop offset="100%" stopColor={color} stopOpacity="1" />
           </linearGradient>
-          <filter id={glowId}>
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feFlood floodColor={color} floodOpacity="0.4" result="color" />
-            <feComposite in="color" in2="blur" operator="in" result="glow" />
+          <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
             <feMerge>
-              <feMergeNode in="glow" />
+              <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
         </defs>
-        {/* Background arc */}
+
+        {/* Background track arc */}
         <path
-          d={bgPath}
+          d={arcD}
           fill="none"
-          stroke="rgba(255,255,255,0.06)"
-          strokeWidth="14"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth="12"
           strokeLinecap="round"
         />
-        {/* Value arc with gradient + glow */}
+
+        {/* Value arc - exact same path, clipped by dashoffset */}
         <path
-          d={valuePath}
+          d={arcD}
           fill="none"
           stroke={`url(#${gradId})`}
-          strokeWidth="14"
+          strokeWidth="12"
           strokeLinecap="round"
+          strokeDasharray={arcLength}
+          strokeDashoffset={dashOffset}
           filter={`url(#${glowId})`}
+          className="transition-all duration-700 ease-out"
         />
-        {/* Tick marks */}
-        {[0, 25, 50, 75, 100].map((tick) => {
-          const angle = 180 - (tick / 100) * 180
-          const rad = (angle * Math.PI) / 180
-          const innerR = radius - 22
-          const outerR = radius - 16
-          return (
-            <line
-              key={tick}
-              x1={cx + innerR * Math.cos(rad)}
-              y1={cy + innerR * Math.sin(rad)}
-              x2={cx + outerR * Math.cos(rad)}
-              y2={cy + outerR * Math.sin(rad)}
-              stroke="rgba(255,255,255,0.2)"
-              strokeWidth="1.5"
-            />
-          )
-        })}
-        {/* Tick labels */}
-        {[0, 50, 100].map((tick) => {
-          const angle = 180 - (tick / 100) * 180
-          const rad = (angle * Math.PI) / 180
-          const labelR = radius - 32
-          return (
-            <text
-              key={tick}
-              x={cx + labelR * Math.cos(rad)}
-              y={cy + labelR * Math.sin(rad) + 3}
-              textAnchor="middle"
-              fill="rgba(255,255,255,0.35)"
-              fontSize="9"
-            >
-              {tick}%
-            </text>
-          )
-        })}
-        {/* Center value */}
-        <text x={cx} y={cy - 15} textAnchor="middle" fill={color} fontSize="32" fontWeight="bold">
+
+        {/* Center Readout */}
+        <text
+          x={cx}
+          y={cy - 22}
+          textAnchor="middle"
+          fill={color}
+          fontSize="28"
+          fontWeight="800"
+          className="tracking-tight"
+        >
           {clamped.toFixed(1)}%
         </text>
-        <text x={cx} y={cy + 5} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="11">
+
+        <text
+          x={cx}
+          y={cy - 4}
+          textAnchor="middle"
+          fill="rgba(255,255,255,0.45)"
+          fontSize="9"
+          fontWeight="600"
+          letterSpacing="0.08em"
+          className="uppercase"
+        >
           Overall OEE
+        </text>
+
+        {/* Clean endpoint labels */}
+        <text
+          x={cx - r}
+          y={cy + 18}
+          textAnchor="middle"
+          fill="rgba(255,255,255,0.3)"
+          fontSize="9"
+          fontFamily="monospace"
+        >
+          0%
+        </text>
+
+        <text
+          x={cx}
+          y={cy + 18}
+          textAnchor="middle"
+          fill="rgba(255,255,255,0.2)"
+          fontSize="9"
+          fontFamily="monospace"
+        >
+          50%
+        </text>
+
+        <text
+          x={cx + r}
+          y={cy + 18}
+          textAnchor="middle"
+          fill="rgba(255,255,255,0.3)"
+          fontSize="9"
+          fontFamily="monospace"
+        >
+          100%
         </text>
       </svg>
     </div>
@@ -437,60 +434,72 @@ export function OEEPage() {
         lastUpdated={lastUpdatedText}
       />
 
-      {/* OEE Gauge */}
-      <Card className="chart-container-glass hover:border-border/60 transition-colors duration-300 animate-slide-up">
-        <CardContent className="pt-6 flex flex-col items-center px-5 pb-5">
-          <OEEGauge value={displayOEE} />
-          <div className="flex items-center gap-2 mt-2">
-            <Target className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              Target: {OEE_TARGET}%{' '}
-              {displayOEE >= OEE_TARGET ? (
-                <span className="text-emerald-400 font-medium">
-                  <ArrowUpRight className="inline h-3 w-3" /> On Track
-                </span>
-              ) : (
-                <span className="text-red-400 font-medium">
-                  <ArrowDownRight className="inline h-3 w-3" /> Below Target
-                </span>
-              )}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+      {/* ── Top Row: Overall OEE Score Gauge & 24h Trend ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* OEE Gauge */}
+        <Card className="chart-container-glass hover:border-border/60 transition-colors duration-300 animate-slide-up flex flex-col justify-between">
+          <CardHeader className="pb-2 pt-5 px-5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Gauge className="size-4 text-emerald-400" />
+              Overall OEE Score
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Current factory-wide efficiency
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-2 flex flex-col items-center justify-center px-5 pb-5 flex-1">
+            <OEEGauge value={displayOEE} />
+            <div className="flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-muted/40 border border-border/40">
+              <Target className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                Target: <span className="font-semibold text-foreground">{OEE_TARGET}%</span>{' '}
+                {displayOEE >= OEE_TARGET ? (
+                  <span className="text-emerald-400 font-medium inline-flex items-center ml-1">
+                    <ArrowUpRight className="inline h-3 w-3 mr-0.5" /> On Track
+                  </span>
+                ) : (
+                  <span className="text-red-400 font-medium inline-flex items-center ml-1">
+                    <ArrowDownRight className="inline h-3 w-3 mr-0.5" /> Below Target
+                  </span>
+                )}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* OEE Trend (24h) */}
-      <ChartCard
-        title="OEE Trend (24h)"
-        description="Hourly OEE percentage over the last 24 hours"
-        icon={TrendingUp}
-        className="chart-container-glass animate-slide-up stagger-1"
-      >
-        <div className="h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={oeeTrend24h}>
-              <defs>
-                <linearGradient id="oeeTrendGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
-              <XAxis dataKey="hour" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} interval={3} />
-              <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[60, 100]} width={35} />
-              <Tooltip content={<ChartTooltip valueSuffix="%" />} />
-              <Area
-                type="monotone"
-                dataKey="OEE"
-                stroke={C_GREEN}
-                fill="url(#oeeTrendGrad)"
-                strokeWidth={2}
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </ChartCard>
+        {/* OEE Trend (24h) */}
+        <ChartCard
+          title="OEE Trend (24h)"
+          description="Hourly OEE percentage over the last 24 hours"
+          icon={TrendingUp}
+          className="chart-container-glass animate-slide-up stagger-1 lg:col-span-2"
+        >
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={oeeTrend24h}>
+                <defs>
+                  <linearGradient id="oeeTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C_GREEN} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={C_GREEN} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                <XAxis dataKey="hour" tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} interval={3} />
+                <YAxis tick={AXIS_TICK_SM} tickLine={false} axisLine={AXIS_LINE} domain={[60, 100]} width={35} />
+                <Tooltip content={<ChartTooltip valueSuffix="%" />} />
+                <Area
+                  type="monotone"
+                  dataKey="OEE"
+                  stroke={C_GREEN}
+                  fill="url(#oeeTrendGrad)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      </div>
 
       {/* A × P × Q = OEE Breakdown */}
       <div className="animate-slide-up stagger-2">
