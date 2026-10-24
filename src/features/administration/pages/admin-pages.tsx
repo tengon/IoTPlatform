@@ -44,10 +44,10 @@ interface Site {
 }
 
 const mockSites: Site[] = [
-  { id: 'SITE-001', name: 'Main Factory - Shanghai', code: 'SH-01', address: '1234 Industrial Blvd, Pudong, Shanghai', timezone: 'Asia/Shanghai', deviceCount: 124, machineCount: 32, status: 'active' },
-  { id: 'SITE-002', name: 'Assembly Plant - Suzhou', code: 'SZ-01', address: '5678 Tech Park Rd, SIP, Suzhou', timezone: 'Asia/Shanghai', deviceCount: 86, machineCount: 18, status: 'active' },
-  { id: 'SITE-003', name: 'Warehouse - Hangzhou', code: 'HZ-01', address: '9101 Logistics Ave, Xiaoshan, Hangzhou', timezone: 'Asia/Shanghai', deviceCount: 42, machineCount: 8, status: 'commissioning' },
-  { id: 'SITE-004', name: 'R&D Center - Beijing', code: 'BJ-01', address: '1115 Innovation St, Haidian, Beijing', timezone: 'Asia/Shanghai', deviceCount: 28, machineCount: 5, status: 'inactive' },
+  { id: 'SITE-001', name: 'Main Plant - Jakarta', code: 'JKT-01', address: 'Kawasan Industri Pulogadung, Jakarta Timur', timezone: 'Asia/Jakarta', deviceCount: 124, machineCount: 32, status: 'active' },
+  { id: 'SITE-002', name: 'Manufacturing Plant - Karawang', code: 'KRW-01', address: 'Kawasan Industri KIIC, Karawang Barat', timezone: 'Asia/Jakarta', deviceCount: 86, machineCount: 18, status: 'active' },
+  { id: 'SITE-003', name: 'Assembly & Logistics - Surabaya', code: 'SBY-01', address: 'SIER Industrial Estate, Rungkut, Surabaya', timezone: 'Asia/Jakarta', deviceCount: 42, machineCount: 8, status: 'commissioning' },
+  { id: 'SITE-004', name: 'Regional Plant - Semarang', code: 'SMG-01', address: 'Kawasan Industri Wijayakusuma, Semarang', timezone: 'Asia/Jakarta', deviceCount: 28, machineCount: 5, status: 'active' },
 ]
 
 const siteStatusConfig: Record<string, { color: string; bg: string; border: string; label: string }> = {
@@ -59,8 +59,33 @@ const siteStatusConfig: Record<string, { color: string; bg: string; border: stri
 export function SitesPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [sites, setSites] = useState<Site[]>(mockSites)
+  const [newSite, setNewSite] = useState({
+    name: '',
+    code: '',
+    address: '',
+    timezone: 'Asia/Jakarta',
+  })
   const lastUpdate = useIIoTStore((s) => s.lastUpdate)
   const [lastUpdatedText, setLastUpdatedText] = useState('')
+
+  const fetchSites = async () => {
+    try {
+      const res = await fetch('/api/sites')
+      if (res.ok) {
+        const json = await res.json()
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+          setSites(json.data)
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    fetchSites()
+  }, [])
 
   useEffect(() => {
     function update() {
@@ -72,6 +97,24 @@ export function SitesPage() {
     const interval = setInterval(update, 10000)
     return () => clearInterval(interval)
   }, [lastUpdate])
+
+  const handleCreateSite = async () => {
+    if (!newSite.name || !newSite.code) return
+    try {
+      const res = await fetch('/api/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSite),
+      })
+      if (res.ok) {
+        setDialogOpen(false)
+        setNewSite({ name: '', code: '', address: '', timezone: 'Asia/Jakarta' })
+        fetchSites()
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   return (
     <div className="space-y-6 animate-slide-up">
@@ -116,24 +159,45 @@ export function SitesPage() {
                 <div className="space-y-4 py-2">
                   <div className="space-y-2">
                     <Label>Site Name</Label>
-                    <Input placeholder="e.g., Main Factory - Location" className="border-border/50" />
+                    <Input
+                      placeholder="e.g., Main Plant - Jakarta"
+                      className="border-border/50"
+                      value={newSite.name}
+                      onChange={(e) => setNewSite({ ...newSite, name: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Site Code</Label>
-                    <Input placeholder="e.g., SH-02" className="border-border/50" />
+                    <Input
+                      placeholder="e.g., JKT-02"
+                      className="border-border/50"
+                      value={newSite.code}
+                      onChange={(e) => setNewSite({ ...newSite, code: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Address</Label>
-                    <Textarea placeholder="Full address" className="border-border/50" />
+                    <Textarea
+                      placeholder="Full address"
+                      className="border-border/50"
+                      value={newSite.address}
+                      onChange={(e) => setNewSite({ ...newSite, address: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Timezone</Label>
-                    <Select defaultValue="Asia/Shanghai">
+                    <Select
+                      value={newSite.timezone}
+                      onValueChange={(v) => setNewSite({ ...newSite, timezone: v })}
+                    >
                       <SelectTrigger className="w-full border-border/50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Asia/Shanghai">Asia/Shanghai (UTC+8)</SelectItem>
+                        <SelectItem value="Asia/Jakarta">Asia/Jakarta (WIB, UTC+7)</SelectItem>
+                        <SelectItem value="Asia/Makassar">Asia/Makassar (WITA, UTC+8)</SelectItem>
+                        <SelectItem value="Asia/Jayapura">Asia/Jayapura (WIT, UTC+9)</SelectItem>
+                        <SelectItem value="Asia/Singapore">Asia/Singapore (UTC+8)</SelectItem>
                         <SelectItem value="Asia/Tokyo">Asia/Tokyo (UTC+9)</SelectItem>
                         <SelectItem value="America/New_York">America/New_York (UTC-5)</SelectItem>
                         <SelectItem value="Europe/Berlin">Europe/Berlin (UTC+1)</SelectItem>
@@ -144,7 +208,7 @@ export function SitesPage() {
                 <Separator />
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={() => setDialogOpen(false)}>Create Site</Button>
+                  <Button onClick={handleCreateSite}>Create Site</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -154,7 +218,7 @@ export function SitesPage() {
 
       {viewMode === 'cards' ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {mockSites.map((site, idx) => {
+          {sites.map((site, idx) => {
             const sc = siteStatusConfig[site.status]
             return (
               <Card key={site.id} className={`border-border/40 hover:border-border/60 transition-colors duration-300 relative overflow-hidden ${site.status === 'inactive' ? 'grayscale-[40%] brightness-90' : ''}`} style={{ animationDelay: `${idx * 50}ms` }}>
@@ -213,7 +277,7 @@ export function SitesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockSites.map((site) => {
+                  {sites.map((site) => {
                     const sc = siteStatusConfig[site.status]
                     return (
                       <TableRow key={site.id} className={`table-row-severity hover:bg-muted/20 transition-colors duration-150 ${site.status === 'inactive' ? 'grayscale-[30%]' : ''}`}>
@@ -402,7 +466,7 @@ export function SettingsPage() {
   const lastUpdate = useIIoTStore((s) => s.lastUpdate)
   const [settings, setSettings] = useState({
     platformName: 'IIoT Monitor Pro',
-    timezone: 'Asia/Shanghai',
+    timezone: 'Asia/Jakarta',
     language: 'en',
     emailNotif: true,
     smsNotif: false,
@@ -495,7 +559,10 @@ export function SettingsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Asia/Shanghai">Asia/Shanghai (UTC+8)</SelectItem>
+                    <SelectItem value="Asia/Jakarta">Asia/Jakarta (WIB, UTC+7)</SelectItem>
+                    <SelectItem value="Asia/Makassar">Asia/Makassar (WITA, UTC+8)</SelectItem>
+                    <SelectItem value="Asia/Jayapura">Asia/Jayapura (WIT, UTC+9)</SelectItem>
+                    <SelectItem value="Asia/Singapore">Asia/Singapore (UTC+8)</SelectItem>
                     <SelectItem value="Asia/Tokyo">Asia/Tokyo (UTC+9)</SelectItem>
                     <SelectItem value="America/New_York">America/New_York (UTC-5)</SelectItem>
                     <SelectItem value="Europe/Berlin">Europe/Berlin (UTC+1)</SelectItem>

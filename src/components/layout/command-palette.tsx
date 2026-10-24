@@ -134,10 +134,10 @@ export function CommandPalette() {
   ]
 
   const mockSites = [
-    { id: 'SITE-001', name: 'Main Factory - Shanghai', devices: 124, machines: 32 },
-    { id: 'SITE-002', name: 'Assembly Plant - Suzhou', devices: 86, machines: 18 },
-    { id: 'SITE-003', name: 'Warehouse - Hangzhou', devices: 42, machines: 8 },
-    { id: 'SITE-004', name: 'R&D Center - Beijing', devices: 28, machines: 5 },
+    { id: 'SITE-001', name: 'Main Plant - Jakarta', devices: 124, machines: 32 },
+    { id: 'SITE-002', name: 'Manufacturing Plant - Karawang', devices: 86, machines: 18 },
+    { id: 'SITE-003', name: 'Assembly & Logistics - Surabaya', devices: 42, machines: 8 },
+    { id: 'SITE-004', name: 'Regional Plant - Semarang', devices: 28, machines: 5 },
   ]
 
   const mockUsers = [
